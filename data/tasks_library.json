@@ -1,0 +1,452 @@
+[
+  {
+    "id": "lib_mindset_1_1",
+    "text": "Perform a 2-minute breathing space.",
+    "category": "Mindset",
+    "difficulty": 1,
+    "defaultWhyToday": "Your energy or focus needs a gentle, low-friction reset.",
+    "defaultWhyRelevant": "Short mindfulness breaks lower baseline amygdala reactivity and build self-regulation.",
+    "defaultHowTo": "Set a timer for 2 minutes. Close your eyes. Focus entirely on the physical sensation of breath entering and leaving your nostrils. If your mind wanders, gently bring it back."
+  },
+  {
+    "id": "lib_mindset_1_2",
+    "text": "Identify one negative self-talk pattern and rewrite it.",
+    "category": "Mindset",
+    "difficulty": 1,
+    "defaultWhyToday": "Unconscious self-criticism raises stress levels and reduces proactive action.",
+    "defaultWhyRelevant": "Cognitive reframing alters neural pathways associated with self-concept and anxiety.",
+    "defaultHowTo": "Notice when you think something critical (e.g., 'I failed today'). Write it down. Rewrite it objectively (e.g., 'I missed a workout, but I can adjust my schedule tomorrow')."
+  },
+  {
+    "id": "lib_mindset_2_1",
+    "text": "Conduct a 5-minute brain dump on a physical piece of paper.",
+    "category": "Mindset",
+    "difficulty": 2,
+    "defaultWhyToday": "Racing thoughts or feelings of being busy tax working memory and increase stress.",
+    "defaultWhyRelevant": "Externalizing worries reduces emotional intensity and provides distance to evaluate facts.",
+    "defaultHowTo": "Take a blank sheet of paper. Write down everything on your mind—tasks, worries, ideas. Do not edit. Once finished, draw a line between what you can control right now and what you cannot."
+  },
+  {
+    "id": "lib_mindset_2_2",
+    "text": "Spend 5 minutes focusing entirely on the sensation of breathing.",
+    "category": "Mindset",
+    "difficulty": 2,
+    "defaultWhyToday": "Your day requires a quick pause to lower heart rate and restore mental clarity.",
+    "defaultWhyRelevant": "Sustained focus on breath trains attention control and activates the parasympathetic nervous system.",
+    "defaultHowTo": "Sit upright in a quiet space. Inhale for 4 seconds, hold for 4, exhale for 4, hold for 4 (box breathing). Complete 10 cycles, noticing only the transition points of each breath."
+  },
+  {
+    "id": "lib_mindset_3_1",
+    "text": "Reframe a current personal obstacle as a design challenge.",
+    "category": "Mindset",
+    "difficulty": 3,
+    "defaultWhyToday": "Feeling stuck on a life problem can drain your daily performance and motivation.",
+    "defaultWhyRelevant": "Shifting from a victim mindset to a design mindset increases agency and creative problem-solving.",
+    "defaultHowTo": "Write down a current challenge (e.g., 'I have no time for myself'). Rephrase it as a 'How might I...' question (e.g., 'How might I secure 15 minutes of uninterrupted morning time?'). Brainstorm 3 small solutions."
+  },
+  {
+    "id": "lib_mindset_3_2",
+    "text": "Write down the absolute worst-case scenario of a worry and how to handle it.",
+    "category": "Mindset",
+    "difficulty": 3,
+    "defaultWhyToday": "Vague anxiety about the future is preventing you from taking bold strategic steps.",
+    "defaultWhyRelevant": "Fear setting clarifies imaginary threats, reducing fear and restoring analytical decision-making.",
+    "defaultHowTo": "Write down a major worry. Define the worst possible outcome. Write down 3 preventative steps, and 3 recovery actions you would take if it actually happened."
+  },
+  {
+    "id": "lib_mindset_4_1",
+    "text": "Spend 15 minutes in silent contemplation or meditation without devices.",
+    "category": "Mindset",
+    "difficulty": 4,
+    "defaultWhyToday": "Constant digital stimulation is fragmenting your focus and exhausting your nervous system.",
+    "defaultWhyRelevant": "Deliberate silence helps process hidden thoughts and reduces chronic cognitive fatigue.",
+    "defaultHowTo": "Sit in a comfortable chair away from all screens and phones. Set a timer for 15 minutes. Just sit silently, letting your thoughts drift past without chasing them or writing anything down."
+  },
+  {
+    "id": "lib_mindset_4_2",
+    "text": "Practice a 15-minute progressive muscle relaxation sequence.",
+    "category": "Mindset",
+    "difficulty": 4,
+    "defaultWhyToday": "Your physical body is storing emotional tension, causing tight shoulders or shallow breathing.",
+    "defaultWhyRelevant": "PMR physically releases somatic stress, resetting your heart rate variability and easing physical anxiety.",
+    "defaultHowTo": "Lie down flat. Tense your toes tightly for 5 seconds, then release. Move up through your calves, thighs, glutes, core, shoulders, and jaw, tensing and relaxing each section."
+  },
+  {
+    "id": "lib_mindset_5_1",
+    "text": "Face a minor fear or uncomfortable situation directly today.",
+    "category": "Mindset",
+    "difficulty": 5,
+    "defaultWhyToday": "Avoidance of friction is holding you back from growth and causing mental procrastination.",
+    "defaultWhyRelevant": "Direct exposure to discomfort builds psychological resilience and breaks avoidance habits.",
+    "defaultHowTo": "Identify a minor uncomfortable task (e.g., a cold shower, making a difficult request, or practicing public speaking). Commit to doing it for at least 2 minutes without negotiating with yourself."
+  },
+  {
+    "id": "lib_mindset_5_2",
+    "text": "Perform a 30-minute silent walking meditation or sensory deprivation rest.",
+    "category": "Mindset",
+    "difficulty": 5,
+    "defaultWhyToday": "You are approaching sensory overload and need a deep neurological recovery period.",
+    "defaultWhyRelevant": "Deep sensory rest allows the brain's default mode network to consolidate memory and restore focus.",
+    "defaultHowTo": "Turn off all lights, devices, and music. Lie down in a dark room or walk outside silently. Spend 30 minutes focusing solely on sensory inputs (sounds, touch, wind) without analyzing them."
+  },
+  {
+    "id": "lib_physical_1_1",
+    "text": "Step outside for a 10-minute walk under natural light.",
+    "category": "Physical",
+    "difficulty": 1,
+    "defaultWhyToday": "Staying indoors too long leads to circadian disruption and low physical energy.",
+    "defaultWhyRelevant": "Natural light resets your biological clock, supporting sleep depth and releasing dopamine.",
+    "defaultHowTo": "Walk outside for 10 minutes. Look at distant trees or buildings. Let the light hit your eyes without looking directly at the sun. Do not look at your phone."
+  },
+  {
+    "id": "lib_physical_1_2",
+    "text": "Drink a full glass of water immediately upon rising.",
+    "category": "Physical",
+    "difficulty": 1,
+    "defaultWhyToday": "Mild dehydration upon waking causes brain fog and morning sluggishness.",
+    "defaultWhyRelevant": "Immediate rehydration activates metabolic systems and improves cognitive speed.",
+    "defaultHowTo": "Place a glass of water on your nightstand before sleep. Drink it immediately after waking up, before having coffee or breakfast."
+  },
+  {
+    "id": "lib_physical_2_1",
+    "text": "Do a 10-minute light stretching routine or mobility session.",
+    "category": "Physical",
+    "difficulty": 2,
+    "defaultWhyToday": "Sedentary hours at your desk are causing muscular stiffness and reduced blood flow.",
+    "defaultWhyRelevant": "Mobility work improves joint lubrication, relieves posture issues, and increases blood circulation.",
+    "defaultHowTo": "Spend 10 minutes performing shoulder rolls, neck stretches, cat-cow yoga poses, and deep hamstring stretches. Focus on slow, deep breathing throughout."
+  },
+  {
+    "id": "lib_physical_2_2",
+    "text": "Do 15 bodyweight squats and 5 pushups.",
+    "category": "Physical",
+    "difficulty": 2,
+    "defaultWhyToday": "Your body requires muscular activation to break up physical inertia.",
+    "defaultWhyRelevant": "Short muscle activation boosts mitochondrial energy production and regulates blood glucose.",
+    "defaultHowTo": "Stand up from your desk. Do 15 squats slowly with good posture, followed immediately by 5 pushups (use a wall or desk if floor pushups are too difficult)."
+  },
+  {
+    "id": "lib_physical_3_1",
+    "text": "Complete a 20-minute physical exercise session.",
+    "category": "Physical",
+    "difficulty": 3,
+    "defaultWhyToday": "Your cardiorespiratory system and mood would benefit from cardiovascular stress.",
+    "defaultWhyRelevant": "Aerobic exercise triggers endorphin release, lowers resting stress, and improves stamina.",
+    "defaultHowTo": "Go for a brisk walk, a light jog, or follow a 20-minute home bodyweight workout video on YouTube. Keep your heart rate elevated throughout."
+  },
+  {
+    "id": "lib_physical_3_2",
+    "text": "Prepare a fully whole-food, home-cooked meal today.",
+    "category": "Physical",
+    "difficulty": 3,
+    "defaultWhyToday": "Relying on takeout or processed food leads to energy crashes and inflammation.",
+    "defaultWhyRelevant": "Whole foods provide stable micronutrients and clean fuel for cognitive tasks.",
+    "defaultHowTo": "Cook a meal using only fresh ingredients (e.g., vegetables, clean proteins, whole grains). Avoid pre-packaged sauces, refined sugar, and processed oils."
+  },
+  {
+    "id": "lib_physical_4_1",
+    "text": "Do a 40-minute moderate exercise session.",
+    "category": "Physical",
+    "difficulty": 4,
+    "defaultWhyToday": "Your health goals require a dedicated block of physical effort to build athletic stamina.",
+    "defaultWhyRelevant": "Longer workouts build muscle volume, aerobic capacity, and cardiovascular resilience.",
+    "defaultHowTo": "Go to the gym, run 5 kilometers, cycle, or attend a group yoga class. Commit to 40 minutes of continuous physical exertion."
+  },
+  {
+    "id": "lib_physical_4_2",
+    "text": "Ensure a strict 90-minute wind-down window before sleep with no screens.",
+    "category": "Physical",
+    "difficulty": 4,
+    "defaultWhyToday": "Late-night screen time is suppressing melatonin production and ruining your sleep quality.",
+    "defaultWhyRelevant": "A dedicated wind-down routine prepares the brain for deep, restorative slow-wave sleep.",
+    "defaultHowTo": "Set a alarm 90 minutes before sleep. Turn off all TVs, laptops, and tablets. Read a physical book, listen to calm audio, stretch, or chat with family. Keep lighting dim."
+  },
+  {
+    "id": "lib_physical_5_1",
+    "text": "Perform a high-intensity workout or run for 60 minutes.",
+    "category": "Physical",
+    "difficulty": 5,
+    "defaultWhyToday": "Your physical stamina supports a demanding growth challenge today.",
+    "defaultWhyRelevant": "Pushing physical limits raises VO2 max and builds deep mental toughness.",
+    "defaultHowTo": "Perform a intense weight-lifting session, go for a long trail run, or do high-intensity interval training (HIIT) for a full 60 minutes."
+  },
+  {
+    "id": "lib_physical_5_2",
+    "text": "Complete a 16-hour clean fasting window today.",
+    "category": "Physical",
+    "difficulty": 5,
+    "defaultWhyToday": "Your digestive system and energy levels need a break from constant food processing.",
+    "defaultWhyRelevant": "Fasting triggers autophagy, improves insulin sensitivity, and increases mental focus.",
+    "defaultHowTo": "Finish your dinner by 7:30 PM. Do not eat any solid food or drink caloric beverages until 11:30 AM the next day. Drink only water, black coffee, or plain herbal tea."
+  },
+  {
+    "id": "lib_relationships_1_1",
+    "text": "Send a quick appreciation message to a friend or family member.",
+    "category": "Relationships",
+    "difficulty": 1,
+    "defaultWhyToday": "Daily isolation can creep in when you are overwhelmed with responsibilities.",
+    "defaultWhyRelevant": "Expressing gratitude strengthens social ties and elevates both your and their mood.",
+    "defaultHowTo": "Think of someone who has helped you recently. Send them a text: 'Hey, I was just thinking of you and wanted to say how much I appreciate having you in my life. Thanks for being awesome!'"
+  },
+  {
+    "id": "lib_relationships_1_2",
+    "text": "Smile and greet a stranger or service worker warmly.",
+    "category": "Relationships",
+    "difficulty": 1,
+    "defaultWhyToday": "We often live in an inward-facing bubble, losing our connection to the immediate community.",
+    "defaultWhyRelevant": "Micro-interactions build social connection and remind us of our shared humanity.",
+    "defaultHowTo": "When buying coffee, checking out groceries, or passing a neighbor, make direct eye contact, smile genuinely, and say: 'Good morning, hope you have a great day!'"
+  },
+  {
+    "id": "lib_relationships_2_1",
+    "text": "Call a close friend or parent for a brief 10-minute check-in.",
+    "category": "Relationships",
+    "difficulty": 2,
+    "defaultWhyToday": "Your schedule is busy, but maintaining core social relationships prevents loneliness.",
+    "defaultWhyRelevant": "Voice calls convey emotional nuance that text messages miss, producing bonding hormones.",
+    "defaultHowTo": "During a commute, walk, or lunch break, call a close friend or family member. Ask: 'Just had a few minutes and wanted to call to see how your week is going!' Keep it brief and light."
+  },
+  {
+    "id": "lib_relationships_2_2",
+    "text": "Write a handwritten thank you note to someone.",
+    "category": "Relationships",
+    "difficulty": 2,
+    "defaultWhyToday": "Someone in your life deserves recognition that email/text cannot fully convey.",
+    "defaultWhyRelevant": "Physical notes represent time and care, building deep relational trust.",
+    "defaultHowTo": "Find a piece of paper or card. Write a 3-sentence note to a coworker, partner, or friend thanking them for a specific action. Leave it on their desk or mail it to them."
+  },
+  {
+    "id": "lib_relationships_3_1",
+    "text": "Have a non-work coffee chat with a colleague, focusing on listening.",
+    "category": "Relationships",
+    "difficulty": 3,
+    "defaultWhyToday": "Work relationships can become cold and purely transactional if not nurtured.",
+    "defaultWhyRelevant": "Empathetic listening build professional safety and builds allies in the workspace.",
+    "defaultHowTo": "Invite a coworker for a 15-minute coffee break. Make a rule not to talk about active work projects. Ask about their hobbies, weekend plans, or family, and listen without interrupting."
+  },
+  {
+    "id": "lib_relationships_3_2",
+    "text": "Perform an act of service for a partner or family member without being asked.",
+    "category": "Relationships",
+    "difficulty": 3,
+    "defaultWhyToday": "Your family carries daily stress; taking a task off their plate shows care.",
+    "defaultWhyRelevant": "Acts of service reduce relational friction and communicate love practically.",
+    "defaultHowTo": "Identify a chore that your partner or family member usually handles (e.g., washing dishes, folding laundry, cleaning). Do it quietly and completely without seeking praise."
+  },
+  {
+    "id": "lib_relationships_4_1",
+    "text": "Have a deep conversation with a close friend or partner.",
+    "category": "Relationships",
+    "difficulty": 4,
+    "defaultWhyToday": "Superficial conversations can hide emotional distance in close relationships.",
+    "defaultWhyRelevant": "Vulnerability and deep sharing are the bedrock of long-term psychological intimacy.",
+    "defaultHowTo": "Set aside 30 minutes in the evening. Turn off devices. Ask your partner or a close friend: 'What are you feeling most excited or worried about in life right now?' Listen and share honestly."
+  },
+  {
+    "id": "lib_relationships_4_2",
+    "text": "Resolve a minor lingering conflict or send an apology note.",
+    "category": "Relationships",
+    "difficulty": 4,
+    "defaultWhyToday": "Unresolved relational tension uses up mental RAM and causes background anxiety.",
+    "defaultWhyRelevant": "Apologizing or initiating repair shows maturity and frees up emotional energy.",
+    "defaultHowTo": "Think of a minor tension (e.g. a sharp email, an ignored message). Send a text or talk to them: 'Hey, I wanted to apologize for how I handled our discussion yesterday. I value our relationship.'"
+  },
+  {
+    "id": "lib_relationships_5_1",
+    "text": "Plan a dedicated, distraction-free 2-hour quality time event.",
+    "category": "Relationships",
+    "difficulty": 5,
+    "defaultWhyToday": "Your closest relationships need undivided attention to thrive amidst work demands.",
+    "defaultWhyRelevant": "Shared positive experiences build 'relationship capital' and long-term security.",
+    "defaultHowTo": "Block 2 hours on a weekend or evening. Take your partner, child, or close friend out. Put both of your phones in the glovebox of the car or turn them off. Dedicate 100% of your presence to them."
+  },
+  {
+    "id": "lib_relationships_5_2",
+    "text": "Initiate a difficult, honest conversation to set a boundary.",
+    "category": "Relationships",
+    "difficulty": 5,
+    "defaultWhyToday": "An unexpressed boundary clash is draining your energy and causing resentment.",
+    "defaultWhyRelevant": "Assertive boundary setting protects your mental health and forces healthy relationships.",
+    "defaultHowTo": "Schedule a brief talk with the person (boss, client, family member). Write down your talking points first. State your need clearly: 'To ensure quality, I can no longer take calls after 8:00 PM. Thank you.'"
+  },
+  {
+    "id": "lib_worklife_1_1",
+    "text": "Declutter physical workspace and close all non-essential tabs.",
+    "category": "Work-Life",
+    "difficulty": 1,
+    "defaultWhyToday": "High stress compounds when your visual environment is cluttered.",
+    "defaultWhyRelevant": "Reducing external visual noise directly lowers cognitive load and anxiety levels.",
+    "defaultHowTo": "Spend 3 minutes clearing your desk. Close all browser tabs that are not required for your current immediate task."
+  },
+  {
+    "id": "lib_worklife_1_2",
+    "text": "Write down the single most important task for today before starting work.",
+    "category": "Work-Life",
+    "difficulty": 1,
+    "defaultWhyToday": "A busy inbox can distract you into working on low-value reactive tasks all day.",
+    "defaultWhyRelevant": "Focusing on one key priority ensures daily strategic progress and reduces scatter.",
+    "defaultHowTo": "Before checking emails, open a notepad. Write down: 'If I only complete ONE thing today to make this day a success, it is: [Insert Task].' Place it where you can see it."
+  },
+  {
+    "id": "lib_worklife_2_1",
+    "text": "Take a 5-minute offline break every 90 minutes of work today.",
+    "category": "Work-Life",
+    "difficulty": 2,
+    "defaultWhyToday": "Sitting in front of a computer for hours straight drains cognitive power and focus.",
+    "defaultWhyRelevant": "Ultradian rhythm alignment matches focus periods with mental rests, avoiding fatigue.",
+    "defaultHowTo": "Set a timer for 90 minutes. When it rings, stand up, stretch, look out a window, or get water. Do not look at email, social media, or screens for those 5 minutes."
+  },
+  {
+    "id": "lib_worklife_2_2",
+    "text": "Shut down your work laptop by 7:00 PM today.",
+    "category": "Work-Life",
+    "difficulty": 2,
+    "defaultWhyToday": "Allowing work to bleed into the night ruins sleep and leads to eventual burnout.",
+    "defaultWhyRelevant": "Establishing boundaries creates temporal spacing, letting the brain recharge for tomorrow.",
+    "defaultHowTo": "At 6:55 PM, save all files. Close all work programs. Physically close your laptop or shut down your desktop. Do not check work emails on your phone after this time."
+  },
+  {
+    "id": "lib_worklife_3_1",
+    "text": "Work on your highest priority strategic task for 45 minutes.",
+    "category": "Work-Life",
+    "difficulty": 3,
+    "defaultWhyToday": "Procrastination on critical projects is causing quiet panic and stalling growth.",
+    "defaultWhyRelevant": "Regular deep focus blocks build strategic progress, boosting career momentum.",
+    "defaultHowTo": "Pick your most important task. Put your phone in another room or on silent. Set a timer for 45 minutes and work on that single task without opening email or chat apps."
+  },
+  {
+    "id": "lib_worklife_3_2",
+    "text": "Say 'no' to a low-value request or delegate one minor item.",
+    "category": "Work-Life",
+    "difficulty": 3,
+    "defaultWhyToday": "You are overcommitted, leaving no energy for your actual top priorities.",
+    "defaultWhyRelevant": "Protecting your time capacity is a prerequisite for high-impact leadership and execution.",
+    "defaultHowTo": "Look at your task list or calendar. Politely decline a meeting where you aren't essential, or delegate a manual task to a colleague or assistant with clear instructions."
+  },
+  {
+    "id": "lib_worklife_4_1",
+    "text": "Block 2 hours of 'deep focus' time on your calendar.",
+    "category": "Work-Life",
+    "difficulty": 4,
+    "defaultWhyToday": "Meeting fatigue and interruptions are fragmenting your work week.",
+    "defaultWhyRelevant": "Deep, uninterrupted blocks allow for flow states and complex problem solving.",
+    "defaultHowTo": "Create a calendar block today titled 'Deep Work'. Set your Slack/Teams status to offline. Close your email client. Work solely on strategic tasks for those 2 hours."
+  },
+  {
+    "id": "lib_worklife_4_2",
+    "text": "Establish a strict transition ritual to separate work from personal life.",
+    "category": "Work-Life",
+    "difficulty": 4,
+    "defaultWhyToday": "Mental residue from work stress is affecting your presence with family and rest.",
+    "defaultWhyRelevant": "Transition rituals create a psychological wall, protecting recovery periods.",
+    "defaultHowTo": "At the end of your workday, write down tomorrow's top 3 tasks. Close your desk. Walk outside for 10 minutes, change your clothes, or do a light stretch. Treat this as the boundary."
+  },
+  {
+    "id": "lib_worklife_5_1",
+    "text": "Complete a major, complex strategic task you've been putting off.",
+    "category": "Work-Life",
+    "difficulty": 5,
+    "defaultWhyToday": "A large, stressful project is hanging over your head, draining your cognitive battery.",
+    "defaultWhyRelevant": "Confronting and finishing high-impact bottlenecks removes blockages and spikes efficacy.",
+    "defaultHowTo": "Identify your most avoided task. Allocate the morning to it. Break it into 3 small steps. Work on step 1 for 60 minutes, take a 10-minute break, then execute steps 2 and 3."
+  },
+  {
+    "id": "lib_worklife_5_2",
+    "text": "Designate today as a complete digital detox workday afternoon.",
+    "category": "Work-Life",
+    "difficulty": 5,
+    "defaultWhyToday": "Constant online reactive pings are destroying your ability to think deeply.",
+    "defaultWhyRelevant": "Unplugging forces high-quality offline planning, strategizing, and system design.",
+    "defaultHowTo": "For 4 hours this afternoon, shut down your internet connection. Work exclusively with pen and paper, printed documents, or offline local software. Do not check pings or emails."
+  },
+  {
+    "id": "lib_reflection_1_1",
+    "text": "Log a 1-sentence reflection on today's single biggest win.",
+    "category": "Reflection",
+    "difficulty": 1,
+    "defaultWhyToday": "Ending your day focusing on progress reinforces positive behavioral identity.",
+    "defaultWhyRelevant": "Tracking wins builds belief in your own ability to steer your life.",
+    "defaultHowTo": "Before sleeping, write down one thing that went well today, no matter how small (e.g., 'Responded calmly to a late email' or 'Walked after lunch')."
+  },
+  {
+    "id": "lib_reflection_1_2",
+    "text": "List three small things you are grateful for today.",
+    "category": "Reflection",
+    "difficulty": 1,
+    "defaultWhyToday": "A stressful day can bias your brain toward noticing only threats and problems.",
+    "defaultWhyRelevant": "Gratitude practices consciously counter negative evolutionary cognitive biases.",
+    "defaultHowTo": "Take a minute to identify 3 specific, small details from today that you are glad occurred (e.g. warm coffee, a funny video, a clear sky). Write them down."
+  },
+  {
+    "id": "lib_reflection_2_1",
+    "text": "Write a short paragraph analyzing what triggered your stress today.",
+    "category": "Reflection",
+    "difficulty": 2,
+    "defaultWhyToday": "Reacting to stress without analyzing it leads to repeating the same stressful behaviors.",
+    "defaultWhyRelevant": "Identifying triggers builds self-awareness, letting you plan preventative boundaries.",
+    "defaultHowTo": "Write down a moment today when your stress spiked. Answer: What happened? What thoughts did you have? How did your body feel? What could you do to prepare for this next time?"
+  },
+  {
+    "id": "lib_reflection_2_2",
+    "text": "Compare today's energy levels with your sleep quality from last night.",
+    "category": "Reflection",
+    "difficulty": 2,
+    "defaultWhyToday": "You may be ignoring the direct link between sleep recovery and daily productivity.",
+    "defaultWhyRelevant": "Understanding sleep-energy loops builds commitment to sleep hygiene.",
+    "defaultHowTo": "Review your logged sleep hours and quality from last night. Rate your energy throughout today. Write down 1 sentence connecting them (e.g., '6 hours of poor sleep led to a major 3 PM crash')."
+  },
+  {
+    "id": "lib_reflection_3_1",
+    "text": "Perform a weekly alignment review against your 3-5 year goals.",
+    "category": "Reflection",
+    "difficulty": 3,
+    "defaultWhyToday": "You are executing tasks daily but might be drifting from your long-term vision.",
+    "defaultWhyRelevant": "Weekly alignment audits correct course before habits become misaligned.",
+    "defaultHowTo": "Write down your 3-5 year goals. Look at your calendars/actions from the past 7 days. Note how many hours were spent directly supporting those goals. Write down one adjustment."
+  },
+  {
+    "id": "lib_reflection_3_2",
+    "text": "List your top three energy-drainers and write a mitigation step.",
+    "category": "Reflection",
+    "difficulty": 3,
+    "defaultWhyToday": "Unconscious energy drains are keeping you in a state of chronic fatigue.",
+    "defaultWhyRelevant": "Eliminating energy leaks is faster than trying to generate more energy.",
+    "defaultHowTo": "Identify 3 things that drain you (e.g., gossiping coworkers, checking phone in bed, messy desk). For the biggest drainer, write down 1 concrete action to block it tomorrow."
+  },
+  {
+    "id": "lib_reflection_4_1",
+    "text": "Write a detailed letter to your future self 1 year from now.",
+    "category": "Reflection",
+    "difficulty": 4,
+    "defaultWhyToday": "You are caught up in immediate daily battles and need a wider perspective on life.",
+    "defaultWhyRelevant": "Future-self visualization increases long-term thinking and delay-of-gratification traits.",
+    "defaultHowTo": "Write a 3-paragraph letter to yourself 1 year from now. Detail what goals you hope they achieved, what struggles they overcame, and remind them of the values you hold today."
+  },
+  {
+    "id": "lib_reflection_4_2",
+    "text": "Track and audit how you spent every hour of your day today.",
+    "category": "Reflection",
+    "difficulty": 4,
+    "defaultWhyToday": "You are wondering where your time went, indicating an awareness gap.",
+    "defaultWhyRelevant": "Time audits expose passive time leaks and help you reclaim scheduling control.",
+    "defaultHowTo": "Draw a 24-row grid for each hour of the day. Fill in what you did for every hour. Highlight in red any hours spent on distractions (social media, brain rot, unproductive meetings)."
+  },
+  {
+    "id": "lib_reflection_5_1",
+    "text": "Conduct a deep life-audit across health, relationships, wealth, and mind.",
+    "category": "Reflection",
+    "difficulty": 5,
+    "defaultWhyToday": "You are in a transition or stability phase and need a clear, unvarnished look at your life.",
+    "defaultWhyRelevant": "Comprehensive life audits uncover hidden failures and design strategic resets.",
+    "defaultHowTo": "Score Health, Relationships, Wealth, and Mind out of 10. Write 3 sentences explaining each score. For the lowest category, draft a concrete 3-step action plan to raise it."
+  },
+  {
+    "id": "lib_reflection_5_2",
+    "text": "Write down your core personal values and audit today's alignment.",
+    "category": "Reflection",
+    "difficulty": 5,
+    "defaultWhyToday": "Internal friction or guilt suggests your actions may be clashing with your values.",
+    "defaultWhyRelevant": "Living in alignment with core values is the source of deep internal peace and confidence.",
+    "defaultHowTo": "Select your top 5 core life values (e.g. Integrity, Family, Health, Freedom, Excellence). Rate how well your decisions today honored each value, detailing any clashes and how to fix them."
+  }
+]

@@ -1,0 +1,186 @@
+{
+  "profile": {
+    "name": "Akash Tripathi",
+    "age": "35",
+    "gender": "Male",
+    "job": "General Manager Business development",
+    "workHours": "10",
+    "workDays": 6,
+    "maritalStatus": "Married",
+    "kids": 2,
+    "goal": "Achieve inner freedome",
+    "problem": "Extremely unstable job and tricky relationship with wife. Sometimes i loose my nerves and get really anxious ",
+    "role": "General Manager Business development",
+    "goals": "Achieve inner freedome",
+    "aspirations": "Extremely unstable job and tricky relationship with wife",
+    "idealLife": "I want to acheive  inner freedom so that my external environment does'nt impact my internal state if mind",
+    "lifeSatisfaction": 6,
+    "lifeAreas": [
+      "Mindset",
+      "Physical",
+      "Relationships",
+      "Work-Life",
+      "Reflection"
+    ],
+    "streak": 0,
+    "completion_rate": 20,
+    "total_actions_generated": 5,
+    "total_actions_completed": 1,
+    "current_phase": "Stability",
+    "archetype": "Mindful Rookie",
+    "archetype_history": [],
+    "milestones": [],
+    "level": 0,
+    "xp": 20,
+    "level_up_celebration_pending": false,
+    "onboarding_completed": true,
+    "photos": [
+      "/uploads/WhatsApp Image 2026-07-09 at 9.27.10 PM.jpeg"
+    ],
+    "last_generated_day": "2026-07-10",
+    "challenges": "Extremely unstable job and tricky relationship with wife. Sometimes i loose my nerves and get really anxious "
+  },
+  "context": {
+    "sleep": {
+      "hours": 6.5,
+      "quality": "good",
+      "energy": 6
+    },
+    "mood": {
+      "rating": 8,
+      "state": "stressed"
+    },
+    "behavioral": {
+      "consistency": 70,
+      "recovery_speed": "medium"
+    },
+    "environmental": {
+      "time": "Morning",
+      "day_of_week": "Friday",
+      "weather": "Rainy"
+    },
+    "is_frozen": true,
+    "last_logged": "2026-07-10"
+  },
+  "actions": [
+    {
+      "id": "act_1",
+      "text": "Perform a 2-minute breathing space.",
+      "category": "Mindset",
+      "difficulty": 1,
+      "whyToday": "Given today's high stress score of 8/10 and feeling \"stressed\", this was selected to immediately down-regulate your nervous system.",
+      "whyRelevant": "This helps build the inner freedom and stability needed to resolve your bottleneck: \"Extremely unstable job and tricky relationship with wife\".",
+      "howTo": "Set a timer for 2 minutes. Close your eyes. Focus entirely on the physical sensation of breath entering and leaving your nostrils. If your mind wanders, gently bring it back.",
+      "status": "todo"
+    },
+    {
+      "id": "act_2",
+      "text": "Do a 10-minute light stretching routine or mobility session.",
+      "category": "Physical",
+      "difficulty": 2,
+      "whyToday": "Given today's high stress score of 8/10 and feeling \"stressed\", this was selected to immediately down-regulate your nervous system.",
+      "whyRelevant": "Physical health is the foundation for executing your role as a General Manager  Business Development without late-night burnout.",
+      "howTo": "Spend 10 minutes performing shoulder rolls, neck stretches, cat-cow yoga poses, and deep hamstring stretches. Focus on slow, deep breathing throughout.",
+      "status": "todo"
+    },
+    {
+      "id": "act_3",
+      "text": "Smile and greet a stranger or service worker warmly.",
+      "category": "Relationships",
+      "difficulty": 1,
+      "whyToday": "Given today's high stress score of 8/10 and feeling \"stressed\", this was selected to immediately down-regulate your nervous system.",
+      "whyRelevant": "Nurturing your relationship with your wife is key to balancing professional stress with marital stability.",
+      "howTo": "When buying coffee, checking out groceries, or passing a neighbor, make direct eye contact, smile genuinely, and say: 'Good morning, hope you have a great day!'",
+      "status": "done"
+    },
+    {
+      "id": "act_4",
+      "text": "Write down the single most important task for today before starting work.",
+      "category": "Work-Life",
+      "difficulty": 1,
+      "whyToday": "Given today's high stress score of 8/10 and feeling \"stressed\", this was selected to immediately down-regulate your nervous system.",
+      "whyRelevant": "As a General Manager  Business Development, managing the challenge of \"Extremely unstable job and tricky relationship with wife\" requires structured energy separation.",
+      "howTo": "Before checking emails, open a notepad. Write down: 'If I only complete ONE thing today to make this day a success, it is: [Insert Task].' Place it where you can see it.",
+      "status": "todo"
+    },
+    {
+      "id": "act_5",
+      "text": "Log a 1-sentence reflection on today's single biggest win.",
+      "category": "Reflection",
+      "difficulty": 1,
+      "whyToday": "Given today's high stress score of 8/10 and feeling \"stressed\", this was selected to immediately down-regulate your nervous system.",
+      "whyRelevant": "This helps build the inner freedom and stability needed to resolve your bottleneck: \"Extremely unstable job and tricky relationship with wife\".",
+      "howTo": "Before sleeping, write down one thing that went well today, no matter how small (e.g., 'Responded calmly to a late email' or 'Walked after lunch').",
+      "status": "todo"
+    }
+  ],
+  "chat_history": [
+    {
+      "sender": "User",
+      "text": "Hey AUM I had a bad today at office I have met one of my new colleagues, and he was getting a big issue out of it. This manager was also getting a big issue, and I'm just thinking about it throughout the day. The thing which is keeping me distracted most of the time, I think, would be that when I'm developing this product or developing apps, otherwise most of the time I think about that in my life. ",
+      "timestamp": "2026-07-10T00:58:05.565Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Thanks for reflecting on this, Akash Tripathi. Evolving as a General Manager  Business Development while keeping your life in balance is a progressive path. I'm keeping track of your goals to build inner stability. Tell me more about what's occupying your thoughts right now.",
+      "timestamp": "2026-07-10T00:58:07.060Z"
+    },
+    {
+      "sender": "User",
+      "text": "  I'm thinking about that event. I know I snapped at the international snap. This is not the first time it has happened in the past also. This has happened.  A TL told me that you should not be giving loose comments. She is right, but she is just coming and giving me regular feedback and saying this and that. Why did they take this long? At least she came and told me four times.  I am feeling a bit anxious that this thing has happened in the past and this has affected my reputation and overall determinants a lot. I don't want to repeat it! Yeah, I would say it was a big setback at the board. I want to recover from it, but as of now, because of this event, I am not feeling that great. ",
+      "timestamp": "2026-07-10T00:59:49.898Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Thanks for reflecting on this, Akash Tripathi. Evolving as a General Manager  Business Development while keeping your life in balance is a progressive path. I'm keeping track of your goals to build inner stability. Tell me more about what's occupying your thoughts right now.",
+      "timestamp": "2026-07-10T00:59:51.350Z"
+    },
+    {
+      "sender": "User",
+      "text": "hello",
+      "timestamp": "2026-07-10T01:00:48.624Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Thanks for reflecting on this, Akash Tripathi. Evolving as a General Manager  Business Development while keeping your life in balance is a progressive path. I'm keeping track of your goals to build inner stability. Tell me more about what's occupying your thoughts right now.",
+      "timestamp": "2026-07-10T01:00:50.014Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Awesome job completing your task: \"Test\"! Finishing this Mindset action is a powerful vote for the person you want to become, Akash Tripathi. Keep it up!",
+      "timestamp": "2026-07-10T01:04:55.362Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Awesome job completing your task: \"Test task\"! Finishing this Mindset action is a powerful vote for the person you want to become, Akash Tripathi. Keep it up!",
+      "timestamp": "2026-07-10T01:09:21.150Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Awesome job, Akash! Completing your \"Test task\" is a powerful first step for your Mindset. Small wins like this build the vital momentum and consistency you need to level up from Level 0. I’m so excited to grow with you!",
+      "timestamp": "2026-07-10T01:09:24.787Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Hello Akash Tripathi! Welcome to AUM. I've analyzed your profile as a General Manager Business development. You've noted your biggest challenge as \"Extremely unstable job and tricky relationship with wife. Sometimes i loose my nerves and get really anxious \". I've generated your very first Daily 5 momentum tasks to help you start shaping your life. Take a look and let me know how you feel!",
+      "timestamp": "2026-07-10T01:22:56.643Z"
+    },
+    {
+      "sender": "User",
+      "text": "I had a setback today at work.",
+      "timestamp": "2026-07-10T01:24:04.095Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "I'm so sorry, Akash. Take a deep breath. You’re carrying a heavy load right now—navigating a demanding 10-hour workday, a rainy Friday, and already feeling stretched thin. I know how deeply you care about your reputation and finding that sense of inner freedom, which makes any setback feel incredibly heavy and easily triggers that anxiety. \n\nBefore we even try to unpack what happened, can we just pause? Your mind has been working overtime. Let's take just two minutes for a simple breathing space together to let the dust settle. I'm right here with you, my friend.",
+      "timestamp": "2026-07-10T01:24:10.619Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Beautifully done, Akash! Warmly greeting a stranger builds incredible real-world momentum. These small, intentional connections are the secret to your overall consistency. You are bringing wonderful energy to Level 0—let's keep this momentum flowing!",
+      "timestamp": "2026-07-10T01:24:47.737Z"
+    }
+  ],
+  "semantic_memory": [],
+  "virtual_time": null
+}

@@ -1,0 +1,58 @@
+{
+  "profile": {
+    "name": "",
+    "age": "",
+    "gender": "",
+    "job": "",
+    "workHours": "",
+    "workDays": 5,
+    "maritalStatus": "",
+    "kids": 0,
+    "goal": "",
+    "problem": "",
+    "role": "",
+    "goals": "",
+    "aspirations": "",
+    "idealLife": "",
+    "lifeSatisfaction": 5,
+    "lifeAreas": [],
+    "streak": 0,
+    "completion_rate": 0,
+    "total_actions_generated": 0,
+    "total_actions_completed": 0,
+    "current_phase": "Stability",
+    "archetype": "Mindful Rookie",
+    "archetype_history": [],
+    "milestones": [],
+    "level": 0,
+    "xp": 0,
+    "level_up_celebration_pending": false,
+    "onboarding_completed": false
+  },
+  "context": {
+    "sleep": {
+      "hours": 7,
+      "quality": "good",
+      "energy": 7
+    },
+    "mood": {
+      "rating": 6,
+      "state": "stressed"
+    },
+    "behavioral": {
+      "consistency": 70,
+      "recovery_speed": "medium"
+    },
+    "environmental": {
+      "time": "Morning",
+      "day_of_week": "Monday",
+      "weather": "Clear"
+    },
+    "is_frozen": false,
+    "last_logged": ""
+  },
+  "actions": [],
+  "chat_history": [],
+  "semantic_memory": [],
+  "virtual_time": null
+}
