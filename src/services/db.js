@@ -29,38 +29,58 @@ const DEFAULT_DB = {
     workDays: 5,
     maritalStatus: "",
     kids: 0,
-    goal: "",
-    problem: "",
-    role: "",
-    goals: "",
-    aspirations: "",
-    idealLife: "",
-    lifeSatisfaction: 5,
-    lifeAreas: [],
+    active_goal: { category: "Health", subGoal: "Sleep Better" },
+    current_chapter: "Stable Routine",
+    financial_stance: "balanced",
+    relationships: [],
     streak: 0,
     completion_rate: 0,
     total_actions_generated: 0,
     total_actions_completed: 0,
-    current_phase: "Stability",
-    archetype: "Mindful Rookie",
-    archetype_history: [],
-    milestones: [],
-    level: 0,
-    xp: 0,
-    level_up_celebration_pending: false,
+    archetype: "The Rebuilder",
+    momentum_score: 50,
+    momentum_earned_today: 0,
+    active_threads: [],
+    location_profile: {
+      home_base: { city: "Gurgaon", neighborhood: "DLF Phase 3", lat: 28.49, lng: 77.09 },
+      work_base: { city: "Gurgaon", neighborhood: "Cyber City" },
+      comfort_radius: 30,
+      travel_mode: false,
+      travel_city: ""
+    },
+    sub_scores: { recovery: 50, execution: 50, connection: 50, curiosity: 50, courage: 50, consistency: 50 },
+    behavioral_dna: { stress_resilience_factor: 1.0, preferred_recovery_categories: ["Recovery"], weekend_activity_multiplier: 1.0 },
+    failure_repository: [],
+    effectiveness_ledger: [],
+    identity_evolution: [],
+    intentional_days_count: 0,
+    intentional_days_rate: 0,
+    last_recommended_timestamps: {},
+    companion_name: "Aarav",
     onboarding_completed: false
   },
   context: {
-    sleep: { hours: 7.0, quality: "good", energy: 7 },
-    mood: { rating: 6, state: "stressed" },
-    behavioral: { consistency: 70, recovery_speed: "medium" },
-    environmental: { time: "Morning", day_of_week: "Monday", weather: "Clear" },
+    sleep: { hours: 7.0, quality: "good" },
+    mood: { rating: 5, state: "clear" },
+    energies: { mental: 7, physical: 7, social: 7, creative: 7 },
+    creation_story: "",
+    consumption_story: "",
+    creation_minutes: 0,
+    consumption_minutes: 0,
     is_frozen: false,
     last_logged: ""
   },
   actions: [],
+  backups: [],
   chat_history: [],
   semantic_memory: [],
+  recent_summaries: [],
+  insights: {
+    behavioral_insights: [],
+    current_risks: [],
+    current_wins: [],
+    current_experiments: []
+  },
   history: [], // Capped 90-day progress history ledger
   virtual_time: null // Holds the virtual time override ISO string
 };
@@ -86,7 +106,10 @@ export async function readDB() {
     const merged = { ...DEFAULT_DB, ...parsed };
     merged.profile = { ...DEFAULT_DB.profile, ...parsed.profile };
     merged.context = { ...DEFAULT_DB.context, ...parsed.context };
+    if (!merged.insights) merged.insights = { ...DEFAULT_DB.insights };
     if (!merged.actions) merged.actions = [];
+    if (!merged.backups) merged.backups = [];
+    if (!merged.recent_summaries) merged.recent_summaries = [];
     if (!merged.chat_history) merged.chat_history = [];
     if (!merged.semantic_memory) merged.semantic_memory = [];
     if (!merged.history) merged.history = [];
@@ -171,11 +194,65 @@ export async function addXp(amount) {
   return { level: currentLevel, xp: currentXp, levelUpOccurred };
 }
 
+// Real-time Momentum Calculator helper
+export async function updateRealtimeMomentum(db) {
+  // Safe write-sync, rolling momentum score is updated dynamically
+  await writeDB(db);
+}
+
+export function calculateTaskPoints(task, db) {
+  const difficulty = task.difficulty || 2;
+  const friction = task.friction_score !== undefined ? task.friction_score : difficulty;
+  const impact = task.impact_score !== undefined ? task.impact_score : 5;
+  const recovery = task.recovery_score !== undefined ? task.recovery_score : 2;
+  const identity = task.identity_score !== undefined ? task.identity_score : 5;
+  const novelty = task.novelty_score !== undefined ? task.novelty_score : 3;
+  const multiplier = task.momentum_multiplier !== undefined ? task.momentum_multiplier : 1.0;
+
+  const stress = db.context.mood?.rating || 5;
+  const energy = db.context.sleep?.energy || 5;
+
+  let rawPoints = impact;
+
+  // Context-based scaling
+  if (stress >= 7 || energy <= 4) {
+    if (task.category === "Recovery" || recovery >= 6) {
+      rawPoints += (stress * 1.2) + (5 - energy);
+    }
+  }
+
+  if (energy >= 8 && stress < 5) {
+    if (friction >= 5 || task.category === "Creative" || novelty >= 6) {
+      rawPoints += (energy - 5) + friction * 0.5;
+    }
+  }
+
+  rawPoints = rawPoints * multiplier;
+  return Math.min(25, Math.max(1, Math.round(rawPoints * 10) / 10));
+}
+
+export function applyMomentumDelta(db, rawPoints, isAddition = true) {
+  const profile = db.profile || {};
+  
+  let delta = rawPoints * 0.15;
+  delta = Math.min(5.0, Math.max(0.2, delta));
+  
+  if (isAddition) {
+    profile.momentum_earned_today = Math.round(((profile.momentum_earned_today || 0) + rawPoints) * 10) / 10;
+    profile.momentum_score = Math.min(100, (profile.momentum_score || 50) + delta);
+  } else {
+    profile.momentum_earned_today = Math.max(0, Math.round(((profile.momentum_earned_today || 0) - rawPoints) * 10) / 10);
+    profile.momentum_score = Math.max(0, (profile.momentum_score || 50) - delta);
+  }
+  profile.momentum_score = Math.round(profile.momentum_score);
+}
+
 // Toggle action status
 export async function toggleActionStatus(actionId, status) {
   const db = await readDB();
   let statusChanged = false;
   let oldStatus = 'todo';
+  let matchedAction = null;
 
   if (Array.isArray(db.actions)) {
     db.actions = db.actions.map(act => {
@@ -183,6 +260,7 @@ export async function toggleActionStatus(actionId, status) {
         if (act.status !== status) {
           oldStatus = act.status;
           statusChanged = true;
+          matchedAction = act;
         }
         return { ...act, status };
       }
@@ -190,42 +268,105 @@ export async function toggleActionStatus(actionId, status) {
     });
   }
 
-  if (statusChanged) {
-    // Math logic:
-    // todo -> done: +20 XP, total_actions_completed++
-    // done -> todo/skipped: -20 XP, total_actions_completed-- (reverse complete)
-    // todo -> skipped: +0 XP
-    // skipped -> done: +20 XP, total_actions_completed++
-    // done -> skipped: -20 XP, total_actions_completed--
-    let xpDiff = 0;
+  if (statusChanged && matchedAction) {
     let completedDiff = 0;
-
     if (status === 'done') {
-      xpDiff = 20;
       completedDiff = 1;
+      
+      // Calculate dynamic points and store them
+      const rawPoints = calculateTaskPoints(matchedAction, db);
+      db.actions = db.actions.map(act => act.id === actionId ? { ...act, raw_points: rawPoints } : act);
+      applyMomentumDelta(db, rawPoints, true);
+
     } else if (oldStatus === 'done' && (status === 'todo' || status === 'skipped')) {
-      xpDiff = -20;
       completedDiff = -1;
+      
+      // Revert dynamic points
+      const rawPoints = matchedAction.raw_points || 5.0; // fallback if missing
+      applyMomentumDelta(db, rawPoints, false);
+      db.actions = db.actions.map(act => act.id === actionId ? { ...act, raw_points: undefined } : act);
     }
 
     db.profile.total_actions_completed = Math.max(0, (db.profile.total_actions_completed || 0) + completedDiff);
-    await writeDB(db); // Save intermediate state
     
-    if (xpDiff !== 0) {
-      await addXp(xpDiff);
+    // Add default rating of 4 stars to ledger if done
+    if (status === 'done') {
+      const todayStr = getMomentumDayString(getDbCurrentTime(db));
+      const stress = db.context.mood?.rating || 5;
+      const lastLog = db.history.slice(-1)[0] || {};
+      const stressBefore = lastLog.stress || 5;
+      const stressDelta = stress - stressBefore;
+
+      db.profile.effectiveness_ledger = db.profile.effectiveness_ledger || [];
+      db.profile.effectiveness_ledger.push({
+        actionId,
+        rating: 4, // Default to 4-star, can be updated by rateAction
+        date: todayStr,
+        stressDelta,
+        completed: true
+      });
+
+      // Update last recommended timestamp
+      db.profile.last_recommended_timestamps = db.profile.last_recommended_timestamps || {};
+      db.profile.last_recommended_timestamps[actionId] = getDbCurrentTime(db).toISOString();
     }
+
+    await writeDB(db);
   }
 
-  // Re-read DB to capture level/xp changes
+  // Re-read DB
   const freshDb = await readDB();
-  
-  // Calculate completion rate
   const total = freshDb.profile.total_actions_generated || 0;
   const completed = freshDb.profile.total_actions_completed || 0;
   freshDb.profile.completion_rate = total > 0 ? Math.round((completed / total) * 100) : 0;
   
   await writeDB(freshDb);
   return freshDb;
+}
+
+// Save specific task star ratings
+export async function rateAction(actionId, rating) {
+  const db = await readDB();
+  
+  // Find in actions
+  db.actions = (db.actions || []).map(act => {
+    if (act.id === actionId) {
+      return { ...act, rating };
+    }
+    return act;
+  });
+
+  // Find and update inside effectiveness ledger for the current day
+  const todayStr = getMomentumDayString(getDbCurrentTime(db));
+  db.profile.effectiveness_ledger = db.profile.effectiveness_ledger || [];
+  
+  let ledgerUpdated = false;
+  db.profile.effectiveness_ledger = db.profile.effectiveness_ledger.map(log => {
+    if (log.actionId === actionId && log.date === todayStr) {
+      ledgerUpdated = true;
+      return { ...log, rating };
+    }
+    return log;
+  });
+
+  if (!ledgerUpdated) {
+    const stress = db.context.mood?.rating || 5;
+    const lastLog = db.history.slice(-1)[0] || {};
+    const stressBefore = lastLog.stress || 5;
+    const stressDelta = stress - stressBefore;
+
+    db.profile.effectiveness_ledger.push({
+      actionId,
+      rating,
+      date: todayStr,
+      stressDelta,
+      completed: true
+    });
+  }
+
+  await writeDB(db);
+  await updateRealtimeMomentum(db);
+  return await readDB();
 }
 
 // Add a chat message
@@ -273,88 +414,14 @@ export function hasCrossed6AM(oldTimeStr, newTimeStr) {
   return next6AM <= newTime;
 }
 
-// Process day transition: expire tasks, calculate XP penalty, update streak, reset context
+// Process day transition: reset trackers, compile summaries, correlations, and update rolling momentum
 export async function processDayTransition(db) {
-  const actions = db.actions || [];
-  const completedCount = actions.filter(a => a.status === 'done').length;
-  const incompleteCount = Math.max(0, 5 - completedCount);
-  
-  // 1. Expire uncompleted tasks: subtract 10 XP for each incomplete task
-  const xpPenalty = incompleteCount * -10;
-  
-  let levelBefore = db.profile.level || 0;
-  let xpBefore = db.profile.xp || 0;
-  
-  let currentLevel = levelBefore;
-  let currentXp = xpBefore + xpPenalty;
-  
-  while (currentXp < 0) {
-    if (currentLevel > 0) {
-      currentLevel -= 1;
-      currentXp += 100;
-    } else {
-      currentXp = 0;
-      break;
-    }
-  }
-  
-  db.profile.level = currentLevel;
-  db.profile.xp = currentXp;
+  // Dynamically import orchestrator and gemini to avoid circular imports
+  const { orchestrateDayTransition } = await import('./day_transition.js');
+  const { queryGemini } = await import('./gemini.js');
 
-  // 2. Streak calculations
-  if (actions.length > 0) {
-    if (completedCount === actions.length) {
-      db.profile.streak = (db.profile.streak || 0) + 1;
-    } else {
-      db.profile.streak = 0;
-    }
-  }
-
-  // 2.5 Log context metrics to history array
-  const yesterdayLog = {
-    date: db.context.last_logged || getMomentumDayString(getDbCurrentTime(db)),
-    sleep_hours: db.context.sleep?.hours || 0,
-    sleep_quality: db.context.sleep?.quality || 'unknown',
-    energy: db.context.sleep?.energy || 0,
-    stress: db.context.mood?.rating || 0,
-    mood_state: db.context.mood?.state || 'unknown',
-    weather: db.context.environmental?.weather || 'unknown',
-    tasks_completed: completedCount,
-    tasks_total: actions.length
-  };
-  db.history = db.history || [];
-  db.history.push(yesterdayLog);
-  if (db.history.length > 90) {
-    db.history.shift(); // Cap at exactly 90 days
-  }
-  
-  // 3. Reset context freeze
-  db.context.is_frozen = false;
-  
-  // 4. Create automated empathetic notification from AUM
-  let aumMessage = "";
-  if (actions.length === 0) {
-    aumMessage = `Welcome to a brand new day, Akash! Let's fill out your daily context so I can generate your customized Daily 5 tasks for today.`;
-  } else if (completedCount === 5) {
-    aumMessage = `Akash, what a phenomenal day yesterday! You completed all 5 actions, keeping your streak going at ${db.profile.streak} days. You've earned that +100 XP boost, and we are charging straight into today. Let's keep this momentum blazing!`;
-  } else if (completedCount > 0) {
-    aumMessage = `Good morning, Akash. Yesterday you completed ${completedCount} of 5 actions. We had to adjust your progress by ${xpPenalty} XP for the unfinished tasks, placing you at Level ${db.profile.level} (${db.profile.xp} XP). Today is a brand new page. Let's focus on a single small win to start!`;
-  } else {
-    aumMessage = `Akash, it looks like yesterday was a tough day and we couldn't complete our tasks. That's completely okay—recovery is part of momentum. We adjusted your progress by -50 XP. Today, let's keep things extremely simple. I've unfrozen your context so you can tell me how you are feeling right now.`;
-  }
-  
-  db.chat_history.push({
-    sender: "AUM",
-    text: aumMessage,
-    timestamp: getDbCurrentTime(db).toISOString()
-  });
-
-  return {
-    xpDifference: xpPenalty,
-    oldLevel: levelBefore,
-    newLevel: currentLevel,
-    streak: db.profile.streak
-  };
+  const transitionSummary = await orchestrateDayTransition(db, queryGemini);
+  return transitionSummary;
 }
 
 // Get the momentum day string (shifting date back by 1 if before 6 AM)

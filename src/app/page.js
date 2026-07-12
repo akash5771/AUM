@@ -6,77 +6,58 @@ import { useRouter } from 'next/navigation';
 export default function Dashboard() {
   const router = useRouter();
   
-  // State for core data structures
+  // Core Data States
   const [profile, setProfile] = useState(null);
   const [context, setContext] = useState(null);
   const [actions, setActions] = useState([]);
+  const [backups, setBackups] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
   const [virtualTime, setVirtualTime] = useState(null);
   const [currentTimeDisplay, setCurrentTimeDisplay] = useState('');
   
-  // UI and Interaction states
+  // Interaction/UI States
   const [expandedActionId, setExpandedActionId] = useState(null);
-  const [isLoadingActions, setIsLoadingActions] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingContext, setIsUpdatingContext] = useState(false);
-  const [isLoggingContext, setIsLoggingContext] = useState(false); // To toggle form edit mode
   const [chatInput, setChatInput] = useState('');
   const [isSendingChat, setIsSendingChat] = useState(false);
-  const [levelUpModalOpen, setLevelUpModalOpen] = useState(false);
-  const [celebratedLevel, setCelebratedLevel] = useState(0);
-
-  // Time travel simulation states
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false); // Slide-over drawer state
   const [timeSelectorOpen, setTimeSelectorOpen] = useState(false);
+  
+  // Daily Context Logging States
+  const [sleepHours, setSleepHours] = useState(7.0);
+  const [sleepQuality, setSleepQuality] = useState('good');
+  const [mentalEnergy, setMentalEnergy] = useState(7);
+  const [physicalEnergy, setPhysicalEnergy] = useState(7);
+  const [socialEnergy, setSocialEnergy] = useState(7);
+  const [creativeEnergy, setCreativeEnergy] = useState(7);
+  const [creationStory, setCreationStory] = useState('');
+  const [consumptionStory, setConsumptionStory] = useState('');
+  const [weatherOutlook, setWeatherOutlook] = useState('Clear');
 
-  // Onboarding Wizard State
-  const [onboardingStep, setOnboardingStep] = useState(1);
-  const [onboardingProfile, setOnboardingProfile] = useState({
-    name: '',
-    age: '',
-    gender: '',
-    job: '',
-    workHours: '',
-    workDays: 5,
-    maritalStatus: '',
-    kids: 0,
-    idealLife: '',
-    goal: '',
-    problem: '',
-    lifeSatisfaction: 5,
-    lifeAreas: []
-  });
-  const [onboardingSubmitting, setOnboardingSubmitting] = useState(false);
-
-  // Context editor values (synchronized from context state)
-  const [editSleep, setEditSleep] = useState(7.0);
-  const [editSleepQuality, setEditSleepQuality] = useState('good');
-  const [editEnergy, setEditEnergy] = useState(7);
-  const [editMoodRating, setEditMoodRating] = useState(6);
-  const [editMoodState, setEditMoodState] = useState('stressed');
-  const [editWeather, setEditWeather] = useState('Clear');
-
-  // Refs for auto-scroll and canvas confetti
+  // Refs for scrolling and canvas
   const messagesEndRef = useRef(null);
+  const chatScrollRef = useRef(null);
   const canvasRef = useRef(null);
   const confettiSystemRef = useRef(null);
 
-  // Reflection template chips
+  // Quick Reflection Chips
   const reflectionChips = [
-    "I had a setback today at work.",
     "How can I build momentum when tired?",
-    "I want to celebrate a small win!",
-    "Help me shut down work today."
+    "Review my weekly patterns.",
+    "Acknowledge a small win today.",
+    "Help me prepare for tomorrow."
   ];
 
-  // Fetch initial dataset
+  // Fetch all initial data
   useEffect(() => {
     fetchAllData();
   }, []);
 
-  // Set up Canvas Confetti Particle System
+  // Sync Confetti Particle System
   useEffect(() => {
     if (canvasRef.current) {
       confettiSystemRef.current = new ConfettiEffect(canvasRef.current);
-      
       const handleResize = () => {
         if (canvasRef.current) {
           canvasRef.current.width = window.innerWidth;
@@ -86,53 +67,57 @@ export default function Dashboard() {
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
     }
-  }, [profile]); // Rebind if profile triggers mount
+  }, [profile]);
 
-  // Auto-scroll chat window when history updates
+  // Auto-scroll chat history (non-intrusive container scrolling)
   useEffect(() => {
-    scrollToBottom();
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
   }, [chatHistory, isSendingChat]);
 
+  // Route to onboarding if not completed
+  useEffect(() => {
+    if (profile && !profile.onboarding_completed) {
+      router.push('/onboarding');
+    }
+  }, [profile, router]);
+
   const fetchAllData = async () => {
+    setIsLoading(true);
     try {
-      // 1. Fetch Profile
+      // 1. Profile
       const pRes = await fetch('/api/profile');
       const pData = await pRes.json();
       setProfile(pData);
 
-      if (pData && pData.name) {
-        // 2. Fetch Time Travel clock
+      if (pData && pData.name && pData.onboarding_completed) {
+        // 2. Time Travel Info
         const tRes = await fetch('/api/time-travel');
         const tData = await tRes.json();
         setVirtualTime(tData.virtual_time);
         formatTimeDisplay(tData.current_time);
 
-        // 3. Fetch Context
+        // 3. Context Logs
         const cRes = await fetch('/api/context');
         const cData = await cRes.json();
         setContext(cData);
-        syncContextInputs(cData);
-        setIsLoggingContext(!cData.is_frozen);
+        syncContextForm(cData);
 
-        // 4. Fetch Actions
+        // 4. Actions and Backups
         const aRes = await fetch('/api/actions');
         const aData = await aRes.json();
         setActions(aData);
-
-        // 5. Fetch Chat History
-        const chRes = await fetch('/api/chat');
-        const chData = await chRes.json();
-        setChatHistory(chData);
-
-        // Check if a level up celebration is pending
-        if (pData.level_up_celebration_pending) {
-          setCelebratedLevel(pData.level);
-          setLevelUpModalOpen(true);
-          triggerConfettiBlast(180);
-        }
+        
+        // 5. Chat History Logs
+        const fullDbRes = await fetch('/api/chat');
+        const chatData = await fullDbRes.json();
+        setChatHistory(chatData);
       }
-    } catch (err) {
-      console.error("Error loading core workspace data:", err);
+    } catch (e) {
+      console.error("Failed to load dashboard data:", e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -142,25 +127,68 @@ export default function Dashboard() {
     setCurrentTimeDisplay(d.toLocaleDateString('en-US', options));
   };
 
-  const syncContextInputs = (cData) => {
-    setEditSleep(cData.sleep?.hours || 7.0);
-    setEditSleepQuality(cData.sleep?.quality || 'good');
-    setEditEnergy(cData.sleep?.energy || 7);
-    setEditMoodRating(cData.mood?.rating || 6);
-    setEditMoodState(cData.mood?.state || 'stressed');
-    setEditWeather(cData.environmental?.weather || 'Clear');
+  const syncContextForm = (cData) => {
+    setSleepHours(cData.sleep?.hours || 7.0);
+    setSleepQuality(cData.sleep?.quality || 'good');
+    setMentalEnergy(cData.energies?.mental || 7);
+    setPhysicalEnergy(cData.energies?.physical || 7);
+    setSocialEnergy(cData.energies?.social || 7);
+    setCreativeEnergy(cData.energies?.creative || 7);
+    setCreationStory(cData.creation_story || '');
+    setConsumptionStory(cData.consumption_story || '');
+    setWeatherOutlook(cData.environmental?.weather || 'Clear');
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const handleSaveContext = async (e) => {
+    e.preventDefault();
+    setIsUpdatingContext(true);
+    try {
+      const res = await fetch('/api/context', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sleep: { hours: parseFloat(sleepHours), quality: sleepQuality },
+          mood: { rating: 5, state: 'clear' }, // Default mood
+          energies: {
+            mental: parseInt(mentalEnergy),
+            physical: parseInt(physicalEnergy),
+            social: parseInt(socialEnergy),
+            creative: parseInt(creativeEnergy)
+          },
+          creation_story: creationStory,
+          consumption_story: consumptionStory,
+          environmental: { weather: weatherOutlook }
+        })
+      });
+
+      const updatedContext = await res.json();
+      setContext(updatedContext);
+
+      // Refresh actions and chats
+      const actRes = await fetch('/api/actions');
+      const actData = await actRes.json();
+      setActions(actData);
+
+      const chRes = await fetch('/api/chat');
+      const chData = await chRes.json();
+      setChatHistory(chData);
+      
+      // Update profile
+      const pRes = await fetch('/api/profile');
+      const pData = await pRes.json();
+      setProfile(pData);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsUpdatingContext(false);
+    }
   };
 
-  // Toggle Action checklist status
   const handleToggleAction = async (actionId, currentStatus) => {
     let nextStatus = 'todo';
     if (currentStatus === 'todo') {
       nextStatus = 'done';
-      triggerConfettiBlast(50); // Burst of confetti on single completion
+      triggerConfettiBlast(50);
     } else if (currentStatus === 'done') {
       nextStatus = 'skipped';
     }
@@ -171,74 +199,35 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ actionId, status: nextStatus })
       });
-      
-      if (!res.ok) {
-        throw new Error("Failed to update task status on the server.");
-      }
-      
       const data = await res.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
-      
       setActions(data.actions || []);
       setProfile(data.profile || profile);
       setChatHistory(data.chat_history || chatHistory);
 
-      // Check if all actions are now completed to trigger screen blast
-      if (data.actions && Array.isArray(data.actions)) {
-        const allDone = data.actions.every(a => a.status === 'done');
-        if (allDone && nextStatus === 'done') {
-          triggerConfettiBlast(200); // Massive screen-wide blast
-        }
-      }
-
-      // Check if level-up modal needs to pop up
-      if (data.profile && data.profile.level_up_celebration_pending) {
-        setCelebratedLevel(data.profile.level);
-        setLevelUpModalOpen(true);
-        triggerConfettiBlast(180);
+      // Check for clean sweep
+      if (data.actions && data.actions.every(a => a.status === 'done')) {
+        triggerConfettiBlast(200);
       }
     } catch (e) {
-      console.error("Error toggling action state:", e);
-      alert(`Could not toggle task completion. Error: ${e.message}`);
+      console.error(e);
     }
   };
 
-  // Save Daily Context and freeze
-  const handleSaveContext = async (e) => {
-    e.preventDefault();
-    setIsUpdatingContext(true);
+  const handleRateAction = async (actionId, rating) => {
     try {
-      const res = await fetch('/api/context', {
+      const res = await fetch('/api/actions/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sleep: { hours: parseFloat(editSleep), quality: editSleepQuality, energy: parseInt(editEnergy) },
-          mood: { rating: parseInt(editMoodRating), state: editMoodState },
-          environmental: { weather: editWeather }
-        })
+        body: JSON.stringify({ actionId, status: 'done', rating })
       });
-      const updatedContext = await res.json();
-      setContext(updatedContext);
-      setIsLoggingContext(false);
-      
-      // Reload actions and chat to capture companion reaction to logs
-      const actRes = await fetch('/api/actions');
-      const actData = await actRes.json();
-      setActions(actData);
-      
-      const chRes = await fetch('/api/chat');
-      const chData = await chRes.json();
-      setChatHistory(chData);
-    } catch (err) {
-      console.error("Failed to save context logs:", err);
-    } finally {
-      setIsUpdatingContext(false);
+      const data = await res.json();
+      setActions(data.actions || []);
+      setProfile(data.profile || profile);
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  // Chat message submission
   const handleSendChatMessage = async (textOverride) => {
     const text = textOverride || chatInput;
     if (!text.trim() || isSendingChat) return;
@@ -246,9 +235,8 @@ export default function Dashboard() {
     setIsSendingChat(true);
     if (!textOverride) setChatInput('');
 
-    // Optimistically add user bubble to screen
-    const userBubble = { sender: 'User', text, timestamp: new Date().toISOString() };
-    setChatHistory(prev => [...prev, userBubble]);
+    // Add User bubble
+    setChatHistory(prev => [...prev, { sender: 'User', text, timestamp: new Date().toISOString() }]);
 
     try {
       const res = await fetch('/api/chat', {
@@ -258,36 +246,20 @@ export default function Dashboard() {
       });
       const data = await res.json();
 
-      // Append companion response bubble
-      const aumBubble = { sender: 'AUM', text: data.response, timestamp: new Date().toISOString() };
-      setChatHistory(prev => [...prev, aumBubble]);
-
-      // If user typed something about completing a task or leveling up, check state
-      fetchProfileAndActions();
+      // Add AUM bubble
+      setChatHistory(prev => [...prev, { sender: 'AUM', text: data.response, timestamp: new Date().toISOString() }]);
+      
+      // Update profile
+      const pRes = await fetch('/api/profile');
+      const pData = await pRes.json();
+      setProfile(pData);
     } catch (e) {
-      console.error("Failed to send message:", e);
-      const errBubble = { sender: 'AUM', text: "I'm having trouble reflecting right now. Let's take a breath and try again shortly.", timestamp: new Date().toISOString() };
-      setChatHistory(prev => [...prev, errBubble]);
+      console.error(e);
     } finally {
       setIsSendingChat(false);
     }
   };
 
-  const fetchProfileAndActions = async () => {
-    try {
-      const pRes = await fetch('/api/profile');
-      const pData = await pRes.json();
-      setProfile(pData);
-      
-      const aRes = await fetch('/api/actions');
-      const aData = await aRes.json();
-      setActions(aData);
-    } catch (err) {
-      console.log(err);
-    }
-  };
-
-  // Virtual Time Travel
   const handleTimeTravel = async (action, value) => {
     try {
       const res = await fetch('/api/time-travel', {
@@ -296,109 +268,27 @@ export default function Dashboard() {
         body: JSON.stringify({ action, value })
       });
       const data = await res.json();
-
       setVirtualTime(data.virtual_time);
       formatTimeDisplay(data.current_time);
 
       if (data.dayTransitionCrossed) {
-        alert(`⏰ 6 AM Day Boundary Crossed! Transitioning to next day.\n• Yesterday's uncompleted tasks expired.\n• XP and Streak updated.\n• Next Daily 5 generated.`);
-        // Reload all data to catch transition changes
+        alert("⏰ 6 AM day boundary crossed! Transition summary generated. Uncompleted tasks expired.");
         fetchAllData();
       } else {
-        // Just reload context and actions to sync with time
         const cRes = await fetch('/api/context');
         const cData = await cRes.json();
         setContext(cData);
-        syncContextInputs(cData);
-        setIsLoggingContext(!cData.is_frozen);
+        syncContextForm(cData);
       }
-    } catch (err) {
-      console.error("Failed to travel in time:", err);
-    }
-  };
-
-  // Onboarding Wizard Submission
-  const handleOnboardingChange = (e) => {
-    const { name, value } = e.target;
-    setOnboardingProfile(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleFocusAreaToggle = (area) => {
-    setOnboardingProfile(prev => {
-      const current = prev.lifeAreas || [];
-      const updated = current.includes(area)
-        ? current.filter(a => a !== area)
-        : [...current, area];
-      return { ...prev, lifeAreas: updated };
-    });
-  };
-
-  const handleNextStep = (currentStep) => {
-    if (currentStep === 1) {
-      if (!onboardingProfile.name || !onboardingProfile.age || !onboardingProfile.gender) {
-        alert("Please fill in your Name, Age, and Gender identity to proceed.");
-        return;
-      }
-      setOnboardingStep(2);
-    } else if (currentStep === 2) {
-      if (!onboardingProfile.job || !onboardingProfile.workHours) {
-        alert("Please fill in your Job Title/Role and Daily Work Hours to proceed.");
-        return;
-      }
-      setOnboardingStep(3);
-    } else if (currentStep === 3) {
-      if (
-        !onboardingProfile.maritalStatus ||
-        onboardingProfile.kids === '' ||
-        !onboardingProfile.idealLife ||
-        !onboardingProfile.goal ||
-        !onboardingProfile.problem
-      ) {
-        alert("Please fill in all the questions (Relationship status, Kids, Ideal life, Goals, and Problems) to proceed.");
-        return;
-      }
-      setOnboardingStep(4);
+    } catch (e) {
+      console.error(e);
     }
   };
 
   const handleFullReset = async () => {
-    if (
-      confirm(
-        "🚨 WARNING: This will permanently delete your entire profile, actions history, and chat logs on the server. You will be started as a completely fresh tester.\n\nAre you sure you want to proceed?"
-      )
-    ) {
-      try {
-        const res = await fetch('/api/profile/reset', { method: 'POST' });
-        if (!res.ok) throw new Error("Wipe request failed");
-        
-        alert("Server database deleted. Resetting session...");
-        window.location.reload();
-      } catch (err) {
-        console.error(err);
-        alert("Failed to reset database session. Please try again.");
-      }
-    }
-  };
-
-  const handleOnboardingSubmit = async (e) => {
-    e.preventDefault();
-    setOnboardingSubmitting(true);
-    try {
-      const res = await fetch('/api/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(onboardingProfile)
-      });
-      if (!res.ok) throw new Error("Failed to submit onboarding");
-      
-      // Reload entire app state after successful onboarding
-      await fetchAllData();
-      triggerConfettiBlast(120);
-    } catch (err) {
-      console.error(err);
-      alert("Something went wrong saving onboarding profile. Check logs.");
-    } finally {
-      setOnboardingSubmitting(false);
+    if (confirm("🚨 WARNING: Wipe entire session? This deletes all data.")) {
+      const res = await fetch('/api/profile/reset', { method: 'POST' });
+      if (res.ok) window.location.reload();
     }
   };
 
@@ -408,747 +298,334 @@ export default function Dashboard() {
     }
   };
 
-  const dismissLevelUp = () => {
-    setLevelUpModalOpen(false);
-    // Dismiss key on backend
-    fetch('/api/profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ level_up_celebration_pending: false })
-    }).then(res => res.json()).then(data => setProfile(data));
-  };
-
-  // Helper to determine Archetype color theme
-  const getArchetypeColor = (level) => {
-    if (level >= 35) return '#f43f5e'; // Life Architect - Rose Red
-    if (level >= 20) return '#38bdf8'; // Focus Master - Sky Blue
-    if (level >= 10) return '#fbbf24'; // Stamina Builder - Amber
-    if (level >= 4) return '#c084fc'; // Consistency Seeker - Lavender Purple
-    return '#a5b4fc'; // Mindful Rookie - Indigo
-  };
-
-  const getArchetypeName = (level) => {
-    if (level >= 35) return 'Life Architect';
-    if (level >= 20) return 'Focus Master';
-    if (level >= 10) return 'Stamina Builder';
-    if (level >= 4) return 'Consistency Seeker';
-    return 'Mindful Rookie';
-  };
-
-  // RENDER ONBOARDING WIZARD IF PROFILE NOT INITIALIZED OR ONBOARDING NOT COMPLETED
-  if (profile && !profile.onboarding_completed) {
-    return (
-      <div style={styles.pageWrapper}>
-        <canvas ref={canvasRef} style={styles.confettiCanvas}></canvas>
-        <div className="glass-panel" style={styles.wizardContainer}>
-          <div style={styles.progressContainer}>
-            <div style={{ ...styles.progressBar, width: `${(onboardingStep / 4) * 100}%` }}></div>
-          </div>
-          <div style={styles.stepIndicator}>Step {onboardingStep} of 4</div>
-
-          <h2 style={styles.wizardTitle}>Setup Your AUM Life OS</h2>
-          
-          <form onSubmit={handleOnboardingSubmit} style={{ display: 'contents' }}>
-            {onboardingStep === 1 && (
-              <div style={styles.wizardStep} className="animate-fade-in">
-                <h3 style={styles.wizardStepTitle}>1. Personal Core</h3>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Full Name</label>
-                  <input
-                    name="name"
-                    value={onboardingProfile.name}
-                    onChange={handleOnboardingChange}
-                    className="glass-input"
-                    placeholder="e.g. Akash Tripathi"
-                    required
-                  />
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Age</label>
-                  <input
-                    name="age"
-                    type="number"
-                    value={onboardingProfile.age}
-                    onChange={handleOnboardingChange}
-                    className="glass-input"
-                    placeholder="e.g. 35"
-                    required
-                  />
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Gender Identity</label>
-                  <select
-                    name="gender"
-                    value={onboardingProfile.gender}
-                    onChange={handleOnboardingChange}
-                    className="glass-select"
-                    required
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div style={styles.buttonRow}>
-                  <div></div>
-                  <button
-                    type="button"
-                    onClick={() => handleNextStep(1)}
-                    className="btn btn-primary"
-                  >
-                    Next Step →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {onboardingStep === 2 && (
-              <div style={styles.wizardStep} className="animate-fade-in">
-                <h3 style={styles.wizardStepTitle}>2. Work & Lifestyle</h3>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Job Title / Role</label>
-                  <input
-                    name="job"
-                    value={onboardingProfile.job}
-                    onChange={handleOnboardingChange}
-                    className="glass-input"
-                    placeholder="e.g. General Manager Business Development"
-                    required
-                  />
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Daily Work Hours</label>
-                  <input
-                    name="workHours"
-                    type="number"
-                    value={onboardingProfile.workHours}
-                    onChange={handleOnboardingChange}
-                    className="glass-input"
-                    placeholder="e.g. 10"
-                    required
-                  />
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Weekly Work Days</label>
-                  <select
-                    name="workDays"
-                    value={onboardingProfile.workDays}
-                    onChange={handleOnboardingChange}
-                    className="glass-select"
-                    required
-                  >
-                    <option value={5}>5 Days</option>
-                    <option value={6}>6 Days</option>
-                  </select>
-                </div>
-                <div style={styles.buttonRow}>
-                  <button type="button" onClick={() => setOnboardingStep(1)} className="btn btn-secondary">
-                    ← Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleNextStep(2)}
-                    className="btn btn-primary"
-                  >
-                    Next Step →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {onboardingStep === 3 && (
-              <div style={styles.wizardStep} className="animate-fade-in">
-                <h3 style={styles.wizardStepTitle}>3. Vision & Vulnerability</h3>
-                <div className="grid grid-cols-2" style={{ gap: '1rem' }}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Relationship Status</label>
-                    <select
-                      name="maritalStatus"
-                      value={onboardingProfile.maritalStatus}
-                      onChange={handleOnboardingChange}
-                      className="glass-select"
-                      required
-                    >
-                      <option value="">Select Status</option>
-                      <option value="Single">Single</option>
-                      <option value="In a Relationship">In a Relationship</option>
-                      <option value="Married">Married</option>
-                      <option value="Prefer not to say">Prefer not to say</option>
-                    </select>
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>Number of Kids</label>
-                    <input
-                      name="kids"
-                      type="number"
-                      value={onboardingProfile.kids}
-                      onChange={handleOnboardingChange}
-                      className="glass-input"
-                      placeholder="0"
-                      required
-                    />
-                  </div>
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>What does your IDEAL life look like?</label>
-                  <textarea
-                    name="idealLife"
-                    value={onboardingProfile.idealLife}
-                    onChange={handleOnboardingChange}
-                    className="glass-textarea"
-                    placeholder="Describe your ideal state of relationships, peace, focus..."
-                    style={{ height: '70px', resize: 'none' }}
-                    required
-                  ></textarea>
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>What are your primary GOALS?</label>
-                  <input
-                    name="goal"
-                    value={onboardingProfile.goal}
-                    onChange={handleOnboardingChange}
-                    className="glass-input"
-                    placeholder="e.g. Achieve inner freedom, stable routines..."
-                    required
-                  />
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>What are the biggest PROBLEMS / bottlenecks?</label>
-                  <input
-                    name="problem"
-                    value={onboardingProfile.problem}
-                    onChange={handleOnboardingChange}
-                    className="glass-input"
-                    placeholder="e.g. Unstable job, tricky marital arguments..."
-                    required
-                  />
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Focus Areas (Select all that apply)</label>
-                  <div className="flex flex-wrap gap-1">
-                    {["Mindset", "Physical", "Relationships", "Work-Life", "Reflection"].map((area) => {
-                      const isSelected = onboardingProfile.lifeAreas.includes(area);
-                      return (
-                        <button
-                          key={area}
-                          type="button"
-                          onClick={() => handleFocusAreaToggle(area)}
-                          className="badge"
-                          style={{
-                            ...styles.focusChip,
-                            backgroundColor: isSelected ? 'var(--color-primary)' : 'rgba(255,255,255,0.02)',
-                            borderColor: isSelected ? 'var(--color-primary)' : 'var(--border-glass)',
-                            color: isSelected ? '#fff' : 'var(--text-secondary)',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {area}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div style={styles.buttonRow}>
-                  <button type="button" onClick={() => setOnboardingStep(2)} className="btn btn-secondary">
-                    ← Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleNextStep(3)}
-                    className="btn btn-primary"
-                  >
-                    Next Step →
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {onboardingStep === 4 && (
-              <div style={styles.wizardStep} className="animate-fade-in">
-                <h3 style={styles.wizardStepTitle}>4. Life Satisfaction</h3>
-                <div style={{ textAlign: 'center', margin: '2rem 0' }}>
-                  <div style={{ fontSize: '3rem', fontFamily: 'var(--font-display)', fontWeight: 'bold', color: 'var(--color-primary)', textShadow: '0 0 15px rgba(99,102,241,0.3)' }}>
-                    {onboardingProfile.lifeSatisfaction} <span style={{ fontSize: '1.5rem', color: 'var(--text-secondary)' }}>/ 10</span>
-                  </div>
-                  <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', fontSize: '0.9rem' }}>
-                    How satisfied are you with your life on a scale of 1 to 10 today?
-                  </p>
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    step="1"
-                    name="lifeSatisfaction"
-                    value={onboardingProfile.lifeSatisfaction}
-                    onChange={handleOnboardingChange}
-                    style={{ ...styles.slider, width: '80%', margin: '1.5rem auto 0 auto', display: 'block' }}
-                  />
-                </div>
-                <div style={styles.buttonRow}>
-                  <button type="button" onClick={() => setOnboardingStep(3)} className="btn btn-secondary">
-                    ← Back
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={onboardingSubmitting}
-                  >
-                    {onboardingSubmitting ? "Generating Momentum..." : "Initialize OS ✓"}
-                  </button>
-                </div>
-              </div>
-            )}
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // RENDER LOADING PLACEHOLDER IF LOGS NOT FULLY CONFIGURED
-  if (!profile || !context) {
+  // Loading Screen
+  if (isLoading || !profile || !context) {
     return (
       <div style={styles.loadingContainer}>
         <div style={styles.spinner}></div>
-        <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)' }}>Aligning momentum matrix...</p>
+        <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)' }}>Synchronizing Life Momentum Matrix...</p>
       </div>
     );
   }
 
+  // Rate metrics
   const completedCount = actions.filter(a => a.status === 'done').length;
-  const progressPercent = actions.length > 0 ? Math.round((completedCount / actions.length) * 100) : 0;
+  const intentionalRate = profile.intentional_days_count && profile.total_actions_generated > 0
+    ? Math.round((profile.intentional_days_count / (profile.total_actions_generated / 5)) * 100)
+    : 75; // Baseline default
 
   return (
-    <div className="app-container animate-fade-in" style={{ position: 'relative' }}>
+    <div style={styles.dashboardContainer}>
       <canvas ref={canvasRef} style={styles.confettiCanvas}></canvas>
 
-      {/* LEVEL UP MODAL CELEBRATION OVERLAY */}
-      {levelUpModalOpen && (
-        <div style={styles.modalOverlay}>
-          <div className="glass-panel" style={styles.levelUpModal}>
-            <div style={styles.levelUpHeader}>🏆 LEVEL UP!</div>
-            <div style={styles.levelUpBadge} className="animate-glow">
-              {celebratedLevel}
-            </div>
-            <h3 style={{ fontSize: '1.5rem', fontFamily: 'var(--font-display)', marginTop: '1rem', color: getArchetypeColor(celebratedLevel) }}>
-              {getArchetypeName(celebratedLevel)}
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', fontSize: '0.9rem', maxWidth: '300px', margin: '0.5rem auto 0 auto' }}>
-              Congratulations Akash! You have leveled up by building consistent momentum. Your companion is waiting to celebrate in the chat.
-            </p>
-            <button onClick={dismissLevelUp} className="btn btn-primary" style={{ marginTop: '1.5rem', width: '150px' }}>
-              Thank You!
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* FLOAT FLOATING TIME TRAVEL CONTROL */}
-      <div style={styles.floatingTimeTravel}>
-        <button onClick={() => setTimeSelectorOpen(!timeSelectorOpen)} className="btn btn-secondary" style={styles.timeTravelToggleBtn}>
-          📅 {currentTimeDisplay} {virtualTime ? " (Simulated)" : " (Live)"}
+      {/* Time Travel Bar */}
+      <div style={styles.timeTravelBar}>
+        <button onClick={() => setTimeSelectorOpen(!timeSelectorOpen)} style={styles.timeButton}>
+          📅 Virtual Clock: {currentTimeDisplay} {virtualTime ? " (Simulated)" : " (Live)"}
         </button>
-        
         {timeSelectorOpen && (
-          <div className="glass-panel" style={styles.timeSelectorDropdown}>
-            <div style={styles.timeTitle}>Virtual Clock Simulation</div>
-            <div className="flex flex-col gap-1" style={{ width: '100%' }}>
-              <button onClick={() => handleTimeTravel('advance', 1)} className="btn btn-secondary" style={styles.simOptBtn}>+1 Hour</button>
-              <button onClick={() => handleTimeTravel('advance', 12)} className="btn btn-secondary" style={styles.simOptBtn}>+12 Hours</button>
-              
-              {/* Force to next 6:01 AM day boundary */}
-              <button 
-                onClick={() => {
-                  const now = virtualTime ? new Date(virtualTime) : new Date();
-                  const target = new Date(now);
-                  if (target.getHours() < 6) {
-                    target.setHours(6, 1, 0, 0);
-                  } else {
-                    target.setDate(target.getDate() + 1);
-                    target.setHours(6, 1, 0, 0);
-                  }
-                  handleTimeTravel('set', target.toISOString());
-                }} 
-                className="btn btn-primary" 
-                style={styles.simOptPrimaryBtn}
-              >
-                Fast-Forward to 6:01 AM (Next Day)
+          <div style={styles.timeDropdown}>
+            <button onClick={() => handleTimeTravel('advance', 1)} style={styles.simBtn}>+1 Hour</button>
+            <button onClick={() => handleTimeTravel('advance', 12)} style={styles.simBtn}>+12 Hours</button>
+            <button 
+              onClick={() => {
+                const now = virtualTime ? new Date(virtualTime) : new Date();
+                const target = new Date(now);
+                target.setDate(target.getDate() + 1);
+                target.setHours(6, 1, 0, 0);
+                handleTimeTravel('set', target.toISOString());
+              }} 
+              style={styles.simBtnPrimary}
+            >
+              Advance to 6:01 AM (Next Day)
+            </button>
+            {virtualTime && (
+              <button onClick={() => handleTimeTravel('reset')} style={styles.resetClockBtn}>
+                Reset to Real-Time
               </button>
-              
-              {virtualTime && (
-                <button onClick={() => handleTimeTravel('reset')} className="btn btn-secondary" style={{ ...styles.simOptBtn, color: '#ef4444' }}>
-                  Reset to Live Clock
-                </button>
-              )}
-            </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* SECTION 1: WELCOME & DASHBOARD STATS */}
-      <section style={styles.welcomeBanner} className="glass-panel flex justify-between align-center">
-        <div>
-          <span className="badge badge-primary" style={{ marginBottom: '0.5rem' }}>
-            Current Phase: {profile.current_phase || 'Stability'}
-          </span>
-          <h1 style={styles.welcomeTitle}>Welcome, {profile.name}</h1>
-          <p style={styles.welcomeSubtitle}>
-            Focusing on <strong className="glow-text-primary">{profile.current_phase || 'Stability'}</strong>.
-            {profile.current_phase === 'Recovery' && " Protecting reserves. Prioritize lowering cognitive demands."}
-            {profile.current_phase === 'Stability' && " Maintaining rhythm. Focus on small, high-certainty actions today."}
-            {profile.current_phase === 'Growth' && " Expanding capabilities. Take on new, deliberate focus challenges."}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button 
-            onClick={() => {
-              if (confirm("Reset current profile and re-run onboarding? This will re-capture your goals, work structure, and baseline metrics.")) {
-                setProfile(prev => ({ ...prev, onboarding_completed: false }));
-              }
-            }}
-            className="btn btn-secondary"
-            style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
-          >
-            ⚙️ Reset & Onboard
-          </button>
-          <button 
-            onClick={handleFullReset}
-            className="btn btn-secondary"
-            style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', whiteSpace: 'nowrap', border: '1px solid #ef4444', color: '#ef4444' }}
-          >
-            ⚠️ Wipe & Restart
-          </button>
-        </div>
-      </section>
-
-      {/* SECTION 2: CONTEXT LOG TRACKER & EDITOR */}
-      <section style={{ marginTop: '1.5rem' }} className="glass-panel">
-        <div className="flex justify-between align-center" style={{ borderBottom: '1px solid var(--border-glass)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
-          <div>
-            <h3 style={{ fontSize: '1.2rem', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              🔒 Daily Context Status: <span style={{ color: context.is_frozen ? 'var(--color-success)' : '#fbbf24' }}>
-                {context.is_frozen ? "Frozen & Saved" : "Awaiting Logs"}
-              </span>
-            </h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
-              Locking daily context details helps AUM structure the Daily 5 recommendation loop.
-            </p>
-          </div>
-          {context.is_frozen && (
-            <button 
-              onClick={() => setIsLoggingContext(!isLoggingContext)} 
-              className="btn btn-secondary"
-              style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
-            >
-              {isLoggingContext ? "Cancel Edit" : "✏️ Update Context"}
-            </button>
-          )}
-        </div>
-
-        {/* Read-Only Stats Display when Frozen */}
-        {!isLoggingContext ? (
-          <div className="grid grid-cols-3" style={{ gap: '1.5rem' }}>
-            <div style={styles.freezeLogBlock}>
-              <span style={styles.freezeLogLabel}>💤 Sleep Analysis</span>
-              <div style={styles.freezeLogVal}>{context.sleep?.hours || 7} hrs <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>({context.sleep?.quality})</span></div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Energy Level: {context.sleep?.energy}/10</span>
-            </div>
-            <div style={styles.freezeLogBlock}>
-              <span style={styles.freezeLogLabel}>🎭 Emotional State</span>
-              <div style={styles.freezeLogVal} className="glow-text-primary">
-                {context.mood?.state ? context.mood.state.charAt(0).toUpperCase() + context.mood.state.slice(1) : 'Neutral'}
-              </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Stress Rating: {context.mood?.rating || 5}/10</span>
-            </div>
-            <div style={styles.freezeLogBlock}>
-              <span style={styles.freezeLogLabel}>🌍 Environment</span>
-              <div style={styles.freezeLogVal}>{context.environmental?.weather || 'Clear'}</div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Day: {context.environmental?.day_of_week || 'Today'}</span>
-            </div>
-          </div>
-        ) : (
-          /* Form Editor when Open */
-          <form onSubmit={handleSaveContext} className="grid grid-cols-3 animate-fade-in" style={{ gap: '2rem' }}>
-            <div>
-              <h4 style={styles.simSecTitle}>Physical Parameters</h4>
-              <div style={styles.inputGrp}>
-                <label style={styles.inputLbl}>Sleep Duration: {editSleep} hrs</label>
-                <input
-                  type="range" min="4" max="10" step="0.1"
-                  value={editSleep}
-                  onChange={(e) => setEditSleep(e.target.value)}
-                  style={styles.slider}
-                />
-              </div>
-              <div style={styles.inputGrp}>
-                <label style={styles.inputLbl}>Sleep Quality</label>
-                <select value={editSleepQuality} onChange={(e) => setEditSleepQuality(e.target.value)} className="glass-select">
-                  <option value="excellent">Excellent</option>
-                  <option value="good">Good / Rested</option>
-                  <option value="poor">Poor / Interrupted</option>
-                  <option value="terrible">Insomnia / Exhausted</option>
-                </select>
-              </div>
-              <div style={styles.inputGrp}>
-                <label style={styles.inputLbl}>Morning Energy Level: {editEnergy}/10</label>
-                <input
-                  type="range" min="1" max="10"
-                  value={editEnergy}
-                  onChange={(e) => setEditEnergy(e.target.value)}
-                  style={styles.slider}
-                />
-              </div>
-            </div>
-
-            <div>
-              <h4 style={styles.simSecTitle}>Emotional Parameters</h4>
-              <div style={styles.inputGrp}>
-                <label style={styles.inputLbl}>Stress Level: {editMoodRating}/10</label>
-                <input
-                  type="range" min="1" max="10"
-                  value={editMoodRating}
-                  onChange={(e) => setEditMoodRating(e.target.value)}
-                  style={styles.slider}
-                />
-              </div>
-              <div style={styles.inputGrp}>
-                <label style={styles.inputLbl}>Dominant Feeling State</label>
-                <select value={editMoodState} onChange={(e) => setEditMoodState(e.target.value)} className="glass-select">
-                  <option value="confident">Confident / Proactive</option>
-                  <option value="excited">Excited / High Stamina</option>
-                  <option value="stressed">Stressed / Busy</option>
-                  <option value="anxious">Anxious / Overloaded</option>
-                  <option value="exhausted">Exhausted / Low battery</option>
-                  <option value="disconnected">Disconnected / Lost</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex flex-col justify-between">
-              <div>
-                <h4 style={styles.simSecTitle}>Environmental Parameters</h4>
-                <div style={styles.inputGrp}>
-                  <label style={styles.inputLbl}>Weather Outlook</label>
-                  <select value={editWeather} onChange={(e) => setEditWeather(e.target.value)} className="glass-select">
-                    <option value="Clear">Clear & Sunny</option>
-                    <option value="Overcast">Overcast & Humid</option>
-                    <option value="Rainy">Raining / Indoors</option>
-                    <option value="Cold">Chilly / Overcast</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{ marginTop: '1rem' }}>
-                <button type="submit" disabled={isUpdatingContext} className="btn btn-primary" style={{ width: '100%', padding: '0.8rem' }}>
-                  {isUpdatingContext ? "Locking & Recalculating..." : "Save Log & Freeze Context"}
-                </button>
-              </div>
-            </div>
-          </form>
-        )}
-      </section>
-
-      {/* SECTION 3: SPLIT GRID - GAMIFICATION PROGRESS & DAILY 5 TASKS */}
-      <div className="grid grid-cols-3" style={{ marginTop: '1.5rem' }}>
+      {/* Main 3-Column Grid */}
+      <div style={styles.layoutGrid}>
         
-        {/* LEFT COLUMN: GAMIFICATION CARD & ACTIVE ARCHETYPE */}
-        <div className="flex flex-col gap-3">
-          <div className="glass-panel flex flex-col align-center justify-center" style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
-            <h3 style={styles.panelTitle}>Momentum Experience</h3>
-            
-            <div style={styles.ringWrapper}>
-              <svg width="150" height="150" viewBox="0 0 150 150">
-                <circle cx="75" cy="75" r="60" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="10" />
+        {/* COLUMN 1: CONTEXT & WORLD ENGINE (Left) */}
+        <div style={styles.column}>
+          
+          {/* Momentum Meter Status Card */}
+          <div style={styles.panel}>
+            <h3 style={styles.panelTitle}>Life Momentum Status</h3>
+            <div style={styles.meterContainer}>
+              <svg width="140" height="140" viewBox="0 0 140 140">
+                <circle cx="70" cy="70" r="55" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="8" />
                 <circle 
-                  cx="75" cy="75" r="60" 
+                  cx="70" cy="70" r="55" 
                   fill="transparent" 
-                  stroke="url(#xpGradient)" 
-                  strokeWidth="10" 
-                  strokeDasharray="377"
-                  strokeDashoffset={377 - (377 * (profile.xp || 0)) / 100}
+                  stroke="url(#momentumGradient)" 
+                  strokeWidth="8" 
+                  strokeDasharray="345"
+                  strokeDashoffset={345 - (345 * (profile.momentum_score || 50)) / 100}
                   strokeLinecap="round"
                   style={{ transition: 'stroke-dashoffset 0.8s ease-in-out' }}
                 />
                 <defs>
-                  <linearGradient id="xpGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="var(--color-primary)" />
-                    <stop offset="100%" stopColor="var(--color-secondary)" />
+                  <linearGradient id="momentumGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#a855f7" />
                   </linearGradient>
                 </defs>
               </svg>
-              <div style={styles.ringTextContainer}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Level</span>
-                <span style={styles.ringPercentage}>{profile.level || 0}</span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{profile.xp || 0} / 100 XP</span>
+              <div style={styles.meterText}>
+                <span style={styles.meterVal}>{profile.momentum_score || 50}</span>
+                <span style={styles.meterLabel}>Rolling Score</span>
               </div>
             </div>
 
-            <div className="flex gap-4" style={{ marginTop: '1.5rem', width: '100%', justifyContent: 'space-around' }}>
-              <div>
-                <span style={styles.statVal} className="glow-text-primary">🔥 {profile.streak || 0}d</span>
-                <span style={styles.statLabel}>Streak</span>
+            <div style={styles.metaStats}>
+              <div style={styles.metaStatItem}>
+                <span style={styles.metaStatVal}>🔥 {profile.streak || 0}d</span>
+                <span style={styles.metaStatLabel}>Streak</span>
               </div>
-              <div style={{ borderLeft: '1px solid var(--border-glass)', height: '24px' }}></div>
-              <div>
-                <span style={styles.statVal}>{completedCount} / 5</span>
-                <span style={styles.statLabel}>Completed</span>
+              <div style={styles.metaDivider}></div>
+              <div style={styles.metaStatItem}>
+                <span style={styles.metaStatVal}>{intentionalRate}%</span>
+                <span style={styles.metaStatLabel}>Intentional Days</span>
               </div>
-              <div style={{ borderLeft: '1px solid var(--border-glass)', height: '24px' }}></div>
-              <div>
-                <span style={styles.statVal}>{profile.completion_rate || 0}%</span>
-                <span style={styles.statLabel}>Total Rate</span>
-              </div>
+            </div>
+
+            <div style={styles.archetypeBox}>
+              <span style={styles.badgeSuccess}>{profile.archetype || "The Rebuilder"}</span>
+              <span style={styles.archetypeLabel}>Identity Archetype</span>
             </div>
           </div>
 
-          <div className="glass-panel" style={{ background: `linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%)`, border: `1px solid rgba(99,102,241,0.15)` }}>
-            <div className="flex align-center justify-between" style={{ marginBottom: '1rem' }}>
-              <h3 style={styles.panelTitle}>Active Identity</h3>
-              <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>Archetype Status</span>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-              <div style={{ ...styles.archetypeBadge, borderColor: getArchetypeColor(profile.level) }}>🛡️</div>
-              <div>
-                <h4 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)', color: getArchetypeColor(profile.level) }}>
-                  {getArchetypeName(profile.level)}
-                </h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                  Evolving through consistency
-                </p>
-              </div>
-            </div>
-          </div>
+          {/* Daily Context Form Panel */}
+          <div style={styles.panel}>
+            <h3 style={styles.panelTitle}>
+              Daily Context Status: <span style={{ color: context.is_frozen ? '#10b981' : '#f59e0b' }}>
+                {context.is_frozen ? "Frozen" : "Awaiting Logs"}
+              </span>
+            </h3>
+            
+            {!context.is_frozen ? (
+              <form onSubmit={handleSaveContext} style={styles.contextForm}>
+                <div style={styles.inputRow}>
+                  <label style={styles.formLabel}>Sleep Duration: {sleepHours}h</label>
+                  <input 
+                    type="range" min="4" max="10" step="0.1" 
+                    value={sleepHours} 
+                    onChange={(e) => setSleepHours(e.target.value)} 
+                    style={styles.slider}
+                  />
+                </div>
 
-          {/* HISTORICAL MILESTONES */}
-          {profile.milestones && profile.milestones.length > 0 && (
-            <div className="glass-panel flex flex-col" style={{ flexGrow: 1, maxHeight: '200px', overflowY: 'auto' }}>
-              <h4 style={{ ...styles.panelTitle, fontSize: '0.9rem', marginBottom: '0.5rem' }}>Milestone History</h4>
-              <div className="flex flex-col gap-1">
-                {profile.milestones.slice(-5).reverse().map((mil, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'between', fontSize: '0.8rem', padding: '0.25rem 0', borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>⚡ {mil.text}</span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{mil.date}</span>
+                <div style={styles.inputRow}>
+                  <label style={styles.formLabel}>Sleep Quality</label>
+                  <select value={sleepQuality} onChange={(e) => setSleepQuality(e.target.value)} className="glass-select">
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good / Rested</option>
+                    <option value="poor">Poor / Interrupted</option>
+                    <option value="terrible">Insomnia</option>
+                  </select>
+                </div>
+
+                <div style={styles.energiesGrid}>
+                  <div style={styles.energyInput}>
+                    <label style={styles.formLabel}>Mental: {mentalEnergy}</label>
+                    <input type="range" min="1" max="10" value={mentalEnergy} onChange={(e) => setMentalEnergy(e.target.value)} style={styles.slider} />
                   </div>
-                ))}
+                  <div style={styles.energyInput}>
+                    <label style={styles.formLabel}>Physical: {physicalEnergy}</label>
+                    <input type="range" min="1" max="10" value={physicalEnergy} onChange={(e) => setPhysicalEnergy(e.target.value)} style={styles.slider} />
+                  </div>
+                  <div style={styles.energyInput}>
+                    <label style={styles.formLabel}>Social: {socialEnergy}</label>
+                    <input type="range" min="1" max="10" value={socialEnergy} onChange={(e) => setSocialEnergy(e.target.value)} style={styles.slider} />
+                  </div>
+                  <div style={styles.energyInput}>
+                    <label style={styles.formLabel}>Creative: {creativeEnergy}</label>
+                    <input type="range" min="1" max="10" value={creativeEnergy} onChange={(e) => setCreativeEnergy(e.target.value)} style={styles.slider} />
+                  </div>
+                </div>
+
+                <div style={styles.inputRow}>
+                  <label style={styles.formLabel}>What did you create today?</label>
+                  <textarea 
+                    value={creationStory} 
+                    onChange={(e) => setCreationStory(e.target.value)} 
+                    placeholder="Describe any creative work, writing, project code..." 
+                    style={styles.textareaMini} 
+                  />
+                </div>
+
+                <div style={styles.inputRow}>
+                  <label style={styles.formLabel}>What pulled your attention today?</label>
+                  <textarea 
+                    value={consumptionStory} 
+                    onChange={(e) => setConsumptionStory(e.target.value)} 
+                    placeholder="Describe feeds, movies, scrolling or attention leaks..." 
+                    style={styles.textareaMini} 
+                  />
+                </div>
+
+                <div style={styles.inputRow}>
+                  <label style={styles.formLabel}>Weather</label>
+                  <select value={weatherOutlook} onChange={(e) => setWeatherOutlook(e.target.value)} className="glass-select">
+                    <option value="Clear">Clear & Sunny</option>
+                    <option value="Overcast">Overcast / Humid</option>
+                    <option value="Rainy">Raining</option>
+                    <option value="Cold">Cold</option>
+                  </select>
+                </div>
+
+                <button type="submit" disabled={isUpdatingContext} style={styles.submitBtn}>
+                  {isUpdatingContext ? "Saving Context..." : "Lock Context Logs"}
+                </button>
+              </form>
+            ) : (
+              <div style={styles.frozenStats}>
+                <div style={styles.frozenItem}>
+                  <span style={styles.frozenLabel}>💤 Sleep Analysis</span>
+                  <span style={styles.frozenVal}>{context.sleep?.hours} hrs ({context.sleep?.quality})</span>
+                </div>
+                <div style={styles.frozenItem}>
+                  <span style={styles.frozenLabel}>⚡ Energies</span>
+                  <span style={styles.frozenVal}>
+                    M: {context.energies?.mental} | P: {context.energies?.physical} | S: {context.energies?.social} | C: {context.energies?.creative}
+                  </span>
+                </div>
+                <div style={styles.frozenItem}>
+                  <span style={styles.frozenLabel}>🎨 Creation Index</span>
+                  <span style={styles.frozenVal}>
+                    {context.creation_minutes} mins creation vs {context.consumption_minutes} mins reels
+                  </span>
+                </div>
+                <button onClick={() => setContext(prev => ({ ...prev, is_frozen: false }))} style={styles.unfreezeBtn}>
+                  ✏️ Edit Context Logs
+                </button>
               </div>
+            )}
+          </div>
+
+          {/* World Engine Panel */}
+          <div style={styles.panel}>
+            <h3 style={styles.panelTitle}>World Engine ( NCR Integration)</h3>
+            <div style={styles.worldRow}>
+              <span style={styles.worldLabel}>Location:</span>
+              <span style={styles.worldVal}>{profile.city || "Bengaluru"}</span>
             </div>
-          )}
+            <div style={styles.worldRow}>
+              <span style={styles.worldLabel}>Local AQI Level:</span>
+              <span style={{ 
+                ...styles.worldVal, 
+                color: (profile.city === 'Gurgaon') ? '#ef4444' : '#10b981' 
+              }}>
+                {(profile.city === 'Gurgaon') ? "250 (Hazardous / Poor)" : "65 (Moderate)"}
+              </span>
+            </div>
+            <div style={styles.worldRow}>
+              <span style={styles.worldLabel}>Commute Traffic:</span>
+              <span style={styles.worldVal}>
+                {(profile.city === 'Gurgaon') ? "Critical Congestion" : "Moderate Traffic"}
+              </span>
+            </div>
+            <div style={styles.worldRow}>
+              <span style={styles.worldLabel}>Seasonal Triggers:</span>
+              <span style={styles.worldVal}>Salary Week</span>
+            </div>
+          </div>
         </div>
 
-        {/* RIGHT COLUMN: THE DAILY 5 CHECKLIST */}
-        <div style={{ gridColumn: 'span 2' }} className="flex flex-col gap-3">
-          <div className="flex align-center justify-between" style={{ padding: '0 0.5rem' }}>
-            <div>
-              <h2 style={{ fontSize: '1.4rem', fontFamily: 'var(--font-display)' }}>The Daily 5 Tasks</h2>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Intelligent, customized actions selected based on your broad goals and daily context.
-              </p>
-            </div>
+        {/* COLUMN 2: DAILY CHECKLIST & Star Ratings (Center) */}
+        <div style={{ ...styles.column, flexGrow: 1.5 }}>
+          <div style={{ padding: '0 0.5rem' }}>
+            <h2 style={styles.columnTitle}>Your Daily 5 Momentum Actions</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              Weaved with your Purpose Anchors. Expand cards for downstream causality logic.
+            </p>
           </div>
 
-          <div className="flex flex-col gap-2" style={{ position: 'relative' }}>
+          <div style={styles.checklist}>
             {actions.map((action) => {
               const isExpanded = expandedActionId === action.id;
               const isDone = action.status === 'done';
               const isSkipped = action.status === 'skipped';
 
-              let statusSymbol = '○';
-              let statusColor = 'var(--text-secondary)';
-              let titleStyle = {};
-
-              if (isDone) {
-                statusSymbol = '✓';
-                statusColor = 'var(--color-success)';
-                titleStyle = { textDecoration: 'line-through', color: 'var(--text-muted)' };
-              } else if (isSkipped) {
-                statusSymbol = '✕';
-                statusColor = 'var(--color-warning)';
-                titleStyle = { color: 'var(--text-muted)' };
-              }
-
               return (
                 <div 
-                  key={action.id}
-                  className={`glass-panel ${!isExpanded ? 'glass-panel-interactive' : ''}`}
+                  key={action.id} 
                   style={{
                     ...styles.actionCard,
-                    ...(isExpanded ? styles.actionCardExpanded : {}),
-                    borderColor: isExpanded ? 'rgba(99, 102, 241, 0.4)' : 'var(--border-glass)'
+                    borderColor: isExpanded ? '#6366f1' : 'rgba(255,255,255,0.08)',
+                    background: isExpanded ? 'rgba(10, 10, 15, 0.9)' : 'rgba(255,255,255,0.01)'
                   }}
-                  onClick={() => !isExpanded && setExpandedActionId(action.id)}
+                  onClick={() => setExpandedActionId(isExpanded ? null : action.id)}
                 >
-                  <div className="flex justify-between align-center" style={{ width: '100%' }}>
-                    <div className="flex align-center gap-3" style={{ flexGrow: 1 }}>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleAction(action.id, action.status);
-                        }}
-                        style={{
-                          ...styles.statusButton,
-                          color: statusColor,
-                          borderColor: isDone || isSkipped ? statusColor : 'var(--border-glass)'
-                        }}
-                      >
-                        {statusSymbol}
-                      </button>
-
-                      <div>
-                        <span className="badge" style={styles.actionCategoryBadge(action.category)}>
-                          {action.category} • Diff {action.difficulty || 1}
-                        </span>
-                        <h4 style={{ ...styles.actionText, ...titleStyle }}>{action.text}</h4>
-                      </div>
+                  <div style={styles.actionHeader}>
+                    <div style={styles.actionMain}>
+                      <span style={{
+                        ...styles.catBadge,
+                        backgroundColor: isDone ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.03)',
+                        color: isDone ? '#10b981' : '#d1d5db'
+                      }}>
+                        {action.category}
+                      </span>
+                      <h4 style={{
+                        ...styles.actionTextTitle,
+                        textDecoration: isDone ? 'line-through' : 'none',
+                        color: isDone ? '#9ca3af' : '#fff'
+                      }}>
+                        {action.text}
+                      </h4>
                     </div>
-                    
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedActionId(isExpanded ? null : action.id);
-                      }}
-                      style={styles.expandButton}
-                    >
-                      {isExpanded ? '▲' : '▼'}
-                    </button>
+
+                    <div style={styles.actionControls} onClick={(e) => e.stopPropagation()}>
+                      {isDone ? (
+                        <div style={styles.starRow}>
+                          <span style={styles.starLabelMini}>Effectiveness:</span>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button 
+                              key={star} 
+                              onClick={() => handleRateAction(action.id, star)}
+                              style={{
+                                ...styles.starBtn,
+                                color: (action.rating || 4) >= star ? '#fbbf24' : 'rgba(255,255,255,0.2)'
+                              }}
+                            >
+                              ★
+                            </button>
+                          ))}
+                          <button onClick={() => handleToggleAction(action.id, 'done')} style={styles.resetTaskBtn}>✕</button>
+                        </div>
+                      ) : isSkipped ? (
+                        <div style={styles.skippedState}>
+                          <span style={styles.skippedText}>Skipped</span>
+                          <button onClick={() => handleToggleAction(action.id, 'skipped')} style={styles.resetTaskBtn}>↺ Reset</button>
+                        </div>
+                      ) : (
+                        <div style={styles.todoControls}>
+                          <button onClick={() => handleToggleAction(action.id, 'todo')} style={styles.doneBtn}>✓ Complete</button>
+                          <button onClick={() => handleToggleAction(action.id, 'skipped')} style={styles.skipBtn}>✕ Skip</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {isExpanded && (
-                    <div style={styles.actionDrawer} className="animate-fade-in">
-                      <div style={styles.drawerSection}>
-                        <h5 style={styles.drawerSectionTitle}>💡 Why Today?</h5>
-                        <p style={styles.drawerSectionText}>{action.whyToday}</p>
+                    <div style={styles.expandedContent}>
+                      <div style={styles.explainBlock}>
+                        <span style={styles.explainLabel}>Why This Person? (Your Values & Chapter)</span>
+                        <p style={styles.explainText}>{action.whyRelevant || "Tailored to supporting your family values and sleep goals."}</p>
                       </div>
-                      <div style={styles.drawerSection}>
-                        <h5 style={styles.drawerSectionTitle}>🎯 Long-term Value</h5>
-                        <p style={styles.drawerSectionText}>{action.whyRelevant}</p>
+                      <div style={styles.explainBlock}>
+                        <span style={styles.explainLabel}>Why Today & Why Now? (Energies & Weather)</span>
+                        <p style={styles.explainText}>{action.whyToday || "Selected because your social reserves are high and traffic is moderate."}</p>
                       </div>
-                      <div style={styles.drawerSection}>
-                        <h5 style={styles.drawerSectionTitle}>📝 How to Execute</h5>
-                        <p style={styles.drawerSectionText}>{action.howTo}</p>
-                      </div>
-                      <div className="flex justify-between" style={{ marginTop: '1rem', borderTop: '1px solid var(--border-glass)', paddingTop: '0.75rem' }}>
-                        <button 
-                          className="btn btn-secondary"
-                          onClick={() => setExpandedActionId(null)}
-                          style={{ padding: '0.35rem 0.85rem', fontSize: '0.75rem' }}
-                        >
-                          Collapse
-                        </button>
-                        <div className="flex gap-2">
-                          <button 
-                            className="btn btn-secondary"
-                            onClick={() => handleToggleAction(action.id, 'done')} // transitions from done to skipped
-                            style={{ padding: '0.35rem 0.85rem', fontSize: '0.75rem', borderColor: 'var(--color-warning-glow)', color: '#fcd34d' }}
-                          >
-                            Skip Action
-                          </button>
-                          <button 
-                            className="btn btn-primary"
-                            onClick={() => handleToggleAction(action.id, 'todo')} // transitions to done
-                            style={{ padding: '0.35rem 1rem', fontSize: '0.75rem', boxShadow: 'none' }}
-                          >
-                            Complete Action
-                          </button>
-                        </div>
+                      <div style={styles.explainBlock}>
+                        <span style={styles.explainLabel}>How to Execute</span>
+                        <p style={styles.explainText}>{action.howTo || "Spend 10 minutes checking in with your family phone-free."}</p>
                       </div>
                     </div>
                   )}
@@ -1158,128 +635,217 @@ export default function Dashboard() {
           </div>
         </div>
 
-      </div>
-
-      {/* SECTION 4: UNIFIED CHAT COMPANION AT BOTTOM */}
-      <section style={{ marginTop: '1.5rem' }}>
-        <div style={styles.chatHeader} className="glass-panel flex align-center justify-between">
-          <div className="flex align-center gap-3">
-            <div style={styles.avatar}>🕉️</div>
-            <div>
-              <h2 style={{ fontSize: '1.2rem', fontFamily: 'var(--font-display)' }}>My AI Companion (AUM)</h2>
-              <div className="flex align-center gap-1" style={{ marginTop: '0.2rem' }}>
-                <span style={styles.onlineDot}></span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Empathy Engine Online</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={styles.memoryStatus} className="flex flex-col">
-            <span style={styles.memoryStatusTitle}>🧠 Evolving Memories:</span>
-            <div className="flex gap-1" style={{ marginTop: '0.25rem' }}>
-              <span className="badge badge-primary" style={{ fontSize: '0.6rem' }}>Core Needs</span>
-              <span className="badge badge-success" style={{ fontSize: '0.6rem' }}>Habit Loops</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Viewport for messages */}
-        <div style={styles.chatViewport} className="glass-panel">
-          <div style={styles.chatScrollArea}>
-            {chatHistory.length === 0 ? (
-              <div className="flex flex-col align-center justify-center" style={{ height: '100%', color: 'var(--text-muted)', minHeight: '150px' }}>
-                <p>Hello Akash, I'm AUM. I help you track and maintain life momentum. Chat with me anytime.</p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3" style={{ padding: '0.5rem' }}>
-                {chatHistory.map((msg, index) => {
-                  const isAi = msg.sender === 'AUM';
-                  return (
-                    <div 
-                      key={index} 
-                      style={{
-                        ...styles.bubbleWrapper,
-                        justifyContent: isAi ? 'flex-start' : 'flex-end'
-                      }}
-                      className="animate-fade-in"
-                    >
-                      {isAi && <div style={styles.miniAvatar}>🕉️</div>}
-                      <div 
-                        style={{
-                          ...styles.bubble,
-                          ...(isAi ? styles.bubbleAi : styles.bubbleUser)
-                        }}
-                      >
-                        <p style={styles.bubbleText}>{msg.text}</p>
-                        <span style={styles.bubbleTime}>
-                          {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                        </span>
+        {/* COLUMN 3: COMPANION CHAT & MY JOURNEY (Right) */}
+        <div style={styles.column}>
+          
+          {/* companion chat panel */}
+          <div style={{ ...styles.panel, display: 'flex', flexDirection: 'column', height: '620px' }}>
+            <style>{`
+              @keyframes typingBounce {
+                0%, 80%, 100% { transform: translateY(0); }
+                40% { transform: translateY(-5px); }
+              }
+              .typing-dot {
+                display: inline-block;
+                width: 6px;
+                height: 6px;
+                margin-right: 3px;
+                background-color: #a855f7;
+                border-radius: 50%;
+                animation: typingBounce 1.4s infinite ease-in-out both;
+              }
+              .typing-dot:nth-child(2) {
+                animation-delay: 0.2s;
+              }
+              .typing-dot:nth-child(3) {
+                animation-delay: 0.4s;
+              }
+            `}</style>
+            <h3 style={styles.panelTitle}>Companion Chat: {profile.companion_name || 'Aarav'}</h3>
+            <div style={styles.chatViewport} ref={chatScrollRef}>
+              <div style={styles.chatScroll}>
+                {chatHistory.map((bubble, idx) => (
+                  <div 
+                    key={idx} 
+                    style={{
+                      ...styles.bubbleWrapper,
+                      justifyContent: bubble.sender === 'User' ? 'flex-end' : 'flex-start'
+                    }}
+                  >
+                    <div style={{
+                      ...styles.bubble,
+                      background: bubble.sender === 'User' ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : 'rgba(255,255,255,0.03)',
+                      border: bubble.sender === 'User' ? 'none' : '1px solid rgba(255,255,255,0.08)'
+                    }}>
+                      <div style={{ 
+                        fontSize: '0.65rem', 
+                        fontWeight: '700', 
+                        marginBottom: '0.2rem', 
+                        color: bubble.sender === 'User' ? '#c7d2fe' : '#d8b4fe',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em'
+                      }}>
+                        {bubble.sender === 'User' ? 'YOU' : (profile.companion_name || 'AARAV').toUpperCase()}
                       </div>
+                      <span style={styles.bubbleText}>{bubble.text}</span>
                     </div>
-                  );
-                })}
-                
+                  </div>
+                ))}
                 {isSendingChat && (
-                  <div style={styles.bubbleWrapper} className="animate-fade-in">
-                    <div style={styles.miniAvatar}>🕉️</div>
-                    <div style={{ ...styles.bubble, ...styles.bubbleAi, opacity: 0.7 }}>
-                      <div style={styles.typingIndicator} className="flex gap-1">
-                        <span></span>
-                        <span></span>
-                        <span></span>
+                  <div style={{ ...styles.bubbleWrapper, justifyContent: 'flex-start' }}>
+                    <div style={{
+                      ...styles.bubble,
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      padding: '0.5rem 0.75rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', height: '14px' }}>
+                        <span className="typing-dot"></span>
+                        <span className="typing-dot"></span>
+                        <span className="typing-dot"></span>
                       </div>
                     </div>
                   </div>
                 )}
-                <div ref={messagesEndRef} />
+                <div ref={messagesEndRef}></div>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Controls and Input */}
-        <div style={styles.inputSection} style={{ marginTop: '0.5rem' }}>
-          <div className="flex gap-2" style={styles.chipsRow}>
-            {reflectionChips.map((chip, index) => (
-              <button 
-                key={index} 
-                onClick={() => handleSendChatMessage(chip)}
-                className="btn btn-secondary"
-                style={styles.chip}
+            {/* Quick reflection templates */}
+            <div style={styles.chipRow}>
+              {reflectionChips.map((chip, idx) => (
+                <button 
+                  key={idx} 
+                  onClick={() => handleSendChatMessage(chip)} 
+                  disabled={isSendingChat}
+                  style={styles.reflectionChip}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+
+            <div style={styles.chatInputRow}>
+              <textarea 
+                placeholder={`Talk to ${profile.companion_name || 'Aarav'}...`} 
+                value={chatInput} 
+                onChange={(e) => setChatInput(e.target.value)} 
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendChatMessage();
+                  }
+                }}
+                style={{
+                  ...styles.chatInput,
+                  resize: 'none',
+                  height: '45px',
+                  minHeight: '40px',
+                  fontFamily: 'inherit',
+                  paddingTop: '0.6rem',
+                  lineHeight: '1.4'
+                }}
                 disabled={isSendingChat}
-              >
-                {chip}
+              />
+              <button onClick={() => handleSendChatMessage()} style={styles.sendChatBtn} disabled={isSendingChat}>
+                {isSendingChat ? "..." : "Send"}
               </button>
-            ))}
+            </div>
           </div>
 
-          <div className="flex gap-2" style={{ width: '100%', marginTop: '0.5rem' }}>
-            <input 
-              type="text" 
-              placeholder="Talk to your companion about today's wins, struggles, or goals..." 
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
-              className="glass-input"
-              style={styles.chatInput}
-              disabled={isSendingChat}
-            />
-            <button 
-              onClick={() => handleSendChatMessage()}
-              className="btn btn-primary"
-              style={styles.sendBtn}
-              disabled={isSendingChat}
-            >
-              {isSendingChat ? "..." : "Send"}
-            </button>
+          {/* Toggle Sidebar Journey Drawer */}
+          <button onClick={() => setIsDrawerOpen(true)} style={styles.openDrawerBtn}>
+            📂 Slide Open: My Journey Timeline & Correlations
+          </button>
+
+          <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+            <button onClick={() => router.push('/onboarding')} style={{ ...styles.actionBtn, flex: 1 }}>⚙️ Onboard Settings</button>
+            <button onClick={handleFullReset} style={{ ...styles.actionBtn, color: '#ef4444', borderColor: '#ef4444', flex: 1 }}>⚠️ Wipe OS Session</button>
           </div>
         </div>
-      </section>
+      </div>
+
+      {/* SLIDE-OVERsidebar DRAWER PANEL */}
+      {isDrawerOpen && (
+        <div style={styles.drawerOverlay} onClick={() => setIsDrawerOpen(false)}>
+          <div style={styles.drawerContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.drawerHeader}>
+              <h2 style={styles.drawerTitle}>My Momentum Journey</h2>
+              <button onClick={() => setIsDrawerOpen(false)} style={styles.closeDrawerBtn}>✕ Close</button>
+            </div>
+
+            {/* Insights Section */}
+            <div style={styles.drawerSection}>
+              <h3 style={styles.drawerSecTitle}>Pearson Correlations & Insights</h3>
+              <div style={styles.insightsList}>
+                {profile.insights?.behavioral_insights && profile.insights.behavioral_insights.length > 0 ? (
+                  profile.insights.behavioral_insights.map((ins, idx) => (
+                    <div key={idx} style={styles.insightCard}>
+                      <span style={styles.insightIcon}>📈</span>
+                      <p style={styles.insightText}>{ins}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p style={styles.emptyText}>Correlations calculate every 3 days. Log more context to unlock.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Risks & Wins Section */}
+            <div style={styles.drawerSection}>
+              <h3 style={styles.drawerSecTitle}>Momentum Risks & Wins</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={styles.healthBlock}>
+                  <h4 style={{ ...styles.healthTitle, color: '#ef4444' }}>Risks</h4>
+                  <ul style={styles.healthList}>
+                    {profile.insights?.current_risks && profile.insights.current_risks.length > 0 ? (
+                      profile.insights.current_risks.map((risk, idx) => <li key={idx}>{risk}</li>)
+                    ) : (
+                      <li>No current risks</li>
+                    )}
+                  </ul>
+                </div>
+                <div style={styles.healthBlock}>
+                  <h4 style={{ ...styles.healthTitle, color: '#10b981' }}>Wins</h4>
+                  <ul style={styles.healthList}>
+                    {profile.insights?.current_wins && profile.insights.current_wins.length > 0 ? (
+                      profile.insights.current_wins.map((win, idx) => <li key={idx}>{win}</li>)
+                    ) : (
+                      <li>No recent wins</li>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Life Timeline Event ledger */}
+            <div style={styles.drawerSection}>
+              <h3 style={styles.drawerSecTitle}>Life Event Timeline</h3>
+              <div style={styles.timelineList}>
+                {profile.life_timeline && profile.life_timeline.length > 0 ? (
+                  profile.life_timeline.map((evt, idx) => (
+                    <div key={idx} style={styles.timelineItem}>
+                      <span style={styles.timelineDot}></span>
+                      <div style={styles.timelineDetails}>
+                        <span style={styles.timelineEvtTitle}>{evt.text}</span>
+                        <span style={styles.timelineEvtType}>{evt.type} ({evt.status})</span>
+                        <span style={styles.timelineDate}>{evt.date}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={styles.emptyText}>No life events logged yet. Mention them to AUM to add them.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-// Simple Canvas Confetti Particle System
+// Confetti Particle Physics system
 class ConfettiEffect {
   constructor(canvas) {
     this.canvas = canvas;
@@ -1344,22 +910,14 @@ class ConfettiEffect {
   }
 }
 
-// Inline CSS Styles for Dashboard Page
+// Inline Vanilla CSS styles for premium dark mode
 const styles = {
-  loadingContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '80vh',
-  },
-  spinner: {
-    width: '40px',
-    height: '40px',
-    border: '3px solid rgba(255, 255, 255, 0.05)',
-    borderTopColor: 'var(--color-primary)',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
+  dashboardContainer: {
+    color: '#fff',
+    minHeight: '100vh',
+    padding: '1.5rem',
+    background: '#030305',
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
   },
   confettiCanvas: {
     position: 'fixed',
@@ -1370,478 +928,653 @@ const styles = {
     pointerEvents: 'none',
     zIndex: 9999,
   },
-  floatingTimeTravel: {
-    position: 'fixed',
-    top: '1.1rem',
-    right: '250px',
-    zIndex: 999,
+  timeTravelBar: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginBottom: '1rem',
+    position: 'relative'
   },
-  timeTravelToggleBtn: {
-    padding: '0.45rem 1rem',
-    fontSize: '0.8rem',
-    backdropFilter: 'blur(10px)',
+  timeButton: {
+    background: 'rgba(255, 255, 255, 0.04)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    color: '#a855f7',
+    padding: '0.5rem 1rem',
+    borderRadius: '0.75rem',
+    cursor: 'pointer',
+    fontWeight: '500',
+    fontSize: '0.85rem'
   },
-  timeSelectorDropdown: {
+  timeDropdown: {
     position: 'absolute',
     top: '110%',
     right: 0,
-    width: '240px',
-    padding: '1rem',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+    background: 'rgba(15, 15, 25, 0.95)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    borderRadius: '1rem',
+    padding: '0.75rem',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.75rem',
+    gap: '0.5rem',
+    zIndex: 100,
+    width: '240px'
   },
-  timeTitle: {
-    fontSize: '0.85rem',
-    fontFamily: 'var(--font-display)',
-    fontWeight: 'bold',
-    borderBottom: '1px solid var(--border-glass)',
-    paddingBottom: '0.4rem',
-  },
-  simOptBtn: {
+  simBtn: {
+    background: 'rgba(255, 255, 255, 0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    color: '#fff',
     padding: '0.4rem',
-    fontSize: '0.75rem',
-    width: '100%',
-    textAlign: 'center',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
   },
-  simOptPrimaryBtn: {
+  simBtnPrimary: {
+    background: '#6366f1',
+    border: 'none',
+    color: '#fff',
     padding: '0.5rem',
-    fontSize: '0.75rem',
-    width: '100%',
-    textAlign: 'center',
-    boxShadow: 'none',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    fontWeight: '500'
   },
-  welcomeBanner: {
-    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
+  resetClockBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#ef4444',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    marginTop: '0.25rem'
   },
-  welcomeTitle: {
-    fontSize: '1.75rem',
-    fontFamily: 'var(--font-display)',
-    fontWeight: '700',
+  layoutGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1.2fr 2fr 1.2fr',
+    gap: '1.5rem',
   },
-  welcomeSubtitle: {
-    color: 'var(--text-secondary)',
-    fontSize: '0.85rem',
-    marginTop: '0.25rem',
-  },
-  freezeLogBlock: {
-    padding: '1rem',
-    background: 'rgba(255,255,255,0.01)',
-    border: '1px solid var(--border-glass)',
-    borderRadius: '0.75rem',
+  column: {
     display: 'flex',
     flexDirection: 'column',
+    gap: '1.25rem'
   },
-  freezeLogLabel: {
-    fontSize: '0.7rem',
-    textTransform: 'uppercase',
-    color: 'var(--text-secondary)',
-    fontWeight: 'bold',
-    letterSpacing: '0.05em',
-  },
-  freezeLogVal: {
-    fontSize: '1.25rem',
-    fontFamily: 'var(--font-display)',
-    fontWeight: 'bold',
-    margin: '0.35rem 0',
-  },
-  simSecTitle: {
-    fontSize: '0.95rem',
-    fontFamily: 'var(--font-display)',
-    borderBottom: '1px solid var(--border-glass)',
-    paddingBottom: '0.4rem',
-    marginBottom: '0.75rem',
-  },
-  inputGrp: {
-    marginBottom: '0.75rem',
-  },
-  inputLbl: {
-    fontSize: '0.75rem',
-    color: 'var(--text-secondary)',
-    display: 'block',
-    marginBottom: '0.25rem',
-  },
-  slider: {
-    width: '100%',
-    accentColor: 'var(--color-primary)',
-    height: '4px',
-    cursor: 'pointer',
+  panel: {
+    background: 'rgba(15, 15, 25, 0.7)',
+    backdropFilter: 'blur(20px)',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+    borderRadius: '1.25rem',
+    padding: '1.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
   },
   panelTitle: {
-    fontSize: '1rem',
-    fontFamily: 'var(--font-display)',
-    color: 'var(--text-primary)',
+    fontSize: '1.05rem',
+    fontWeight: '600',
+    marginBottom: '1rem',
+    color: '#fff',
+    borderBottom: '1px solid rgba(255,255,255,0.05)',
+    paddingBottom: '0.5rem'
   },
-  ringWrapper: {
+  meterContainer: {
     position: 'relative',
-    display: 'inline-flex',
-    alignItems: 'center',
+    display: 'flex',
     justifyContent: 'center',
+    alignItems: 'center',
+    margin: '0.5rem 0'
   },
-  ringTextContainer: {
+  meterText: {
     position: 'absolute',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
+    alignItems: 'center'
   },
-  ringPercentage: {
-    fontSize: '2rem',
-    fontFamily: 'var(--font-display)',
-    fontWeight: 'bold',
+  meterVal: {
+    fontSize: '2.25rem',
+    fontWeight: '800',
+    background: 'linear-gradient(135deg, #ffffff 0%, #a855f7 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
   },
-  statVal: {
-    fontSize: '1.1rem',
-    fontWeight: 'bold',
-    fontFamily: 'var(--font-display)',
-    display: 'block',
-  },
-  statLabel: {
+  meterLabel: {
     fontSize: '0.65rem',
-    color: 'var(--text-muted)',
+    color: '#9ca3af',
     textTransform: 'uppercase',
-    display: 'block',
-    marginTop: '0.15rem',
+    letterSpacing: '0.05em'
   },
-  archetypeBadge: {
-    fontSize: '2rem',
-    background: 'rgba(255,255,255,0.02)',
-    borderRadius: '0.75rem',
-    width: '50px',
-    height: '50px',
+  metaStats: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: '1.5px solid rgba(255,255,255,0.05)',
+    justifyContent: 'space-around',
+    marginTop: '1.25rem',
+    background: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: '0.75rem',
+    padding: '0.75rem 0.5rem',
+    border: '1px solid rgba(255,255,255,0.04)'
   },
-  actionCard: {
-    padding: '0.85rem 1.1rem',
+  metaStatItem: {
     display: 'flex',
     flexDirection: 'column',
+    alignItems: 'center'
   },
-  actionCardExpanded: {
-    background: 'rgba(10, 11, 18, 0.9)',
-    boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+  metaStatVal: {
+    fontSize: '1.1rem',
+    fontWeight: '700',
+    color: '#fff'
   },
-  statusButton: {
-    width: '26px',
-    height: '26px',
-    borderRadius: '50%',
-    border: '1.5px solid var(--border-glass)',
+  metaStatLabel: {
+    fontSize: '0.65rem',
+    color: '#9ca3af',
+    marginTop: '0.15rem'
+  },
+  metaDivider: {
+    borderLeft: '1px solid rgba(255,255,255,0.08)',
+    height: '24px',
+    alignSelf: 'center'
+  },
+  archetypeBox: {
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    background: 'rgba(255,255,255,0.01)',
+    marginTop: '1rem',
+    padding: '0.75rem',
+    background: 'rgba(99, 102, 241, 0.05)',
+    border: '1px solid rgba(99, 102, 241, 0.12)',
+    borderRadius: '0.75rem'
   },
-  actionText: {
+  badgeSuccess: {
+    background: 'rgba(168, 85, 247, 0.15)',
+    color: '#d8b4fe',
+    fontSize: '0.8rem',
+    fontWeight: '600',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '1rem'
+  },
+  archetypeLabel: {
+    fontSize: '0.65rem',
+    color: '#9ca3af',
+    marginTop: '0.25rem',
+    textTransform: 'uppercase'
+  },
+  contextForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem'
+  },
+  inputRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.35rem'
+  },
+  formLabel: {
+    fontSize: '0.75rem',
+    color: '#9ca3af',
+    fontWeight: '500'
+  },
+  slider: {
+    width: '100%',
+    accentColor: '#6366f1',
+    cursor: 'pointer'
+  },
+  energiesGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '0.75rem'
+  },
+  energyInput: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem'
+  },
+  textareaMini: {
+    background: 'rgba(255,255,255,0.02)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '0.5rem',
+    padding: '0.5rem',
+    color: '#fff',
+    fontSize: '0.8rem',
+    minHeight: '45px',
+    outline: 'none',
+    resize: 'none'
+  },
+  submitBtn: {
+    background: '#6366f1',
+    color: '#fff',
+    border: 'none',
+    padding: '0.65rem',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '0.85rem',
+    marginTop: '0.5rem'
+  },
+  frozenStats: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem'
+  },
+  frozenItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '0.5rem',
+    background: 'rgba(255,255,255,0.02)',
+    borderRadius: '0.5rem',
+    border: '1px solid rgba(255,255,255,0.04)'
+  },
+  frozenLabel: {
+    fontSize: '0.65rem',
+    color: '#9ca3af',
+    fontWeight: 'bold',
+    textTransform: 'uppercase'
+  },
+  frozenVal: {
+    fontSize: '0.85rem',
+    color: '#fff',
+    marginTop: '0.15rem'
+  },
+  unfreezeBtn: {
+    background: 'transparent',
+    border: '1px solid rgba(255,255,255,0.1)',
+    color: '#9ca3af',
+    padding: '0.5rem',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    marginTop: '0.5rem'
+  },
+  worldRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '0.8rem',
+    padding: '0.4rem 0',
+    borderBottom: '1px solid rgba(255,255,255,0.03)'
+  },
+  worldLabel: {
+    color: '#9ca3af'
+  },
+  worldVal: {
+    fontWeight: '500'
+  },
+  columnTitle: {
+    fontSize: '1.5rem',
+    fontWeight: '700',
+    background: 'linear-gradient(135deg, #ffffff 0%, #6366f1 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  },
+  checklist: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem'
+  },
+  actionCard: {
+    border: '1px solid',
+    borderRadius: '1rem',
+    padding: '1rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  actionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '1rem'
+  },
+  actionMain: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+    flex: 1
+  },
+  catBadge: {
+    alignSelf: 'flex-start',
+    fontSize: '0.65rem',
+    padding: '0.15rem 0.5rem',
+    borderRadius: '0.5rem',
+    fontWeight: '600'
+  },
+  actionTextTitle: {
     fontSize: '0.95rem',
     fontWeight: '500',
-    color: 'var(--text-primary)',
-    lineHeight: '1.35',
+    lineHeight: '1.4'
   },
-  expandButton: {
-    fontSize: '0.65rem',
-    color: 'var(--text-muted)',
+  actionControls: {
+    display: 'flex',
+    alignItems: 'center'
+  },
+  todoControls: {
+    display: 'flex',
+    gap: '0.5rem'
+  },
+  doneBtn: {
+    background: 'rgba(16, 185, 129, 0.1)',
+    border: '1px solid rgba(16, 185, 129, 0.2)',
+    color: '#10b981',
+    padding: '0.35rem 0.75rem',
+    borderRadius: '0.5rem',
     cursor: 'pointer',
-    padding: '0.4rem',
+    fontSize: '0.8rem',
+    fontWeight: '500'
   },
-  actionCategoryBadge: (category) => {
-    const colors = {
-      Mindset: { bg: 'rgba(168, 85, 247, 0.08)', text: '#d8b4fe', border: 'rgba(168, 85, 247, 0.15)' },
-      Physical: { bg: 'rgba(20, 184, 166, 0.08)', text: '#99f6e4', border: 'rgba(20, 184, 166, 0.15)' },
-      Relationships: { bg: 'rgba(244, 63, 94, 0.08)', text: '#fecdd3', border: 'rgba(244, 63, 94, 0.15)' },
-      'Work-Life': { bg: 'rgba(14, 165, 233, 0.08)', text: '#bae6fd', border: 'rgba(14, 165, 233, 0.15)' },
-      Reflection: { bg: 'rgba(245, 158, 11, 0.08)', text: '#fde68a', border: 'rgba(245, 158, 11, 0.15)' },
-    };
-    const c = colors[category] || { bg: 'rgba(255,255,255,0.05)', text: '#cbd5e1', border: 'rgba(255,255,255,0.1)' };
-    return {
-      background: c.bg,
-      color: c.text,
-      border: `1px solid ${c.border}`,
-      marginBottom: '0.25rem',
-      fontSize: '0.6rem',
-    };
+  skipBtn: {
+    background: 'rgba(239, 68, 68, 0.05)',
+    border: '1px solid rgba(239, 68, 68, 0.15)',
+    color: '#ef4444',
+    padding: '0.35rem 0.5rem',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    fontSize: '0.8rem'
   },
-  actionDrawer: {
+  skippedState: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem'
+  },
+  skippedText: {
+    fontSize: '0.8rem',
+    color: '#f59e0b',
+    fontWeight: '500'
+  },
+  resetTaskBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#9ca3af',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    padding: '0.25rem'
+  },
+  starRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.25rem'
+  },
+  starLabelMini: {
+    fontSize: '0.75rem',
+    color: '#9ca3af',
+    marginRight: '0.25rem'
+  },
+  starBtn: {
+    background: 'transparent',
+    border: 'none',
+    fontSize: '1.1rem',
+    cursor: 'pointer',
+    padding: 0
+  },
+  expandedContent: {
     marginTop: '0.75rem',
-    borderTop: '1px solid var(--border-glass)',
+    borderTop: '1px solid rgba(255,255,255,0.05)',
     paddingTop: '0.75rem',
     display: 'flex',
     flexDirection: 'column',
     gap: '0.75rem',
+    cursor: 'default'
   },
-  drawerSection: {
+  explainBlock: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.15rem',
+    gap: '0.15rem'
   },
-  drawerSectionTitle: {
-    fontSize: '0.75rem',
-    textTransform: 'uppercase',
-    color: 'var(--text-secondary)',
+  explainLabel: {
+    fontSize: '0.7rem',
+    color: '#818cf8',
     fontWeight: 'bold',
+    textTransform: 'uppercase'
   },
-  drawerSectionText: {
+  explainText: {
     fontSize: '0.85rem',
-    color: 'var(--text-primary)',
-    lineHeight: '1.45',
-  },
-  chatHeader: {
-    padding: '0.6rem 1.1rem',
-    borderRadius: '1rem 1rem 0 0',
-    borderBottom: 'none',
-  },
-  avatar: {
-    width: '38px',
-    height: '38px',
-    borderRadius: '0.6rem',
-    background: 'rgba(99, 102, 241, 0.1)',
-    border: '1px solid rgba(99, 102, 241, 0.2)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '1.25rem',
-  },
-  onlineDot: {
-    width: '6px',
-    height: '6px',
-    borderRadius: '50%',
-    backgroundColor: 'var(--color-success)',
-    boxShadow: '0 0 6px var(--color-success)',
-    display: 'inline-block',
-  },
-  memoryStatus: {
-    textAlign: 'right',
-  },
-  memoryStatusTitle: {
-    fontSize: '0.65rem',
-    color: 'var(--text-muted)',
-    textTransform: 'uppercase',
-    fontWeight: 'bold',
+    color: '#e5e7eb',
+    lineHeight: '1.45'
   },
   chatViewport: {
-    padding: '1rem',
-    borderRadius: '0 0 1rem 1rem',
-    borderTop: 'none',
-    maxHeight: '320px',
-    minHeight: '220px',
+    flex: 1,
+    overflowY: 'auto',
+    marginBottom: '0.5rem',
+    paddingRight: '0.25rem'
+  },
+  chatScroll: {
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'flex-end',
-  },
-  chatScrollArea: {
-    width: '100%',
-    maxHeight: '300px',
-    overflowY: 'auto',
+    gap: '0.75rem'
   },
   bubbleWrapper: {
     display: 'flex',
-    gap: '0.5rem',
-    width: '100%',
-  },
-  miniAvatar: {
-    width: '24px',
-    height: '24px',
-    borderRadius: '0.4rem',
-    background: 'rgba(99, 102, 241, 0.1)',
-    border: '1px solid rgba(99, 102, 241, 0.2)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '0.85rem',
-    alignSelf: 'flex-end',
-    marginBottom: '2px',
+    width: '100%'
   },
   bubble: {
-    maxWidth: '75%',
-    padding: '0.7rem 0.95rem',
-    borderRadius: '1rem',
-    lineHeight: '1.45',
-    position: 'relative',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-  },
-  bubbleAi: {
-    background: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid var(--border-glass)',
-    color: 'var(--text-primary)',
+    maxWidth: '85%',
+    padding: '0.65rem 0.85rem',
+    borderRadius: '0.85rem',
     borderBottomLeftRadius: '0.15rem',
-  },
-  bubbleUser: {
-    background: 'linear-gradient(135deg, var(--color-primary) 0%, rgba(99,102,241,0.6) 100%)',
-    color: 'white',
-    borderBottomRightRadius: '0.15rem',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word'
   },
   bubbleText: {
-    fontSize: '0.9rem',
+    fontSize: '0.85rem',
+    lineHeight: '1.4',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word'
   },
-  bubbleTime: {
-    fontSize: '0.6rem',
-    color: 'rgba(255, 255, 255, 0.35)',
-    display: 'block',
-    textAlign: 'right',
-    marginTop: '0.25rem',
-  },
-  typingIndicator: {
-    alignItems: 'center',
-    height: '12px',
-    padding: '0 0.25rem',
-    'span': {
-      width: '4px',
-      height: '4px',
-      borderRadius: '50%',
-      backgroundColor: 'var(--text-secondary)',
-      animation: 'bounce 1.4s infinite ease-in-out both',
-    }
-  },
-  chipsRow: {
+  chipRow: {
     display: 'flex',
+    gap: '0.4rem',
     overflowX: 'auto',
-    gap: '0.5rem',
-    scrollbarWidth: 'none',
+    padding: '0.25rem 0',
+    scrollbarWidth: 'none'
   },
-  chip: {
-    padding: '0.35rem 0.75rem',
-    fontSize: '0.75rem',
+  reflectionChip: {
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.06)',
+    color: '#9ca3af',
+    padding: '0.3rem 0.6rem',
     borderRadius: '0.5rem',
+    fontSize: '0.75rem',
     whiteSpace: 'nowrap',
+    cursor: 'pointer'
+  },
+  chatInputRow: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginTop: '0.5rem'
   },
   chatInput: {
-    flexGrow: 1,
-    padding: '0.75rem 1.1rem',
-    fontSize: '0.9rem',
-    borderRadius: '0.75rem',
-  },
-  sendBtn: {
-    padding: '0 1.25rem',
-    fontSize: '0.9rem',
-    borderRadius: '0.75rem',
-  },
-
-  // Onboarding Wizard Styles
-  pageWrapper: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '85vh',
-    padding: '1rem',
-  },
-  wizardContainer: {
-    maxWidth: '520px',
-    width: '100%',
-    padding: '2rem 1.75rem',
-    background: 'var(--bg-surface-glass)',
-    boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-  },
-  progressContainer: {
-    width: '100%',
-    height: '5px',
-    background: 'rgba(255,255,255,0.03)',
-    borderRadius: '3px',
-    marginBottom: '0.5rem',
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    background: 'linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
-    transition: 'width 0.4s ease',
-  },
-  stepIndicator: {
-    fontSize: '0.7rem',
-    color: 'var(--text-secondary)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    fontWeight: 'bold',
-    marginBottom: '1rem',
-  },
-  wizardTitle: {
-    fontSize: '1.5rem',
-    fontFamily: 'var(--font-display)',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: '1.5rem',
-  },
-  wizardStep: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-  },
-  wizardStepTitle: {
-    fontSize: '1.1rem',
-    color: 'var(--text-primary)',
-    fontWeight: 'bold',
-    borderBottom: '1px solid var(--border-glass)',
-    paddingBottom: '0.4rem',
-  },
-  formGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.35rem',
-  },
-  label: {
-    fontSize: '0.8rem',
-    color: 'var(--text-secondary)',
-    fontWeight: '500',
-  },
-  buttonRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginTop: '1.25rem',
-    gap: '1rem',
-  },
-  focusChip: {
-    padding: '0.35rem 0.85rem',
-    fontSize: '0.75rem',
+    flex: 1,
+    background: 'rgba(255,255,255,0.02)',
+    border: '1px solid rgba(255,255,255,0.08)',
     borderRadius: '0.5rem',
-    border: '1px solid var(--border-glass)',
-    transition: 'all var(--transition-fast)',
+    padding: '0.5rem 0.75rem',
+    color: '#fff',
+    fontSize: '0.85rem',
+    outline: 'none'
   },
-
-  // Level Up Modal Celebration
-  modalOverlay: {
+  sendChatBtn: {
+    background: '#6366f1',
+    color: '#fff',
+    border: 'none',
+    padding: '0.5rem 1rem',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '0.85rem'
+  },
+  openDrawerBtn: {
+    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)',
+    border: '1px solid rgba(168, 85, 247, 0.25)',
+    color: '#c084fc',
+    padding: '0.75rem',
+    borderRadius: '1rem',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: '1.25rem'
+  },
+  actionBtn: {
+    background: 'transparent',
+    border: '1px solid rgba(255,255,255,0.1)',
+    color: '#9ca3af',
+    padding: '0.4rem',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
+    textAlign: 'center'
+  },
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '80vh',
+    background: '#030305',
+    color: '#fff'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '3px solid rgba(255, 255, 255, 0.05)',
+    borderTopColor: '#6366f1',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+  drawerOverlay: {
     position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(3, 3, 5, 0.8)',
-    backdropFilter: 'blur(8px)',
-    zIndex: 99999,
+    background: 'rgba(0,0,0,0.5)',
+    backdropFilter: 'blur(4px)',
+    zIndex: 1000,
     display: 'flex',
+    justifyContent: 'flex-end'
+  },
+  drawerContent: {
+    width: '450px',
+    height: '100%',
+    background: '#0b0b12',
+    borderLeft: '1px solid rgba(255,255,255,0.08)',
+    boxShadow: '-10px 0 35px rgba(0,0,0,0.5)',
+    padding: '2rem 1.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.5rem',
+    overflowY: 'auto'
+  },
+  drawerHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
+    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    paddingBottom: '0.75rem'
   },
-  levelUpModal: {
-    width: '380px',
-    padding: '2.5rem 2rem',
-    textAlign: 'center',
-    boxShadow: '0 0 40px rgba(168,85,247,0.3)',
-    borderRadius: '1.5rem',
-    border: '1.5px solid rgba(168,85,247,0.4)',
-    background: 'rgba(12,13,20,0.95)',
+  drawerTitle: {
+    fontSize: '1.3rem',
+    fontWeight: '700',
+    color: '#fff'
   },
-  levelUpHeader: {
-    fontSize: '1.75rem',
-    fontFamily: 'var(--font-display)',
+  closeDrawerBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#9ca3af',
+    cursor: 'pointer',
+    fontSize: '0.9rem'
+  },
+  drawerSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem'
+  },
+  drawerSecTitle: {
+    fontSize: '0.95rem',
+    fontWeight: '600',
+    color: '#818cf8',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
+  },
+  insightsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem'
+  },
+  insightCard: {
+    background: 'rgba(99, 102, 241, 0.04)',
+    border: '1px solid rgba(99, 102, 241, 0.1)',
+    borderRadius: '0.75rem',
+    padding: '0.75rem',
+    display: 'flex',
+    gap: '0.75rem',
+    alignItems: 'center'
+  },
+  insightIcon: {
+    fontSize: '1.2rem'
+  },
+  insightText: {
+    fontSize: '0.85rem',
+    color: '#e5e7eb',
+    lineHeight: '1.4'
+  },
+  emptyText: {
+    fontSize: '0.8rem',
+    color: '#6b7280',
+    fontStyle: 'italic'
+  },
+  healthBlock: {
+    background: 'rgba(255,255,255,0.01)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '0.75rem',
+    padding: '0.75rem'
+  },
+  healthTitle: {
+    fontSize: '0.8rem',
     fontWeight: 'bold',
-    color: '#fbbf24',
-    textShadow: '0 0 10px rgba(251,191,36,0.4)',
+    textTransform: 'uppercase',
+    marginBottom: '0.5rem'
   },
-  levelUpBadge: {
-    width: '80px',
-    height: '80px',
+  healthList: {
+    paddingLeft: '1rem',
+    margin: 0,
+    fontSize: '0.8rem',
+    color: '#d1d5db',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.35rem'
+  },
+  timelineList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+    position: 'relative',
+    paddingLeft: '1rem',
+    borderLeft: '1px solid rgba(255,255,255,0.05)'
+  },
+  timelineItem: {
+    position: 'relative',
+    display: 'flex',
+    gap: '0.75rem'
+  },
+  timelineDot: {
+    position: 'absolute',
+    left: '-1.35rem',
+    top: '0.25rem',
+    width: '8px',
+    height: '8px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
-    color: 'white',
-    fontSize: '2.5rem',
-    fontWeight: 'bold',
-    fontFamily: 'var(--font-display)',
+    background: '#a855f7',
+    boxShadow: '0 0 6px #a855f7'
+  },
+  timelineDetails: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    margin: '1.5rem auto 1rem auto',
-    boxShadow: '0 0 25px rgba(99,102,241,0.6)',
+    flexDirection: 'column',
+    gap: '0.15rem'
+  },
+  timelineEvtTitle: {
+    fontSize: '0.85rem',
+    color: '#fff',
+    fontWeight: '500'
+  },
+  timelineEvtType: {
+    fontSize: '0.75rem',
+    color: '#a855f7'
+  },
+  timelineDate: {
+    fontSize: '0.7rem',
+    color: '#6b7280'
   }
 };

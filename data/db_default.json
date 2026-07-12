@@ -8,6 +8,41 @@
     "workDays": 5,
     "maritalStatus": "",
     "kids": 0,
+    "active_goal": {
+      "category": "Health",
+      "subGoal": "Sleep Better"
+    },
+    "current_chapter": "Stable Routine",
+    "financial_stance": "balanced",
+    "relationships": [],
+    "streak": 0,
+    "completion_rate": 0,
+    "total_actions_generated": 0,
+    "total_actions_completed": 0,
+    "archetype": "Mindful Rookie",
+    "momentum_score": 50,
+    "sub_scores": {
+      "recovery": 50,
+      "execution": 50,
+      "connection": 50,
+      "curiosity": 50,
+      "courage": 50,
+      "consistency": 50
+    },
+    "behavioral_dna": {
+      "stress_resilience_factor": 1,
+      "preferred_recovery_categories": [
+        "Recovery"
+      ],
+      "weekend_activity_multiplier": 1
+    },
+    "failure_repository": [],
+    "effectiveness_ledger": [],
+    "identity_evolution": [],
+    "intentional_days_count": 0,
+    "intentional_days_rate": 0,
+    "last_recommended_timestamps": {},
+    "onboarding_completed": false,
     "goal": "",
     "problem": "",
     "role": "",
@@ -16,18 +51,12 @@
     "idealLife": "",
     "lifeSatisfaction": 5,
     "lifeAreas": [],
-    "streak": 0,
-    "completion_rate": 0,
-    "total_actions_generated": 0,
-    "total_actions_completed": 0,
     "current_phase": "Stability",
-    "archetype": "Mindful Rookie",
     "archetype_history": [],
     "milestones": [],
     "level": 0,
     "xp": 0,
-    "level_up_celebration_pending": false,
-    "onboarding_completed": false
+    "level_up_celebration_pending": false
   },
   "context": {
     "sleep": {
@@ -39,6 +68,18 @@
       "rating": 6,
       "state": "stressed"
     },
+    "energies": {
+      "mental": 7,
+      "physical": 7,
+      "social": 7,
+      "creative": 7
+    },
+    "creation_story": "",
+    "consumption_story": "",
+    "creation_minutes": 0,
+    "consumption_minutes": 0,
+    "is_frozen": false,
+    "last_logged": "",
     "behavioral": {
       "consistency": 70,
       "recovery_speed": "medium"
@@ -47,12 +88,19 @@
       "time": "Morning",
       "day_of_week": "Monday",
       "weather": "Clear"
-    },
-    "is_frozen": false,
-    "last_logged": ""
+    }
   },
   "actions": [],
+  "backups": [],
   "chat_history": [],
   "semantic_memory": [],
+  "recent_summaries": [],
+  "insights": {
+    "behavioral_insights": [],
+    "current_risks": [],
+    "current_wins": [],
+    "current_experiments": []
+  },
+  "history": [],
   "virtual_time": null
 }

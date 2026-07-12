@@ -14,25 +14,20 @@ export async function GET() {
     const isEmptyActions = !db.actions || db.actions.length === 0;
 
     if (isFirstTime || isNewDay || isEmptyActions) {
-      let transitionSummary = null;
-      
       // If there were actions and it's a new day, process the transition
       if (!isFirstTime && isNewDay && !isEmptyActions) {
-        transitionSummary = await processDayTransition(db);
+        await processDayTransition(db);
       }
       
-      // Generate new actions
+      // Generate new actions (which saves them to the DB)
       const newActions = await generateDailyActionsService();
       
-      // Read DB again to ensure no concurrency loss
+      // Sync last generated day
       const latestDb = await readDB();
-      latestDb.actions = newActions;
       latestDb.profile.last_generated_day = currentMomentumDay;
-      latestDb.profile.total_actions_generated = (latestDb.profile.total_actions_generated || 0) + 5;
-      latestDb.context.is_frozen = false; // Unfreeze context for new day
-      
       await writeDB(latestDb);
-      return NextResponse.json(latestDb.actions);
+      
+      return NextResponse.json(newActions);
     }
     
     return NextResponse.json(db.actions);

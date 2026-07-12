@@ -1,79 +1,63 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+
+const VALUES_OPTIONS = ["Family", "Learning", "Health", "Freedom", "Curiosity"];
+const CHAPTERS_OPTIONS = ["Stable Routine", "Startup Journey", "New Parent", "High Stress Project"];
 
 export default function Onboarding() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [profile, setProfile] = useState({
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form State
+  const [basics, setBasics] = useState({
     name: '',
     age: '',
     gender: '',
     job: '',
-    workHours: '',
-    maritalStatus: '',
-    kids: '',
-    goal: '',
-    problem: ''
+    city: 'Bengaluru'
   });
-  const [photos, setPhotos] = useState([]);
-  const [previews, setPreviews] = useState([]);
-  const [isDragActive, setIsDragActive] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Generate previews when photos change
-  useEffect(() => {
-    if (photos.length === 0) {
-      setPreviews([]);
-      return;
-    }
+  const [constraints, setConstraints] = useState({
+    current_chapter: 'Stable Routine',
+    financial_stance: 'balanced',
+    core_values: [],
+    goal_category: 'Health',
+    goal_subgoal: 'Sleep Better'
+  });
 
-    const objectUrls = photos.map(file => URL.createObjectURL(file));
-    setPreviews(objectUrls);
+  const [purpose, setPurpose] = useState({
+    whyItMatters: '',
+    whoBenefits: '',
+    futureBuilding: ''
+  });
 
-    // Free memory when component unmounts or photos change
-    return () => {
-      objectUrls.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, [photos]);
-
-  const handleChange = (e) => {
+  const handleBasicsChange = (e) => {
     const { name, value } = e.target;
-    setProfile((prev) => ({ ...prev, [name]: value }));
+    setBasics((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFiles = (fileList) => {
-    const validFiles = Array.from(fileList).filter(file => file.type.startsWith('image/'));
-    setPhotos((prev) => [...prev, ...validFiles]);
+  const handleConstraintsChange = (e) => {
+    const { name, value } = e.target;
+    setConstraints((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePhotoChange = (e) => {
-    if (e.target.files) {
-      handleFiles(e.target.files);
-    }
+  const handlePurposeChange = (e) => {
+    const { name, value } = e.target;
+    setPurpose((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragActive(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragActive(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragActive(false);
-    if (e.dataTransfer.files) {
-      handleFiles(e.dataTransfer.files);
-    }
-  };
-
-  const removePhoto = (idxToRemove) => {
-    setPhotos((prev) => prev.filter((_, idx) => idx !== idxToRemove));
+  const toggleValueChip = (val) => {
+    setConstraints((prev) => {
+      const current = prev.core_values;
+      if (current.includes(val)) {
+        return { ...prev, core_values: current.filter(item => item !== val) };
+      } else {
+        return { ...prev, core_values: [...current, val] };
+      }
+    });
   };
 
   const nextStep = () => setStep((s) => s + 1);
@@ -82,28 +66,33 @@ export default function Onboarding() {
   const submitOnboarding = async () => {
     setIsSubmitting(true);
     try {
-      // Upload photos first if any
-      let photoUrls = [];
-      if (photos.length) {
-        const form = new FormData();
-        photos.forEach((file) => form.append('files', file));
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: form });
-        if (!uploadRes.ok) throw new Error('Failed to upload photos');
-        const uploadData = await uploadRes.json();
-        photoUrls = uploadData.urls || [];
-      }
-      // Send profile data
-      const payload = { ...profile, photos: photoUrls };
+      const payload = {
+        name: basics.name,
+        age: parseInt(basics.age) || 30,
+        gender: basics.gender,
+        job: basics.job,
+        city: basics.city,
+        current_chapter: constraints.current_chapter,
+        financial_stance: constraints.financial_stance,
+        core_values: constraints.core_values,
+        active_goal: {
+          category: constraints.goal_category,
+          subGoal: constraints.goal_subgoal
+        },
+        purpose: purpose
+      };
+
       const res = await fetch('/api/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
       if (!res.ok) throw new Error('Failed to save profile');
       router.push('/');
     } catch (e) {
       console.error(e);
-      alert('Something went wrong. Check console.');
+      alert('Failed to save onboarding. Please check backend.');
     } finally {
       setIsSubmitting(false);
     }
@@ -111,27 +100,27 @@ export default function Onboarding() {
 
   return (
     <div style={styles.pageWrapper}>
-      <div className="glass-panel" style={styles.container}>
+      <div style={styles.container}>
         {/* Progress Bar */}
         <div style={styles.progressContainer}>
           <div style={{ ...styles.progressBar, width: `${(step / 3) * 100}%` }}></div>
         </div>
         <div style={styles.stepIndicator}>Step {step} of 3</div>
 
-        <h2 style={styles.title}>Welcome! Let's set up your profile</h2>
+        <h2 style={styles.title}>Initialize Your Life Momentum</h2>
 
         {step === 1 && (
-          <div style={styles.step} className="animate-fade-in">
-            <h3 style={styles.stepTitle}>Tell us about yourself</h3>
+          <div style={styles.step}>
+            <h3 style={styles.stepTitle}>Step 1: Identity & Environment</h3>
             
             <div style={styles.formGroup}>
-              <label style={styles.label}>Name</label>
+              <label style={styles.label}>Full Name</label>
               <input 
                 name="name" 
-                value={profile.name} 
-                onChange={handleChange} 
+                value={basics.name} 
+                onChange={handleBasicsChange} 
                 className="glass-input" 
-                placeholder="e.g., Alex Mercer"
+                placeholder="e.g., Akash Sharma"
                 required
               />
             </div>
@@ -141,10 +130,10 @@ export default function Onboarding() {
               <input 
                 name="age" 
                 type="number" 
-                value={profile.age} 
-                onChange={handleChange} 
+                value={basics.age} 
+                onChange={handleBasicsChange} 
                 className="glass-input"
-                placeholder="e.g., 34"
+                placeholder="e.g., 32"
                 required
               />
             </div>
@@ -153,15 +142,43 @@ export default function Onboarding() {
               <label style={styles.label}>Gender</label>
               <select 
                 name="gender" 
-                value={profile.gender} 
-                onChange={handleChange} 
+                value={basics.gender} 
+                onChange={handleBasicsChange} 
                 className="glass-select"
                 required
               >
                 <option value="">Select Gender</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="Non-Binary">Non-Binary</option>
+              </select>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Professional Role / Job</label>
+              <input 
+                name="job" 
+                value={basics.job} 
+                onChange={handleBasicsChange} 
+                className="glass-input" 
+                placeholder="e.g., Software Architect"
+                required
+              />
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Metro City Location (for World Engine integration)</label>
+              <select 
+                name="city" 
+                value={basics.city} 
+                onChange={handleBasicsChange} 
+                className="glass-select"
+                required
+              >
+                <option value="Bengaluru">Bengaluru (Bangalore)</option>
+                <option value="Gurgaon">Gurgaon (Delhi NCR)</option>
+                <option value="Mumbai">Mumbai</option>
+                <option value="Hyderabad">Hyderabad</option>
               </select>
             </div>
             
@@ -170,69 +187,106 @@ export default function Onboarding() {
               <button 
                 onClick={nextStep} 
                 className="btn btn-primary"
-                disabled={!profile.name || !profile.age || !profile.gender}
+                disabled={!basics.name || !basics.age || !basics.gender || !basics.job}
               >
-                Next Step →
+                Next: Constraints & Goals →
               </button>
             </div>
           </div>
         )}
 
         {step === 2 && (
-          <div style={styles.step} className="animate-fade-in">
-            <h3 style={styles.stepTitle}>Life & Work Structure</h3>
+          <div style={styles.step}>
+            <h3 style={styles.stepTitle}>Step 2: Chapter & Core Values</h3>
             
             <div style={styles.formGroup}>
-              <label style={styles.label}>Job / Role</label>
-              <input 
-                name="job" 
-                value={profile.job} 
-                onChange={handleChange} 
-                className="glass-input" 
-                placeholder="e.g., Senior Engineering Manager"
-                required
-              />
-            </div>
-            
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Work Hours per day</label>
-              <input 
-                name="workHours" 
-                type="number" 
-                value={profile.workHours} 
-                onChange={handleChange} 
-                className="glass-input"
-                placeholder="e.g., 9"
-                required
-              />
-            </div>
-            
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Marital Status</label>
+              <label style={styles.label}>Current Life Chapter (Sets limits & constraints)</label>
               <select 
-                name="maritalStatus" 
-                value={profile.maritalStatus} 
-                onChange={handleChange} 
+                name="current_chapter" 
+                value={constraints.current_chapter} 
+                onChange={handleConstraintsChange} 
                 className="glass-select"
                 required
               >
-                <option value="">Select Status</option>
-                <option value="Single">Single</option>
-                <option value="In a Relationship">In a Relationship</option>
-                <option value="Married">Married</option>
-                <option value="Prefer not to say">Prefer not to say</option>
+                {CHAPTERS_OPTIONS.map(ch => (
+                  <option key={ch} value={ch}>{ch}</option>
+                ))}
               </select>
             </div>
             
             <div style={styles.formGroup}>
-              <label style={styles.label}>Number of Kids</label>
+              <label style={styles.label}>Financial Stance (Restricts premium options)</label>
+              <div style={styles.radioGroup}>
+                <label style={styles.radioLabel}>
+                  <input 
+                    type="radio" 
+                    name="financial_stance" 
+                    value="balanced" 
+                    checked={constraints.financial_stance === 'balanced'} 
+                    onChange={handleConstraintsChange} 
+                  /> Balanced
+                </label>
+                <label style={styles.radioLabel}>
+                  <input 
+                    type="radio" 
+                    name="financial_stance" 
+                    value="saving_aggressively" 
+                    checked={constraints.financial_stance === 'saving_aggressively'} 
+                    onChange={handleConstraintsChange} 
+                  /> Saving Aggressively
+                </label>
+              </div>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Core Values (Select your focus values - restricts conflicts)</label>
+              <div style={styles.chipsContainer}>
+                {VALUES_OPTIONS.map(val => {
+                  const isActive = constraints.core_values.includes(val);
+                  return (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => toggleValueChip(val)}
+                      style={{
+                        ...styles.chip,
+                        background: isActive ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.03)',
+                        borderColor: isActive ? 'var(--color-primary)' : 'var(--border-glass)',
+                        color: isActive ? '#fff' : 'var(--text-secondary)',
+                        boxShadow: isActive ? '0 0 10px rgba(99, 102, 241, 0.3)' : 'none'
+                      }}
+                    >
+                      {val} {isActive ? '✓' : '+'}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Active Goal Category</label>
+              <select 
+                name="goal_category" 
+                value={constraints.goal_category} 
+                onChange={handleConstraintsChange} 
+                className="glass-select"
+                required
+              >
+                <option value="Health">Health / Sleep</option>
+                <option value="Career">Career / Building</option>
+                <option value="Mindfulness">Mindfulness / Recovery</option>
+                <option value="Relationships">Relationships / Family</option>
+              </select>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Active Subgoal Focus</label>
               <input 
-                name="kids" 
-                type="number" 
-                value={profile.kids} 
-                onChange={handleChange} 
-                className="glass-input"
-                placeholder="e.g., 2"
+                name="goal_subgoal" 
+                value={constraints.goal_subgoal} 
+                onChange={handleConstraintsChange} 
+                className="glass-input" 
+                placeholder="e.g., Sleep Better, Lose Fat, Code Side Project"
                 required
               />
             </div>
@@ -244,93 +298,52 @@ export default function Onboarding() {
               <button 
                 onClick={nextStep} 
                 className="btn btn-primary"
-                disabled={!profile.job || !profile.workHours || !profile.maritalStatus || profile.kids === ''}
+                disabled={constraints.core_values.length === 0 || !constraints.goal_subgoal}
               >
-                Next Step →
+                Next: Purpose Anchors →
               </button>
             </div>
           </div>
         )}
 
         {step === 3 && (
-          <div style={styles.step} className="animate-fade-in">
-            <h3 style={styles.stepTitle}>Purpose & Aspirations</h3>
+          <div style={styles.step}>
+            <h3 style={styles.stepTitle}>Step 3: Purpose & Meaning</h3>
             
             <div style={styles.formGroup}>
-              <label style={styles.label}>What do you want to achieve in 3‑5 years?</label>
-              <input 
-                name="goal" 
-                value={profile.goal} 
-                onChange={handleChange} 
-                className="glass-input"
-                placeholder="e.g., health, financial independence, executive role"
+              <label style={styles.label}>Why does building life momentum matter to you? (Purpose statement)</label>
+              <textarea 
+                name="whyItMatters" 
+                value={purpose.whyItMatters} 
+                onChange={handlePurposeChange} 
+                style={styles.textarea} 
+                placeholder="e.g., I want to stay focused on my career goals without burning out, so I can provide long-term support for my family."
                 required
               />
             </div>
             
             <div style={styles.formGroup}>
-              <label style={styles.label}>Current problems / bottlenecks you face</label>
-              <input 
-                name="problem" 
-                value={profile.problem} 
-                onChange={handleChange} 
-                className="glass-input"
-                placeholder="e.g., work stress, late-night burnout"
+              <label style={styles.label}>Who in your life benefits when you stay consistent?</label>
+              <textarea 
+                name="whoBenefits" 
+                value={purpose.whoBenefits} 
+                onChange={handlePurposeChange} 
+                style={styles.textarea} 
+                placeholder="e.g., My wife and children benefit from me being present, positive, and energetic."
                 required
               />
             </div>
-            
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Upload Photos (Optional)</label>
-              
-              {/* Premium Drag and Drop Zone */}
-              <div 
-                style={{
-                  ...styles.dropzone,
-                  borderColor: isDragActive ? 'var(--color-primary)' : 'var(--border-glass)',
-                  background: isDragActive ? 'rgba(99, 102, 241, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                  boxShadow: isDragActive ? '0 0 15px rgba(99, 102, 241, 0.15)' : 'none'
-                }}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => document.getElementById('photo-input').click()}
-              >
-                <div style={styles.uploadIcon}>📷</div>
-                <div style={styles.uploadText}>
-                  {isDragActive ? 'Drop your photos here!' : 'Drag & drop photos here, or click to browse'}
-                </div>
-                <div style={styles.uploadSubtext}>Supports JPG, PNG, WEBP files</div>
-                <input 
-                  id="photo-input"
-                  type="file" 
-                  multiple 
-                  accept="image/*" 
-                  onChange={handlePhotoChange} 
-                  style={{ display: 'none' }}
-                />
-              </div>
 
-              {/* Photos Previews */}
-              {previews.length > 0 && (
-                <div style={styles.previewContainer}>
-                  {previews.map((url, idx) => (
-                    <div key={idx} style={styles.previewCard}>
-                      <img src={url} style={styles.previewImg} alt="Preview" />
-                      <button 
-                        type="button" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removePhoto(idx);
-                        }} 
-                        style={styles.removeBtn}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div style={styles.formGroup}>
+              <label style={styles.label}>What future are you building?</label>
+              <textarea 
+                name="futureBuilding" 
+                value={purpose.futureBuilding} 
+                onChange={handlePurposeChange} 
+                style={styles.textarea} 
+                placeholder="e.g., A future where I lead a tech startup and maintain a highly disciplined, healthy daily routine."
+                required
+              />
             </div>
             
             <div style={styles.buttonRow}>
@@ -339,10 +352,10 @@ export default function Onboarding() {
               </button>
               <button 
                 onClick={submitOnboarding} 
-                disabled={isSubmitting || !profile.goal || !profile.problem} 
+                disabled={isSubmitting || !purpose.whyItMatters || !purpose.whoBenefits || !purpose.futureBuilding} 
                 className="btn btn-primary"
               >
-                {isSubmitting ? 'Saving Evolution...' : 'Finish Setup ✓'}
+                {isSubmitting ? 'Building Life System...' : 'Finish Setup & Generate Daily 5 ✓'}
               </button>
             </div>
           </div>
@@ -357,16 +370,18 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: '80vh',
+    minHeight: '85vh',
     padding: '2rem 1.5rem',
   },
   container: {
-    maxWidth: '550px',
+    maxWidth: '600px',
     width: '100%',
     padding: '2.5rem 2rem',
-    background: 'var(--bg-surface-glass)',
+    background: 'rgba(10, 10, 15, 0.7)',
+    backdropFilter: 'blur(20px)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
     borderRadius: '1.5rem',
-    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+    boxShadow: '0 20px 45px rgba(0, 0, 0, 0.5)',
   },
   progressContainer: {
     width: '100%',
@@ -378,12 +393,12 @@ const styles = {
   },
   progressBar: {
     height: '100%',
-    background: 'linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%)',
+    background: 'linear-gradient(90deg, #6366f1 0%, #a855f7 100%)',
     transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
   },
   stepIndicator: {
     fontSize: '0.75rem',
-    color: 'var(--text-secondary)',
+    color: '#a855f7',
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
     fontWeight: '600',
@@ -391,10 +406,12 @@ const styles = {
   },
   title: {
     fontSize: '1.75rem',
-    fontFamily: 'var(--font-display)',
     fontWeight: '700',
     marginBottom: '1.5rem',
     textAlign: 'center',
+    background: 'linear-gradient(135deg, #ffffff 0%, #a855f7 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
   },
   step: {
     display: 'flex',
@@ -403,9 +420,9 @@ const styles = {
   },
   stepTitle: {
     fontSize: '1.15rem',
-    color: 'var(--text-primary)',
+    color: '#fff',
     fontWeight: '600',
-    borderBottom: '1px solid var(--border-glass)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
     paddingBottom: '0.5rem',
     marginBottom: '0.5rem',
   },
@@ -416,7 +433,7 @@ const styles = {
   },
   label: {
     fontSize: '0.85rem',
-    color: 'var(--text-secondary)',
+    color: '#9ca3af',
     fontWeight: '500',
   },
   buttonRow: {
@@ -425,63 +442,45 @@ const styles = {
     marginTop: '1.5rem',
     gap: '1rem',
   },
-  dropzone: {
-    border: '2px dashed var(--border-glass)',
-    borderRadius: '1rem',
-    padding: '2rem 1rem',
-    textAlign: 'center',
-    cursor: 'pointer',
-    transition: 'all var(--transition-normal)',
+  radioGroup: {
     display: 'flex',
-    flexDirection: 'column',
+    gap: '2rem',
+    marginTop: '0.25rem',
+  },
+  radioLabel: {
+    display: 'flex',
     alignItems: 'center',
     gap: '0.5rem',
-  },
-  uploadIcon: {
-    fontSize: '2rem',
-  },
-  uploadText: {
-    fontSize: '0.9rem',
-    color: 'var(--text-primary)',
-    fontWeight: '500',
-  },
-  uploadSubtext: {
-    fontSize: '0.75rem',
-    color: 'var(--text-muted)',
-  },
-  previewContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
-    gap: '0.75rem',
-    marginTop: '1rem',
-  },
-  previewCard: {
-    position: 'relative',
-    borderRadius: '0.75rem',
-    overflow: 'hidden',
-    aspectRatio: '1',
-    border: '1px solid var(--border-glass)',
-  },
-  previewImg: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-  },
-  removeBtn: {
-    position: 'absolute',
-    top: '4px',
-    right: '4px',
-    background: 'rgba(5, 5, 8, 0.75)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '50%',
-    width: '20px',
-    height: '20px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '0.7rem',
-    cursor: 'pointer',
     color: '#fff',
-    transition: 'background var(--transition-fast)',
+    cursor: 'pointer',
+    fontSize: '0.9rem'
+  },
+  chipsContainer: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.75rem',
+    marginTop: '0.25rem'
+  },
+  chip: {
+    border: '1px solid',
+    borderRadius: '2rem',
+    padding: '0.5rem 1.25rem',
+    fontSize: '0.85rem',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  textarea: {
+    background: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '0.75rem',
+    padding: '0.75rem 1rem',
+    color: '#fff',
+    fontSize: '0.9rem',
+    fontFamily: 'inherit',
+    minHeight: '80px',
+    resize: 'vertical',
+    outline: 'none',
+    transition: 'border-color 0.2s',
   },
 };

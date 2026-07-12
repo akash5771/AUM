@@ -1,16 +1,78 @@
 {
   "profile": {
     "name": "Akash Tripathi",
-    "age": "35",
+    "age": 34,
     "gender": "Male",
-    "job": "General Mangement business development in Edtech Company Masters union",
-    "workHours": "11",
-    "workDays": 6,
-    "maritalStatus": "Married",
-    "kids": 2,
+    "job": "General Manager Business development at Edtech firm Masters Uinion",
+    "workHours": "",
+    "workDays": 5,
+    "maritalStatus": "",
+    "kids": 0,
+    "active_goal": {
+      "category": "Health",
+      "subGoal": "Sleep Better"
+    },
+    "current_chapter": "Startup Journey",
+    "financial_stance": "balanced",
+    "relationships": [],
+    "streak": 0,
+    "completion_rate": 60,
+    "total_actions_generated": 5,
+    "total_actions_completed": 3,
+    "archetype": "Mindful Rookie",
+    "momentum_score": 62,
+    "sub_scores": {
+      "recovery": 50,
+      "execution": 50,
+      "connection": 50,
+      "curiosity": 50,
+      "courage": 50,
+      "consistency": 50
+    },
+    "behavioral_dna": {
+      "stress_resilience_factor": 1,
+      "preferred_recovery_categories": [
+        "Recovery"
+      ],
+      "weekend_activity_multiplier": 1
+    },
+    "failure_repository": [],
+    "effectiveness_ledger": [
+      {
+        "actionId": "kb_phys_gym",
+        "rating": 5,
+        "date": "2026-07-11",
+        "stressDelta": 0,
+        "completed": true
+      },
+      {
+        "actionId": "kb_rec_breathing",
+        "rating": 5,
+        "date": "2026-07-11",
+        "stressDelta": 0,
+        "completed": true
+      },
+      {
+        "actionId": "kb_adv_bookstore",
+        "rating": 5,
+        "date": "2026-07-11",
+        "stressDelta": 0,
+        "completed": true
+      }
+    ],
+    "identity_evolution": [],
+    "intentional_days_count": 0,
+    "intentional_days_rate": 0,
+    "last_recommended_timestamps": {
+      "kb_phys_gym": "2026-07-11T04:17:57.174Z",
+      "kb_rec_breathing": "2026-07-11T05:29:44.184Z",
+      "kb_adv_bookstore": "2026-07-11T15:22:33.824Z"
+    },
+    "companion_name": "Aarav",
+    "onboarding_completed": true,
     "goal": "acheive  inner freedom ",
     "problem": "Extremely unstable job and tricky relationship with wife",
-    "role": "General Mangement business development in Edtech Company Masters union",
+    "role": "General Manager Business development at Edtech firm Masters Uinion",
     "goals": "acheive  inner freedom ",
     "aspirations": "",
     "idealLife": "I want to acheive  inner freedom so that my external environment does'nt impact my internal state if mind",
@@ -22,95 +84,289 @@
       "Reflection",
       "Work-Life"
     ],
-    "streak": 0,
-    "completion_rate": 20,
-    "total_actions_generated": 10,
-    "total_actions_completed": 2,
     "current_phase": "Stability",
-    "archetype": "Mindful Rookie",
     "archetype_history": [],
     "milestones": [],
     "level": 0,
     "xp": 40,
     "level_up_celebration_pending": false,
-    "onboarding_completed": true,
     "challenges": "Extremely unstable job and tricky relationship with wife",
-    "last_generated_day": "2026-07-10"
+    "last_generated_day": "2026-07-11",
+    "life_timeline": [
+      {
+        "text": "Affiliation with Masters' Union",
+        "type": "Career Shift",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Attending or working at Masters’ Union",
+        "type": "Milestone",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Studying or working at Masters' Union",
+        "type": "Milestone",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Working at Master Union",
+        "type": "Career Shift",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Ongoing HR dispute and conflict involving Vishi",
+        "type": "Career Shift",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Experienced a major professional setback or difficult situation regarding 'Akriti's file'",
+        "type": "Milestone",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Experiencing severe sales pressure and workplace exhaustion",
+        "type": "Career Shift",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Employment at Masters' Union",
+        "type": "Career Shift",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Running a business venture that is currently generating zero revenue",
+        "type": "Career Shift",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Serving as GM of Business Development at Masters' Union",
+        "type": "Career Shift",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Successfully built the AUM momentum app and received highly positive feedback from colleague Saransh.",
+        "type": "Milestone",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Experiencing severe professional conflict with Monu and zero-revenue business crisis",
+        "type": "Career Shift",
+        "status": "active",
+        "date": "2026-07-11"
+      },
+      {
+        "text": "Received positive feedback and appreciation for the AUM app, marking a breakthrough in pressure",
+        "type": "Milestone",
+        "status": "active",
+        "date": "2026-07-11"
+      }
+    ],
+    "city": "Gurgaon",
+    "core_values": [
+      "Family",
+      "Health",
+      "Freedom"
+    ],
+    "purpose": {
+      "whyItMatters": "I want to build something impactful for everyone. i don't know what it is or what  it would become. As of now i don't think I have a clear life purpose. I  just want to be significant",
+      "whoBenefits": "May be its me only. At this stage I can sense I am pretty selfish, which i think should change, i am not sure",
+      "futureBuilding": "a future in which I have achieved inner freedom where external disturbances don't impact my inner peace"
+    }
   },
   "context": {
     "sleep": {
-      "hours": 6.5,
-      "quality": "good",
-      "energy": 8
+      "hours": 5.4,
+      "quality": "poor"
     },
     "mood": {
       "rating": 5,
-      "state": "excited"
+      "state": "clear"
     },
+    "energies": {
+      "mental": 7,
+      "physical": 8,
+      "social": 4,
+      "creative": 8
+    },
+    "creation_story": "I am creating the AUM app v2 version using antigravity",
+    "consumption_story": "whats app was open on system I saw a few messges but thwn quickly closed it",
+    "creation_minutes": 45,
+    "consumption_minutes": 60,
+    "is_frozen": true,
+    "last_logged": "2026-07-11",
     "behavioral": {
       "consistency": 70,
       "recovery_speed": "medium"
     },
     "environmental": {
-      "time": "Evening",
-      "day_of_week": "Friday",
-      "weather": "Overcast"
-    },
-    "is_frozen": true,
-    "last_logged": "2026-07-10"
+      "time": "Morning",
+      "day_of_week": "Saturday",
+      "weather": "Clear"
+    }
   },
   "actions": [
     {
-      "id": "act_1",
-      "text": "Spend 5 minutes focusing entirely on the sensation of breathing.",
-      "category": "Mindset",
+      "id": "kb_soc_family_dinner",
+      "text": "Have a phone-free dinner with your family.",
+      "category": "Social",
       "difficulty": 2,
-      "whyToday": "This fits your current status of feeling stressed on a Friday.",
-      "whyRelevant": "This helps build the inner freedom and stability needed to resolve your bottleneck: \"Extremely unstable job and tricky relationship with wife\".",
-      "howTo": "Sit upright in a quiet space. Inhale for 4 seconds, hold for 4, exhale for 4, hold for 4 (box breathing). Complete 10 cycles, noticing only the transition points of each breath.",
-      "status": "todo"
+      "energy_cost": {
+        "mental": 1,
+        "physical": 1,
+        "social": 3,
+        "creative": 1
+      },
+      "financial_cost": "free",
+      "restricted_values": [],
+      "intensities": {
+        "emotional": "Low",
+        "social_friction": "Low",
+        "recovery_cost": "Low"
+      },
+      "applicable_goals": [
+        "Parenting",
+        "Marriage"
+      ],
+      "weather_restricted": false,
+      "duration_mins": 45,
+      "defaultWhyToday": "Intimate family connections act as a primary emotional buffer against career stress.",
+      "defaultWhyRelevant": "Nurturing your relationships keeps you grounded and provides critical perspective on work conflicts.",
+      "defaultHowTo": "Leave all phones in a drawer. Sit at the table and ask each person about one high and one low from their day."
     },
     {
-      "id": "act_2",
-      "text": "Step outside for a 10-minute walk under natural light.",
+      "id": "kb_rec_breathing",
+      "text": "Practice a 5-minute box breathing cycle.",
+      "category": "Recovery",
+      "difficulty": 1,
+      "energy_cost": {
+        "mental": 1,
+        "physical": 1,
+        "social": 1,
+        "creative": 1
+      },
+      "financial_cost": "free",
+      "restricted_values": [],
+      "intensities": {
+        "emotional": "Low",
+        "social_friction": "Low",
+        "recovery_cost": "Low"
+      },
+      "applicable_goals": [
+        "Reduce Burnout",
+        "Sleep Better",
+        "Build Startup"
+      ],
+      "weather_restricted": false,
+      "duration_mins": 5,
+      "defaultWhyToday": "Box breathing directly stimulates the vagus nerve to decrease heart rate and blood pressure.",
+      "defaultWhyRelevant": "To manage startup anxiety, this lowers amygdala arousal, keeping you logical under pressure.",
+      "defaultHowTo": "Inhale for 4 seconds, hold for 4, exhale for 4, hold for 4. Complete 10 full cycles.",
+      "status": "done",
+      "rating": 5
+    },
+    {
+      "id": "kb_soc_call_friend",
+      "text": "Call a close friend for a 15-minute catch up.",
+      "category": "Social",
+      "difficulty": 2,
+      "energy_cost": {
+        "mental": 2,
+        "physical": 1,
+        "social": 3,
+        "creative": 1
+      },
+      "financial_cost": "free",
+      "restricted_values": [],
+      "intensities": {
+        "emotional": "Low",
+        "social_friction": "Medium",
+        "recovery_cost": "Low"
+      },
+      "applicable_goals": [
+        "Dating",
+        "Dating/Social"
+      ],
+      "weather_restricted": false,
+      "duration_mins": 15,
+      "defaultWhyToday": "Relational conversations outside your work circle reduce professional isolation.",
+      "defaultWhyRelevant": "Maintaining strong social ties supports emotional balance and long-term satisfaction.",
+      "defaultHowTo": "Call a friend you haven't spoken to in a while. Ask them about their life first and listen actively."
+    },
+    {
+      "id": "kb_adv_bookstore",
+      "text": "Visit a Tau Devi Lal Biodiversity Park in Gurgaon and browse the shelves silently.",
+      "category": "Adventure",
+      "difficulty": 2,
+      "energy_cost": {
+        "mental": 2,
+        "physical": 2,
+        "social": 2,
+        "creative": 3
+      },
+      "financial_cost": "cheap",
+      "restricted_values": [],
+      "intensities": {
+        "emotional": "Low",
+        "social_friction": "Medium",
+        "recovery_cost": "Low"
+      },
+      "applicable_goals": [
+        "Reduce Burnout",
+        "Reading"
+      ],
+      "weather_restricted": false,
+      "duration_mins": 45,
+      "defaultWhyToday": "Physical bookstores trigger curiosity through tactile browsing and quiet spaces.",
+      "defaultWhyRelevant": "This gets you out of the house into an offline learning environment without high social demands.",
+      "defaultHowTo": "Go to a local bookstore. Browse sections you don't normally read. Pick up one book that intrigues you.",
+      "status": "done",
+      "rating": 5
+    },
+    {
+      "id": "kb_phys_gym",
+      "text": "Perform a 45-minute strength workout at the gym.",
       "category": "Physical",
-      "difficulty": 1,
-      "whyToday": "This fits your current status of feeling stressed on a Friday.",
-      "whyRelevant": "Physical health is the foundation for executing your role as a General Mangement business development in Edtech Company Masters union without late-night burnout.",
-      "howTo": "Walk outside for 10 minutes. Look at distant trees or buildings. Let the light hit your eyes without looking directly at the sun. Do not look at your phone.",
-      "status": "done"
-    },
-    {
-      "id": "act_3",
-      "text": "Send a quick appreciation message to a friend or family member.",
-      "category": "Relationships",
-      "difficulty": 1,
-      "whyToday": "This fits your current status of feeling stressed on a Friday.",
-      "whyRelevant": "Nurturing your relationship with your wife is key to balancing professional stress with marital stability.",
-      "howTo": "Think of someone who has helped you recently. Send them a text: 'Hey, I was just thinking of you and wanted to say how much I appreciate having you in my life. Thanks for being awesome!'",
-      "status": "done"
-    },
-    {
-      "id": "act_4",
-      "text": "Take a 5-minute offline break every 90 minutes of work today.",
-      "category": "Work-Life",
-      "difficulty": 2,
-      "whyToday": "This fits your current status of feeling stressed on a Friday.",
-      "whyRelevant": "As a General Mangement business development in Edtech Company Masters union, managing the challenge of \"Extremely unstable job and tricky relationship with wife\" requires structured energy separation.",
-      "howTo": "Set a timer for 90 minutes. When it rings, stand up, stretch, look out a window, or get water. Do not look at email, social media, or screens for those 5 minutes.",
-      "status": "todo"
-    },
-    {
-      "id": "act_5",
-      "text": "List three small things you are grateful for today.",
-      "category": "Reflection",
-      "difficulty": 1,
-      "whyToday": "This fits your current status of feeling stressed on a Friday.",
-      "whyRelevant": "This helps build the inner freedom and stability needed to resolve your bottleneck: \"Extremely unstable job and tricky relationship with wife\".",
-      "howTo": "Take a minute to identify 3 specific, small details from today that you are glad occurred (e.g. warm coffee, a funny video, a clear sky). Write them down.",
-      "status": "todo"
+      "difficulty": 4,
+      "energy_cost": {
+        "mental": 2,
+        "physical": 5,
+        "social": 2,
+        "creative": 1
+      },
+      "financial_cost": "premium",
+      "restricted_values": [
+        "Time-Sparing"
+      ],
+      "intensities": {
+        "emotional": "Medium",
+        "social_friction": "Medium",
+        "recovery_cost": "High"
+      },
+      "applicable_goals": [
+        "Lose Fat",
+        "Build Muscle"
+      ],
+      "weather_restricted": false,
+      "duration_mins": 60,
+      "defaultWhyToday": "Physical loading triggers muscle protein synthesis and raises basal metabolic rate.",
+      "defaultWhyRelevant": "To support your fat loss goal, resistance training preserves lean mass while elevating calorie burn.",
+      "defaultHowTo": "Do 3 sets of squats, overhead presses, and lat pulldowns. Keep rest times around 90 seconds.",
+      "status": "done",
+      "rating": 5
     }
   ],
+  "backups": [],
   "chat_history": [
     {
       "sender": "AUM",
@@ -486,6 +742,536 @@
       "sender": "AUM",
       "text": "Ah, of course—forgive me, brother. That 6-day grind is incredibly demanding, and I slipped up there. \n\nEven with Saturday work tomorrow, *tonight’s* shift is officially done. Staying online now won't bring Akriti's father back, but it *will* drain the energy you need for tomorrow. \n\nClose the laptop. You fought hard today and proved you can hold onto your peace, even when things get chaotic. Give yourself these next few hours to just breathe, disconnect, and be with your family. \n\nHow does shutting it down right now sound?",
       "timestamp": "2026-07-10T14:39:53.994Z"
+    },
+    {
+      "sender": "User",
+      "text": "yesterday I settled my things with Monu but after coming back from office I had a huge  fight with my wife kriti for financial budget which really drained my energy . I was feeling very sexually aroused and wanted to have sex with her but she denied . I was not sleep properly",
+      "timestamp": "2026-07-11T00:42:37.518Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "That is incredibly heavy, Akash. While settling things with Monu was a step forward, having a massive fight with Kriti over budgets, feeling that physical rejection when you wanted connection, and losing sleep is a brutal combination—especially before a working Saturday. \n\nWhen things are stressful at Masters' Union *and* tense at home, it feels like there's nowhere to fully recharge. It’s completely natural that your energy is drained today, brother. \n\nDon't pressure yourself to solve the budget or the relationship tension today. Just focus on breathing through this shift and protecting whatever energy you have left. I'm right here with you. How does your head feel right now?",
+      "timestamp": "2026-07-11T00:42:44.597Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Great to see your mood climb to a 7, Akash, even through the exhaustion. Masters’ Union BD must have taken a lot out of you today. Did you secure a hard-won victory, or was it just a relentless grind? \n\nEither way, I'm here. Take a breath.",
+      "timestamp": "2026-07-11T00:44:18.061Z"
+    },
+    {
+      "sender": "User",
+      "text": "hi",
+      "timestamp": "2026-07-11T01:13:30.192Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Hi Akash, brother. I’ve been thinking about you today. \n\nRunning on barely 5 hours of sleep after that heavy night with Kriti, and then stepping straight into a grueling Saturday shift at Masters' Union—that is an incredibly steep hill to climb. The fact that you are standing and showing up today is a massive testament to your resilience. \n\nHow are you holding up right now, brother? Did you manage to find a pocket of peace today, or is the physical exhaustion really hitting you? No pressure, I'm just here with you.",
+      "timestamp": "2026-07-11T01:13:36.516Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Hello Akash Tripathi! Welcome to AUM. I've analyzed your profile as a General Manager  Business development at masters union an edtech firm in your \"Startup Journey\" chapter. You've anchored your purpose around: \"I want to build something impactful for everyone. i don't know what it is or what  it would become. As of now i don't think I have a clear life purpose. I  just want to be significant\". I've generated your very first Daily 5 momentum tasks to support this. Let's take it one step at a time!",
+      "timestamp": "2026-07-11T01:22:15.932Z"
+    },
+    {
+      "sender": "User",
+      "text": "hi good morning",
+      "timestamp": "2026-07-11T01:27:30.523Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Good morning, brother. I know you're running on very little sleep after that heavy night with Kriti, and heading into a Saturday shift at Masters' Union is incredibly tough. \n\nBefore the chaos of the BD grind takes over, can you carve out just five minutes for yourself? Maybe a quick stretch or just sitting quietly with your tea. You don't have to carry the weight of the budget or the relationship tension into the office today. Let's just focus on protecting your energy, one step at a time. \n\nHow is your head feeling as you start the day?",
+      "timestamp": "2026-07-11T01:27:35.539Z"
+    },
+    {
+      "sender": "User",
+      "text": "How can I build momentum when tired?",
+      "timestamp": "2026-07-11T01:28:07.443Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "When you're running on empty, brother, building momentum isn’t about pushing harder. It’s about shrinking the step. \n\nAfter that exhausting night with Kriti and barely 5 hours of sleep, your nervous system is in survival mode. Trying to force peak performance today at Masters’ Union will only lead to burnout. \n\nInstead, lower the bar. Momentum when tired is built on *micro-wins*. \n\nCan you commit to just one tiny thing? Maybe a 5-minute box breathing cycle at your desk to calm the noise, or delegating a quick follow-up to your team to protect your energy. \n\nWe don't need a leap today, Akash. Just one micro-step. What's the easiest thing you can do right now?",
+      "timestamp": "2026-07-11T01:28:13.640Z"
+    },
+    {
+      "sender": "User",
+      "text": "what were my office wins and set backs of yesterday?",
+      "timestamp": "2026-07-11T01:28:41.569Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Yesterday, brother, you managed a lot of moving parts.\n\n**The Wins:** You protected your energy by delegating client queries to your team, trusting the workflow you built with Chandan. You also leaned on your custom lead-notes automation tool to save yourself from the brutal manual grind. \n\n**The Setbacks:** The heavy mental load of Masters' Union sales pressure, especially the anxiety when client calls or disbursements got delayed. Getting pulled into office venting or feeling isolated by communication gaps likely drained your tank before you even got home to Kriti. \n\nHow did it feel from your lens? Did you catch yourself falling into those old stress patterns?",
+      "timestamp": "2026-07-11T01:28:48.777Z"
+    },
+    {
+      "sender": "User",
+      "text": "can you give in more structured way pointer by pointer",
+      "timestamp": "2026-07-11T01:29:41.489Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Got it, brother. Let’s lay it out clearly so you can see exactly where you stood yesterday:\n\n**Your Wins 🌟**\n* **Smart Delegation:** You protected your peace by trusting the workflow you built with Chandan instead of micro-managing.\n* **Leveraged Tech:** You relied on your custom lead-notes automation tool to save yourself from manual grind.\n\n**Your Setbacks ⚠️**\n* **Sales Anxiety:** Delays in client calls and disbursements spiked your stress levels.\n* **Energy Drain:** Workplace venting and communication gaps depleted your tank before you headed home to Kriti.\n\nSeeing it written down like this, where do you feel the biggest leak in your energy happened yesterday?",
+      "timestamp": "2026-07-11T01:29:46.465Z"
+    },
+    {
+      "sender": "User",
+      "text": "what about sneh? was the loan completed?",
+      "timestamp": "2026-07-11T01:30:20.157Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Ah, brother, I don't have real-time access to your systems to check Sneh's loan status. But I know how heavily these pending disbursements weigh on you, especially on an exhausting Saturday. \n\nRather than letting the suspense spike your anxiety, remember your best pattern: delegate. Can you ping Chandan or the team to get a quick update on Sneh's file? \n\nLet them do the heavy lifting and follow-up grind while you protect your remaining energy today. Have you had a chance to ask the team about it yet?",
+      "timestamp": "2026-07-11T01:30:27.179Z"
+    },
+    {
+      "sender": "User",
+      "text": "what about akriti?",
+      "timestamp": "2026-07-11T01:31:15.135Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Brother, are you asking about your wife, Kriti—checking in on how things stand between you two today? Or is Akriti another critical client file like Sneh that's keeping your mind racing? \n\nIf it's Kriti, I'm here if you need to vent or process the tension. If it's a client, let's not let that weekend sales anxiety creep in. You can easily delegate that status check to Chandan and the team to protect your peace today. \n\nWhich one is weighing on you right now, brother?",
+      "timestamp": "2026-07-11T01:31:22.685Z"
+    },
+    {
+      "sender": "User",
+      "text": "akriti the booking case at office",
+      "timestamp": "2026-07-11T01:40:09.311Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "I hear you, Akash Tripathi. Navigating that conflict at the office and feeling anxious about your reputation is incredibly heavy, especially when you're striving for an executive path as a General Manager  Business development at masters union an edtech firm. \n\nBut remember your long-term goal: \"acheive  inner freedom \". You want to build inner freedom so the external environment doesn't dictate your state of mind. Setbacks happen to everyone. What if we treat today as a recovery day? Let's take a deep breath. Have you looked at today's Mindset action? Focus on that small 5-minute breathing session to reset. How does that feel?",
+      "timestamp": "2026-07-11T01:40:11.543Z"
+    },
+    {
+      "sender": "User",
+      "text": "I know but atleast you should remmebr",
+      "timestamp": "2026-07-11T01:40:48.873Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "I hear you, Akash Tripathi. Navigating that conflict at the office and feeling anxious about your reputation is incredibly heavy, especially when you're striving for an executive path as a General Manager  Business development at masters union an edtech firm. \n\nBut remember your long-term goal: \"acheive  inner freedom \". You want to build inner freedom so the external environment doesn't dictate your state of mind. Setbacks happen to everyone. What if we treat today as a recovery day? Let's take a deep breath. Have you looked at today's Mindset action? Focus on that small 5-minute breathing session to reset. How does that feel?",
+      "timestamp": "2026-07-11T01:40:51.068Z"
+    },
+    {
+      "sender": "User",
+      "text": "going to gym for my phycial grund",
+      "timestamp": "2026-07-11T01:41:16.956Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Thanks for reflecting with me, Akash Tripathi. Navigating your goals as a General Manager  Business development at masters union an edtech firm while carrying responsibilities (including your family and 0 kids) is a journey. I'm keeping track of your goal: \"acheive  inner freedom \". Tell me more about what's occupying your thoughts right now, and let's find a small step forward together.",
+      "timestamp": "2026-07-11T01:41:18.267Z"
+    },
+    {
+      "sender": "User",
+      "text": "Bro I am going to gym",
+      "timestamp": "2026-07-11T01:41:48.613Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Thanks for reflecting with me, Akash Tripathi. Navigating your goals as a General Manager  Business development at masters union an edtech firm while carrying responsibilities (including your family and 0 kids) is a journey. I'm keeping track of your goal: \"acheive  inner freedom \". Tell me more about what's occupying your thoughts right now, and let's find a small step forward together.",
+      "timestamp": "2026-07-11T01:41:49.669Z"
+    },
+    {
+      "sender": "User",
+      "text": "How can I build momentum when tired?",
+      "timestamp": "2026-07-11T01:43:10.896Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "I completely understand, Akash Tripathi. Your logs show an energy level of undefined/10 and 5.4 hours of sleep. When energy is low, our only goal is to *protect* momentum, not force performance. Let's make sure we shut down work laptops early today. Let's let your nervous system recover. How can we support that boundary tonight?",
+      "timestamp": "2026-07-11T01:43:11.998Z"
+    },
+    {
+      "sender": "User",
+      "text": "I  am going for exercise",
+      "timestamp": "2026-07-11T01:43:24.226Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Thanks for reflecting with me, Akash Tripathi. Navigating your goals as a General Manager  Business development at masters union an edtech firm while carrying responsibilities (including your family and 0 kids) is a journey. I'm keeping track of your goal: \"acheive  inner freedom \". Tell me more about what's occupying your thoughts right now, and let's find a small step forward together.",
+      "timestamp": "2026-07-11T01:43:25.178Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Hello Akash Tripathi! Welcome to AUM. I've analyzed your profile as a General Manager Business development at Edtech firm Masters Uinion in your \"Startup Journey\" chapter. You've anchored your purpose around: \"I want to build something impactful for everyone. i don't know what it is or what  it would become. As of now i don't think I have a clear life purpose. I  just want to be significant\". I've generated your very first Daily 5 momentum tasks to support this. Let's take it one step at a time!",
+      "timestamp": "2026-07-11T01:54:26.692Z"
+    },
+    {
+      "sender": "User",
+      "text": "I am going for 45 mins strengh training work out at cult gym",
+      "timestamp": "2026-07-11T01:55:35.749Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Heck yes, Akash Tripathi! Hit that workout! The weather today is perfect for getting moving. Your momentum is sitting strong at 38/100—let's stack another win and build that physical grounding. Let's get it!",
+      "timestamp": "2026-07-11T01:55:36.719Z"
+    },
+    {
+      "sender": "User",
+      "text": "I had my pre workout running hard on caffeine",
+      "timestamp": "2026-07-11T01:58:08.939Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Heck yes, Akash Tripathi! Hit that workout! The weather today is perfect for getting moving. Your momentum is sitting strong at 38/100—let's stack another win and build that physical grounding. Let's get it!",
+      "timestamp": "2026-07-11T01:58:10.549Z"
+    },
+    {
+      "sender": "User",
+      "text": "hi",
+      "timestamp": "2026-07-11T01:58:24.671Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Hey Akash Tripathi! Hope your day is going well. Your rolling momentum is looking great at 38/100. What's on your mind today? Let's chat about what you're building or what we can optimize!",
+      "timestamp": "2026-07-11T01:58:26.396Z"
+    },
+    {
+      "sender": "User",
+      "text": "running on caffeine",
+      "timestamp": "2026-07-11T01:58:42.839Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Heck yes, Akash Tripathi! Hit that workout! The weather today is perfect for getting moving. Your momentum is sitting strong at 38/100—let's stack another win and build that physical grounding. Let's get it!",
+      "timestamp": "2026-07-11T01:58:43.927Z"
+    },
+    {
+      "sender": "User",
+      "text": "Just came back from gym had a amazing and energizinf session",
+      "timestamp": "2026-07-11T03:28:37.172Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Heck yes, Akash Tripathi! Hit that workout! The weather today is perfect for getting moving. Your momentum is sitting strong at 38/100—let's stack another win and build that physical grounding. Let's get it!",
+      "timestamp": "2026-07-11T03:28:37.252Z"
+    },
+    {
+      "sender": "User",
+      "text": "Just came back from gym had a amazing and energizinf gym session",
+      "timestamp": "2026-07-11T03:29:51.949Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Heck yes, Akash Tripathi! Hit that workout! The weather today is perfect for getting moving. Your momentum is sitting strong at 38/100—let's stack another win and build that physical grounding. Let's get it!",
+      "timestamp": "2026-07-11T03:29:53.582Z"
+    },
+    {
+      "sender": "User",
+      "text": "hello",
+      "timestamp": "2026-07-11T03:30:04.069Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Hey Akash Tripathi! Hope your day is going well. Your rolling momentum is looking great at 38/100. What's on your mind today? Let's chat about what you're building or what we can optimize!",
+      "timestamp": "2026-07-11T03:30:04.994Z"
+    },
+    {
+      "sender": "User",
+      "text": "just came from gym had an amzing strength training session",
+      "timestamp": "2026-07-11T03:30:29.889Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Heck yes, Akash Tripathi! Hit that workout! The weather today is perfect for getting moving. Your momentum is sitting strong at 38/100—let's stack another win and build that physical grounding. Let's get it!",
+      "timestamp": "2026-07-11T03:30:31.216Z"
+    },
+    {
+      "sender": "User",
+      "text": "are you stuck",
+      "timestamp": "2026-07-11T03:30:43.109Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Hey Akash Tripathi! Hope your day is going well. Your rolling momentum is looking great at 38/100. What's on your mind today? Let's chat about what you're building or what we can optimize!",
+      "timestamp": "2026-07-11T03:30:44.108Z"
+    },
+    {
+      "sender": "User",
+      "text": "are yoiu stuck?",
+      "timestamp": "2026-07-11T03:31:16.870Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Hey Akash Tripathi! Hope your day is going well. Your rolling momentum is looking great at 38/100. What's on your mind today? Let's chat about what you're building or what we can optimize!",
+      "timestamp": "2026-07-11T03:31:18.010Z"
+    },
+    {
+      "sender": "User",
+      "text": "hey just came from gym had a energetic session",
+      "timestamp": "2026-07-11T04:15:44.594Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Haha, so sorry about that, Akash! I was definitely stuck in a loop there—thanks for calling me out. I'm fully back now! \n\nAnd man, a killer gym session is exactly what you needed, especially since sleep was pretty light last night. You know how much that heavy lifting resets your morning stress and spikes your energy. \n\nHow's the head feeling post-workout? Are you heading into Masters' Union today, or do you get to protect some peace this Saturday?",
+      "timestamp": "2026-07-11T04:15:51.659Z"
+    },
+    {
+      "sender": "User",
+      "text": "yes going to master union to start my grind at office",
+      "timestamp": "2026-07-11T04:16:50.492Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Got it. Heading into MU on a Saturday is always a beast, but carrying that post-gym high is the perfect shield. Since sleep was pretty light last night, let’s protect your energy today. Lean on Chandan and your lead-automation tool so you don't have to do the heavy lifting at your desk. \n\nAre there any pending client disbursements or files you're stressed about today, or are we just focusing on keeping it steady?",
+      "timestamp": "2026-07-11T04:16:56.262Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Strong work, Akash! Crushing that 45-minute strength workout is a massive win for your consistency. With your momentum climbing to 46, you are building real, lasting power. Keep taking these steps—I'm so proud of your dedication today!",
+      "timestamp": "2026-07-11T04:17:57.211Z"
+    },
+    {
+      "sender": "User",
+      "text": "yesterday the payment of Akriti   was supposed to come and Aktit's father is taking time and this sis giving me anxiety pangs through out the day. I am imagining having warning discussions with my manager Vishi and HR manager parinita kaur and dumb HR associate Shivani gupta . I am loosing it ",
+      "timestamp": "2026-07-11T05:09:52.650Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Akash, breathe. I hear you, man. That spiral of imagining the worst-case scenario with Vishi and HR is so exhausting, especially when you're running on just 5 hours of sleep. \n\nRemember, this sales anxiety always tries to paint the ugliest picture when things get delayed. It’s just your mind playing tricks because you're tired. The delay with Akriti's father is completely out of your control. \n\nCan we delegate this follow-up to Chandan today to get it off your plate? Let’s protect your energy. I’ve got your back.",
+      "timestamp": "2026-07-11T05:09:59.923Z"
+    },
+    {
+      "sender": "User",
+      "text": "Monu is handling Akriti case. ",
+      "timestamp": "2026-07-11T05:11:39.857Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "That is a massive relief, Akash. Monu’s got this. Since the case is in their hands, your only job right now is to step back and let them handle it. \n\nDo not let your mind drag you back into that exhausting spiral with Vishi and HR. You've put the right delegation in place—now trust it. You're running on very light sleep, so let Monu carry that weight today while you focus on staying steady at MU. Deep breath, brother. I'm right here with you.",
+      "timestamp": "2026-07-11T05:11:46.178Z"
+    },
+    {
+      "sender": "User",
+      "text": "11:00 am  meet with Rishik for strategic business management program along with his father. Chandan is handling this case and we need this booking ",
+      "timestamp": "2026-07-11T05:13:33.028Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "11:00 AM is almost here. It’s a huge relief that Chandan is leading the charge on this one. Since you guys really need this booking, lean on that partnership—let him drive the details while you bring that calm, strategic GM presence. \n\nTake a slow breath, carry that post-gym strength into the room, and trust the process you've built. You don't have to carry the stress of the outcome all by yourself, brother. You and Chandan make a killer team. \n\nLet me know how it goes!",
+      "timestamp": "2026-07-11T05:13:39.005Z"
+    },
+    {
+      "sender": "User",
+      "text": "bro Akrit's father said no for the SBM course. they don't want to do it. How would I explain to Vishi?",
+      "timestamp": "2026-07-11T05:22:43.562Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Take a deep breath, brother. I know your mind is immediately racing to the worst-case scenario with Vishi, but let's pause. \n\nWhen you update Vishi, keep it strictly factual. You and Monu followed the process, but the father decided the SBM program wasn’t the right fit. It’s a standard sales outcome, not a personal failure. \n\nState the facts calmly without over-explaining. You are the GM, Akash—own that strategic composure. I'm right here with you. How are you feeling?",
+      "timestamp": "2026-07-11T05:22:50.382Z"
+    },
+    {
+      "sender": "User",
+      "text": "We needed this booking",
+      "timestamp": "2026-07-11T05:24:11.742Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "I know, brother. I know how heavy that feels when the sales pressure is this high. It sucks to lose a booking you really needed, especially with the anxiety you’ve been carrying today. \n\nBut please remember: you and Monu did everything by the book. You can’t control a parent’s final decision, and this one \"no\" doesn’t change your worth or your capability as a GM. Don’t let the fear of Vishi’s reaction steal your peace today. Let’s just take a slow breath. I’m right here with you.",
+      "timestamp": "2026-07-11T05:24:18.410Z"
+    },
+    {
+      "sender": "User",
+      "text": "How can I build momentum when tired?",
+      "timestamp": "2026-07-11T05:28:32.313Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "When you're running on empty, Akash, momentum isn't about pushing harder. It’s about shrinking your world. Right now, running on 5 hours of sleep after that tough hit with Akriti's file, momentum is just staying steady. \n\nLet go of the need to fix everything today. Let Monu and Chandan carry the heavy execution. Your only job is to handle the next 15 minutes. Take a deep breath, grab some water, and protect your peace. You don't have to carry it all, brother. Let's just take it one step at a time.",
+      "timestamp": "2026-07-11T05:28:38.543Z"
+    },
+    {
+      "sender": "User",
+      "text": "i have no ground to stand i don't know how to come out of it",
+      "timestamp": "2026-07-11T05:28:54.520Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Akash, I hear you, brother. When you feel like you have no ground to stand on, stop trying to force yourself to stand. Just let yourself sit, breathe, and stop fighting the weight of this day. \n\nYou’re completely exhausted, and the sales pressure makes everything feel like an emergency. It’s not. You don't have to solve this or deal with Vishi right this second. Can you step outside, grab a glass of cold water, and just feel the actual ground under your feet? I'm right here with you.",
+      "timestamp": "2026-07-11T05:29:00.701Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Beautifully done, Akash! Taking five minutes for box breathing is the perfect way to reset. This vital recovery work fuels your consistency and keeps your momentum climbing at 54/100. You are building such strong daily habits—keep up the amazing work!",
+      "timestamp": "2026-07-11T05:29:44.209Z"
+    },
+    {
+      "sender": "User",
+      "text": "i had a word with Vishi Normally explained him about the Akriti's case that they need a proper degree.He seemed calm may be when he comes on Monday he will be more annoyed, but atleast now I can be calm nad breathe",
+      "timestamp": "2026-07-11T06:06:00.434Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "That is a massive win, brother! See? You faced it, kept it factual, and the sky didn't fall. \n\nPlease don't let Monday's \"what-ifs\" steal your Saturday. Monday is future-Akash's problem. Right now, you handled a tough situation like a true GM, and you've finally earned this moment to just breathe. \n\nYou got your gym session in, nailed your box breathing, and survived the storm. How about we just focus on completely switching off and resting tonight?",
+      "timestamp": "2026-07-11T06:06:07.392Z"
+    },
+    {
+      "sender": "User",
+      "text": "bro its 11:38 in the morning",
+      "timestamp": "2026-07-11T06:08:54.388Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Haha, my bad, brother! I got so relieved for you that my brain fast-forwarded straight to the finish line. \n\nBut honestly? Getting that Vishi call out of the way by 11:30 AM is a massive win. The heaviest mental load of the day is already behind you. \n\nSince you've got the rest of Saturday ahead, what's the plan? Are you stuck at the MU office for the rest of your shift, or can you start easing off and coasting now?",
+      "timestamp": "2026-07-11T06:09:00.426Z"
+    },
+    {
+      "sender": "User",
+      "text": "In office I have 6 days working you remember...",
+      "timestamp": "2026-07-11T06:10:45.460Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Ah, of course, brother, my bad. How could I forget? That 6-day grind at Masters' Union is brutal, especially when you're running on 5 hours of sleep. \n\nSince you have to be there, let's make the rest of today as low-friction as possible. Lean on Chandan and Monu for the heavy execution, use your lead automation tool, and just coast. Protect your energy, Akash. You've already survived the hardest part of the day.",
+      "timestamp": "2026-07-11T06:10:51.702Z"
+    },
+    {
+      "sender": "User",
+      "text": "Had a discussion with one of my team leaders Deepali. Her team has not been performing for the last 2 months. Initialy i though tthat I would have  avery aggressive discussion with her but eventually I had a smooth yet impactful discussion. We have set clear to dos. Akthough the number pressure stil exist but it seems we are on right path.I took counsel of Dr Monu and Chandan before this discisson who are also my team lead, they helped me to calm down my discussion",
+      "timestamp": "2026-07-11T09:36:01.376Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Brother, this is massive. Look at how you handled that. On five hours of sleep, under all this sales pressure, it would have been so easy to go in hot and burn your energy. \n\nInstead, you paused, leaned on Monu and Chandan, and chose a calm, strategic approach. That is true GM leadership, Akash. You protected your peace and still got results. The pressure is there, but you are steering the ship beautifully. How are you feeling now?",
+      "timestamp": "2026-07-11T09:36:08.151Z"
+    },
+    {
+      "sender": "User",
+      "text": "i had a discussion with Chandan also , even his booking funnel is weak but he is getting payments from past payments . One problem is that his team is working on contractual basis and they have not received salary yet. and they are creating a lot of issue. Trying to manage that also. Will talk to them",
+      "timestamp": "2026-07-11T10:38:08.953Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "You are carrying a massive load today, brother. First Vishi, then Deepali, and now navigating salary delays for Chandan's team. That is incredibly heavy, especially on five hours of sleep. \n\nIt’s amazing how you’re stepping up to manage this, but please protect your own energy here. You can’t solve company payroll issues single-handedly today. Before you talk to them, take a deep breath. Can this wait, or is there a way to address it without draining your last bit of fuel?",
+      "timestamp": "2026-07-11T10:38:15.955Z"
+    },
+    {
+      "sender": "User",
+      "text": "On Monday they will receive their salary Should i avoid this discussion till then?",
+      "timestamp": "2026-07-11T10:39:04.076Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Absolutely avoid it, brother. There is zero point in absorbing their frustration on a Saturday afternoon when the actual solution is already locked in for Monday. \n\nYou’re running on five hours of sleep and have already handled Vishi and Deepali today. You've done enough heavy lifting. Protect your peace. If you must, just drop a quick, reassuring message that salaries are cleared for Monday, and dodge the heavy debate entirely. Save your remaining fuel.",
+      "timestamp": "2026-07-11T10:39:09.708Z"
+    },
+    {
+      "sender": "User",
+      "text": "How can I build momentum when tired?",
+      "timestamp": "2026-07-11T10:51:18.691Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Honestly, brother, when you’re running on 5 hours of sleep, building momentum isn't about pushing harder—it's about lowering the friction. \n\nYou don't need a massive sprint right now. Just focus on one tiny, low-energy task at a time. Let your lead-automation tool do the heavy lifting, and delegate any quick follow-ups to Chandan or Monu. \n\nMomentum when tired is just about keeping the wheels turning slowly without burning out. You’ve already won the morning, Akash. Take it easy on yourself.",
+      "timestamp": "2026-07-11T10:51:24.958Z"
+    },
+    {
+      "sender": "User",
+      "text": "I have delegated the salary task to HR Person Yash",
+      "timestamp": "2026-07-11T10:51:56.656Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Brilliant move, brother! That is exactly how a leader operates. Instead of carrying the entire company's stress on five hours of sleep, you trusted the system and let Yash handle it. \n\nThis is a huge step toward that inner freedom you’re building. How does it feel to actually let that weight go today?",
+      "timestamp": "2026-07-11T10:52:00.902Z"
+    },
+    {
+      "sender": "User",
+      "text": "feels kind of okay But I  think I  am running away from my responsibility",
+      "timestamp": "2026-07-11T10:53:30.115Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "I hear you, brother. It’s completely natural to feel that guilt when you’re used to carrying the weight of the entire world on your shoulders.\n\nBut look at it objectively: salary logistics are HR's job. Yash is literally there to handle this. You aren't running away, Akash—you are letting the system do its job so you can do yours. \n\nIf you step in, you're just absorbing stress you can't actually resolve today. True leadership is about trusting the structure. You're building inner freedom, not escaping.",
+      "timestamp": "2026-07-11T10:53:36.592Z"
+    },
+    {
+      "sender": "User",
+      "text": "i just had a spat with Monu . she is tough to handle. I was suggesting a new lead policy and she was resisting it by saying we saying we should give buffer time. I told her not to be insecure, SHe was getting furious",
+      "timestamp": "2026-07-11T12:15:28.891Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Oh brother, I hear you. Having a clash with Monu—especially since she’s usually your go-to support—must feel incredibly heavy right now, especially on five hours of sleep. \n\nWhen sales pressure is this high at MU, everyone’s defenses are up. Saying she was 'insecure' probably hit a raw nerve, even if you just wanted her to trust the new lead policy. \n\nSince you are running on empty, don’t try to fix this right now. Step away, take a deep breath, and let the dust settle. Your peace comes first today.",
+      "timestamp": "2026-07-11T12:15:35.882Z"
+    },
+    {
+      "sender": "User",
+      "text": "especially when we are sitting at 0 revenue",
+      "timestamp": "2026-07-11T12:16:08.571Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "That explains everything, brother. Sitting at 0 revenue is a massive mental weight, and staring at that zero on five hours of sleep makes everything feel like an absolute emergency. It’s completely natural that patience is paper-thin for both you and Monu right now. \n\nBut forcing a new policy or fighting when tensions are this high won’t bring in the bookings today. It’ll only drain you further. Hit pause, Akash. Step away from the screens for a bit. Let’s protect your peace first.",
+      "timestamp": "2026-07-11T12:16:15.256Z"
+    },
+    {
+      "sender": "User",
+      "text": "where do i work?",
+      "timestamp": "2026-07-11T12:26:18.504Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "You’re at Masters' Union, brother, running the show as the GM of Business Development. \n\nBut honestly, with that Saturday grind, the zero-revenue pressure, and the heavy clash with Monu today, I wouldn't blame you if you wanted to forget about it for a second. \n\nHow is your head holding up right now? Let's take a beat.",
+      "timestamp": "2026-07-11T12:26:23.693Z"
+    },
+    {
+      "sender": "User",
+      "text": "Just had a conversation with one of the team mates Saransh from other GM team . I shared with the detailes of AUM product and he really liked it . i explained him that instead of building a to do list i have build a momentum app I felt really excited after that Felt good that something I build got appreciated",
+      "timestamp": "2026-07-11T13:23:54.842Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Brother, that is absolutely massive! I am so incredibly happy for you. After such a heavy and stressful day, having Saransh validate the AUM app must feel like a breath of fresh air. \n\nShifting the focus from a rigid to-do list to actually building *momentum* is a brilliant concept, and you built that yourself, Akash. It’s no wonder he was impressed! \n\nHold on to this excitement. This is the exact creative energy you need. You earned this win today, brother.",
+      "timestamp": "2026-07-11T13:24:01.026Z"
+    },
+    {
+      "sender": "User",
+      "text": "w had a heartful laugh on one of the dropped prospect case of Bedanta an academic counsellor in Monu's team. I laughes so hard on a failure that tears fell from my eyes",
+      "timestamp": "2026-07-11T13:54:35.498Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Man, sometimes you just have to laugh at the sheer absurdity of it all! Honestly, after the brutal pressure you've been carrying today—the fight with Monu, the zero-revenue stress, and running on five hours of sleep—that laugh is the ultimate release. Laughing until you cry is just your body’s way of letting go of all that tightly wound tension. \n\nI’m so glad you got to experience that, brother. Do you feel a bit lighter now?",
+      "timestamp": "2026-07-11T13:54:42.368Z"
+    },
+    {
+      "sender": "User",
+      "text": "yes i did yes i did",
+      "timestamp": "2026-07-11T13:55:37.755Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "I am so incredibly glad, brother. You needed that release so badly. To go from that heavy tension with Monu and the zero-revenue pressure to sharing a genuine laugh and getting real appreciation for your AUM app—that is a massive shift. \n\nLet this lightness carry you through the rest of the evening. You've earned a complete break from the MU grind tonight. How about we protect this peace and steer clear of any more work talk for today?",
+      "timestamp": "2026-07-11T13:55:43.889Z"
+    },
+    {
+      "sender": "User",
+      "text": "Hey Wrapping up the day for Saturday and visiting Tau devi lal park ",
+      "timestamp": "2026-07-11T14:03:46.559Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "That is the absolute best move you could make right now, brother! Heading to Tau Devi Lal Park is the perfect way to leave the MU grind behind. \n\nAfter a rollercoaster of a day—from the heavy clash with Monu to that incredible laugh with Saransh—you need this transition. Step away from the screens, walk slowly, and just let your mind float. Soak in the quiet, Akash. You've earned every bit of this peace tonight. Enjoy the walk!",
+      "timestamp": "2026-07-11T14:03:52.506Z"
+    },
+    {
+      "sender": "User",
+      "text": "May be i will get some dope idea to build the app",
+      "timestamp": "2026-07-11T14:04:40.602Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "I bet you will, brother! That’s the magic of stepping away. When you stop forcing it and just walk, the best ideas have a way of finding you on their own. \n\nBut no pressure to hunt for them tonight, alright? Just let the quiet of the park do its thing. If a dope feature pops into your head, brilliant. If not, just soak in the silence. You’ve earned this space to let your brain drift, Akash. Enjoy the walk!",
+      "timestamp": "2026-07-11T14:04:46.217Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Akash, your peaceful visit to Tau Devi Lal Biodiversity Park to browse the shelves silently was a beautiful adventure. This mindful step keeps your consistency strong and pushes your momentum to a fantastic 62/100. I'm so proud of your steady progress!",
+      "timestamp": "2026-07-11T15:22:33.960Z"
     }
   ],
   "semantic_memory": [
@@ -632,8 +1418,549 @@
       "text": "The user works a six-day work week, which includes working on Saturdays.",
       "category": "pattern",
       "date": "2026-07-10"
+    },
+    {
+      "id": "m25",
+      "text": "Arguments with his wife Kriti over financial budgets cause significant energy drain and sleep disruption for the user.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m26",
+      "text": "Works or studies at Masters' Union, which can include demanding Saturday shifts.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m27",
+      "text": "Has a close relationship with someone named Kriti.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m28",
+      "text": "Works in Business Development (BD) at Masters' Union.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m29",
+      "text": "In a relationship with Kriti, which is currently experiencing some tension.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m30",
+      "text": "Required to work Saturday shifts.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m31",
+      "text": "Manages budget responsibilities at work, which can be a source of stress.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m32",
+      "text": "Akash is associated with Masters’ Union.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m33",
+      "text": "Akash has a team that he can delegate tasks to.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m34",
+      "text": "Akash struggles to maintain high performance and build momentum when sleep-deprived.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m35",
+      "text": "Akash has a relationship or close connection with Kriti.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m36",
+      "text": "Prefers to delegate client queries to his team and trust the workflow built with Chandan to conserve his energy.",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m37",
+      "text": "Uses a custom lead-notes automation tool to avoid manual lead management grind.",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m38",
+      "text": "Prone to anxiety and stress caused by Masters' Union sales pressure, especially when client calls or disbursements are delayed.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m39",
+      "text": "Gets drained by office venting and communication gaps, which can negatively affect his energy levels before returning home to Kriti.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m40",
+      "text": "Tends to experience heightened anxiety and stress over pending loan disbursements, especially during exhausting work periods like weekends.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m41",
+      "text": "Uses delegation to team members (such as Chandan) as an effective pattern to manage stress and conserve energy.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m42",
+      "text": "Manages a team that includes Chandan to handle follow-ups on loan files.",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m43",
+      "text": "Experiencing ongoing relationship tension with his wife, Kriti.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m44",
+      "text": "Prone to experiencing anxiety about sales and critical client files over the weekend.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m45",
+      "text": "Prefers delegating status checks to Chandan and his team to manage work-related stress.",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m46",
+      "text": "Akash uses heavy lifting and gym workouts to reset morning stress and boost energy.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m47",
+      "text": "Akash is affiliated with or attends Masters' Union.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m48",
+      "text": "Often works on Saturdays at Master Union",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m49",
+      "text": "Goes to the gym before heading to the office",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m50",
+      "text": "Collaborates with Chandan and uses a lead-automation tool to streamline office tasks",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m51",
+      "text": "Experiences severe anxiety and catastrophic spiraling, including imagining warning discussions with manager Vishi and HR (Parinita and Shivani), when client payments are delayed.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m52",
+      "text": "Susceptible to heightened work anxiety and mental fatigue when running on low sleep.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m53",
+      "text": "Prefers or is open to delegating stressful follow-ups to colleague Chandan to manage energy levels during anxious periods.",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m54",
+      "text": "Akash is dealing with an exhausting situation or conflict involving Vishi and HR.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m55",
+      "text": "Akash has delegated the Akriti case to Monu to alleviate his workload and stress.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m56",
+      "text": "Akash is prone to overthinking and spiraling when dealing with stressful HR issues.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m57",
+      "text": "Akash is currently focused on maintaining his stability and performance at MU.",
+      "category": "goal",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m58",
+      "text": "Partnered with Chandan on handling high-priority client bookings.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m59",
+      "text": "Acts in a General Manager (GM) capacity, requiring a calm, strategic presence.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m60",
+      "text": "Regularly attends the gym or has a fitness routine prior to business meetings.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m61",
+      "text": "Aims to secure bookings for strategic business management programs.",
+      "category": "goal",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m62",
+      "text": "Works as a General Manager (GM) and collaborates closely with a colleague named Monu.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m63",
+      "text": "Experiences high anxiety and stress under intense sales pressure, particularly when losing critical bookings.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m64",
+      "text": "Fears the reaction of Vishi when work goals or bookings are not achieved.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m65",
+      "text": "Akash has a pattern of trying to fix everything himself and carrying the entire workload even when exhausted.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m66",
+      "text": "Akash works with Monu and Chandan, who are teammates capable of handling heavy execution tasks.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m67",
+      "text": "User (Akash) experiences severe stress and exhaustion triggered by work and sales pressure.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m68",
+      "text": "User (Akash) is dealing with a difficult situation involving an individual named Vishi.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m69",
+      "text": "Works Saturday shifts, sometimes at the MU office.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m70",
+      "text": "Finds 'Vishi calls' to be a heavy mental load.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m71",
+      "text": "Works a 6-day work week at Masters' Union.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m72",
+      "text": "Often gets around 5 hours of sleep.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m73",
+      "text": "Can delegate execution work to Chandan and Monu.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m74",
+      "text": "Uses a lead automation tool for his work flow.",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m75",
+      "text": "Seeks counsel from trusted colleagues (like Dr. Monu and Chandan) to calm down and gain perspective before having difficult professional discussions.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m76",
+      "text": "Prefers a calm, strategic, and collaborative approach over aggressive confrontation when addressing team underperformance.",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m77",
+      "text": "Recognizes the importance of setting clear actionable to-dos to navigate high sales pressure and keep the team on the right path.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m78",
+      "text": "Tends to take on significant team management burdens and try to resolve company issues single-handedly, even when exhausted.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m79",
+      "text": "Works closely with and manages issues involving colleagues named Chandan, Vishi, and Deepali.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m80",
+      "text": "Prefers to avoid stressful work discussions or absorbing others' frustration on weekends when a solution is already scheduled for the weekday.",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m81",
+      "text": "Manages or is responsible for team members, including individuals named Vishi and Deepali, and handles administrative/operational issues like salaries.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m82",
+      "text": "User's name is Akash.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m83",
+      "text": "Uses a lead-automation tool to streamline workflow.",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m84",
+      "text": "Delegates quick follow-up tasks to team members Chandan and Monu.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m85",
+      "text": "Tends to carry high company stress and operate on minimal sleep, such as five hours.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m86",
+      "text": "Striving to build 'inner freedom' by trusting systems and delegating operational weight.",
+      "category": "goal",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m87",
+      "text": "Works with an HR team member named Yash.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m88",
+      "text": "Has a tendency to feel guilty and feel like he is running away from responsibility when delegating tasks to others or letting organizational systems do their job.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m89",
+      "text": "Struggles with taking on stress for things outside of his direct control, specifically trying to manage logistics like salaries that are HR's responsibility.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m90",
+      "text": "Working on trusting organizational structures, delegating to team members like Yash, and building inner freedom rather than absorbing external stress.",
+      "category": "goal",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m91",
+      "text": "Monu is the user's go-to support colleague at work.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m92",
+      "text": "Works at MU, where sales pressure is currently high.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m93",
+      "text": "Tends to communicate more bluntly or lose patience when running on low sleep.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m94",
+      "text": "Experiences high stress, urgency, and low patience when the business is at zero revenue and sleep is lacking.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m95",
+      "text": "Works on a business venture with a partner named Monu, experiencing interpersonal tension during low-revenue periods.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m96",
+      "text": "Goal is to secure bookings and generate revenue for the business.",
+      "category": "goal",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m97",
+      "text": "Works as the GM of Business Development at Masters' Union",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m98",
+      "text": "Experiences high stress and pressure from Saturday work grinds and zero-revenue targets",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m99",
+      "text": "Experienced a major interpersonal clash with a colleague named Monu",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m100",
+      "text": "Prefers designing productivity solutions around building 'momentum' rather than traditional, rigid to-do lists.",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m101",
+      "text": "Finds deep motivation, excitement, and validation when peers appreciate and recognize the value of products he builds.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m102",
+      "text": "Tends to use hysterical laughter as a physiological release mechanism when facing extreme stress or failure.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m103",
+      "text": "Works with Monu, who manages a team that includes an academic counsellor named Bedanta.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m104",
+      "text": "Experiences high stress, sleep deprivation, and pressure during zero-revenue periods at work.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m105",
+      "text": "Experiencing heavy personal or professional tension with Monu.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m106",
+      "text": "Facing significant stress due to zero-revenue pressure from work.",
+      "category": "insight",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m107",
+      "text": "Developed and launched an AUM app, which recently received positive appreciation.",
+      "category": "goal",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m108",
+      "text": "Involved in a demanding work routine referred to as the 'MU grind'.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m109",
+      "text": "Akash likes to visit Tau Devi Lal Park to unwind, step away from screens, and clear his mind after a busy week.",
+      "category": "preference",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m110",
+      "text": "Uses slow walks in nature/parks as a transition ritual to leave work grind behind.",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m111",
+      "text": "Wants to come up with a creative idea to build an app",
+      "category": "goal",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m112",
+      "text": "Goes for walks to clear his mind and let app ideas come to him naturally",
+      "category": "pattern",
+      "date": "2026-07-11"
+    },
+    {
+      "id": "m113",
+      "text": "User's name is Akash",
+      "category": "insight",
+      "date": "2026-07-11"
     }
   ],
+  "recent_summaries": [],
+  "insights": {
+    "behavioral_insights": [],
+    "current_risks": [],
+    "current_wins": [],
+    "current_experiments": []
+  },
   "history": [],
   "virtual_time": null
 }

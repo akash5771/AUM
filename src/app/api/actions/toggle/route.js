@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { readDB, writeDB, toggleActionStatus, getDbCurrentTime } from '@/services/db';
+import { readDB, writeDB, toggleActionStatus, rateAction, getDbCurrentTime } from '@/services/db';
 import { triggerCompanionComment } from '@/services/gemini';
 
 export async function POST(request) {
   try {
-    const { actionId, status } = await request.json();
+    const { actionId, status, rating } = await request.json();
     if (!actionId || !status) {
       return NextResponse.json({ error: "Missing actionId or status" }, { status: 400 });
     }
@@ -17,8 +17,12 @@ export async function POST(request) {
     
     const oldStatus = action.status;
     
-    // Toggle status in database (updates XP and level-ups internally)
-    await toggleActionStatus(actionId, status);
+    // Toggle or rate action
+    if (status === 'done' && rating !== undefined) {
+      await rateAction(actionId, parseInt(rating));
+    } else {
+      await toggleActionStatus(actionId, status);
+    }
     
     // Fetch fresh database state
     const db = await readDB();
@@ -45,10 +49,10 @@ export async function POST(request) {
       }
     }
     
-    // If level-up was triggered during toggle, we can add a companion level-up message
-    if (db.profile.level_up_celebration_pending) {
-      await triggerCompanionComment('level_up', {
-        level: db.profile.level
+    // If archetype evolved during the action, trigger the comment
+    if (db.profile.archetype !== dbBefore.profile.archetype) {
+      await triggerCompanionComment('archetype_unlocked', {
+        archetype: db.profile.archetype
       });
     }
     

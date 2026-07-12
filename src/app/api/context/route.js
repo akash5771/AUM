@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { readDB, writeDB, getDbCurrentTime, updateContext } from '@/services/db';
-import { triggerCompanionComment } from '@/services/gemini';
+import { readDB, writeDB, getDbCurrentTime, updateContext, updateRealtimeMomentum } from '@/services/db';
+import { triggerCompanionComment, parseCheckinStoryService } from '@/services/gemini';
 
 export async function GET() {
   try {
@@ -29,23 +29,35 @@ export async function POST(request) {
 
     const oldMoodRating = db.context.mood?.rating || 5;
     const oldMoodState = db.context.mood?.state || "clear";
-    const oldEnergy = db.context.sleep?.energy || 5;
-
+    
     const newMoodRating = body.mood?.rating || 5;
     const newMoodState = body.mood?.state || "clear";
-    const newEnergy = body.sleep?.energy || 5;
+    
+    // Parse stories asynchronously/synchronously to get estimated minutes
+    const creationStory = body.creation_story || "";
+    const consumptionStory = body.consumption_story || "";
+    const estimatedMinutes = await parseCheckinStoryService(creationStory, consumptionStory);
 
     // Log updates
     const contextUpdates = {
       sleep: {
         hours: parseFloat(body.sleep?.hours) || 7.0,
-        quality: body.sleep?.quality || "good",
-        energy: parseInt(newEnergy)
+        quality: body.sleep?.quality || "good"
       },
       mood: {
         rating: parseInt(newMoodRating),
         state: newMoodState
       },
+      energies: {
+        mental: parseInt(body.energies?.mental) || 7,
+        physical: parseInt(body.energies?.physical) || 7,
+        social: parseInt(body.energies?.social) || 7,
+        creative: parseInt(body.energies?.creative) || 7
+      },
+      creation_story: creationStory,
+      consumption_story: consumptionStory,
+      creation_minutes: estimatedMinutes.creation_minutes,
+      consumption_minutes: estimatedMinutes.consumption_minutes,
       environmental: {
         time: timeOfDay,
         day_of_week: dayOfWeek,
@@ -58,22 +70,25 @@ export async function POST(request) {
     // Save context updates
     const updatedContext = await updateContext(contextUpdates);
 
-    // Check triggers for AI companion chat activation
-    // Trigger 1: Stress rating increased significantly (rating goes up by 2+ or exceeds 7)
-    // Trigger 2: Mood state changed to negative (stressed, anxious, exhausted)
-    // Trigger 3: Energy level dropped significantly (dropped below 4)
+    // Sync fresh DB instance
+    const freshDb = await readDB();
+    await updateRealtimeMomentum(freshDb);
+
+    // Trigger AI Companion Comment if stress is critical or any energy is depleted
     let shouldTriggerComment = false;
     let detail = {};
 
+    const avgEnergy = (contextUpdates.energies.mental + contextUpdates.energies.physical + contextUpdates.energies.social + contextUpdates.energies.creative) / 4;
+
     if ((newMoodRating > oldMoodRating && newMoodRating >= 7) || 
         (newMoodState !== oldMoodState && ["stressed", "anxious", "exhausted"].includes(newMoodState)) ||
-        (newEnergy < oldEnergy && newEnergy <= 4)) {
+        (avgEnergy <= 4)) {
       shouldTriggerComment = true;
       detail = {
         oldRating: oldMoodRating,
         newRating: newMoodRating,
         state: newMoodState,
-        energy: newEnergy
+        energy: avgEnergy
       };
     }
 
