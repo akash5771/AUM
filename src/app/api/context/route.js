@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB, getDbCurrentTime, updateContext, updateRealtimeMomentum } from '@/services/db';
-import { triggerCompanionComment, parseCheckinStoryService } from '@/services/gemini';
+import { triggerCompanionComment, parseCheckinStoryService } from '@/services/groq';
 
 export async function GET() {
   try {

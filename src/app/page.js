@@ -10,19 +10,19 @@ export default function Dashboard() {
   const [profile, setProfile] = useState(null);
   const [context, setContext] = useState(null);
   const [actions, setActions] = useState([]);
-  const [backups, setBackups] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
   const [virtualTime, setVirtualTime] = useState(null);
   const [currentTimeDisplay, setCurrentTimeDisplay] = useState('');
   
   // Interaction/UI States
   const [expandedActionId, setExpandedActionId] = useState(null);
+  const [showMoves, setShowMoves] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingContext, setIsUpdatingContext] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [isSendingChat, setIsSendingChat] = useState(false);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false); // Slide-over drawer state
   const [timeSelectorOpen, setTimeSelectorOpen] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   
   // Daily Context Logging States
   const [sleepHours, setSleepHours] = useState(7.0);
@@ -35,18 +35,18 @@ export default function Dashboard() {
   const [consumptionStory, setConsumptionStory] = useState('');
   const [weatherOutlook, setWeatherOutlook] = useState('Clear');
 
-  // Refs for scrolling and canvas
-  const messagesEndRef = useRef(null);
+  // Refs
   const chatScrollRef = useRef(null);
+  const fileInputRef = useRef(null);
   const canvasRef = useRef(null);
   const confettiSystemRef = useRef(null);
 
-  // Quick Reflection Chips
+  // Quick Chat Nudges (Momentum Moments)
   const reflectionChips = [
-    "How can I build momentum when tired?",
-    "Review my weekly patterns.",
-    "Acknowledge a small win today.",
-    "Help me prepare for tomorrow."
+    "Today's been horrible.",
+    "Walk for three minutes.",
+    "Acknowledge a small win!",
+    "Ignored: Read a 3-minute article"
   ];
 
   // Fetch all initial data
@@ -69,12 +69,12 @@ export default function Dashboard() {
     }
   }, [profile]);
 
-  // Auto-scroll chat history (non-intrusive container scrolling)
+  // Auto-scroll chat history
   useEffect(() => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
-  }, [chatHistory, isSendingChat]);
+  }, [chatHistory, isSendingChat, actions]);
 
   // Route to onboarding if not completed
   useEffect(() => {
@@ -104,12 +104,12 @@ export default function Dashboard() {
         setContext(cData);
         syncContextForm(cData);
 
-        // 4. Actions and Backups
+        // 4. Actions
         const aRes = await fetch('/api/actions');
         const aData = await aRes.json();
         setActions(aData);
         
-        // 5. Chat History Logs
+        // 5. Chat History Logs (Life Feed)
         const fullDbRes = await fetch('/api/chat');
         const chatData = await fullDbRes.json();
         setChatHistory(chatData);
@@ -148,7 +148,7 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sleep: { hours: parseFloat(sleepHours), quality: sleepQuality },
-          mood: { rating: 5, state: 'clear' }, // Default mood
+          mood: { rating: 5, state: 'clear' },
           energies: {
             mental: parseInt(mentalEnergy),
             physical: parseInt(physicalEnergy),
@@ -235,8 +235,15 @@ export default function Dashboard() {
     setIsSendingChat(true);
     if (!textOverride) setChatInput('');
 
-    // Add User bubble
-    setChatHistory(prev => [...prev, { sender: 'User', text, timestamp: new Date().toISOString() }]);
+    // Optimistically update frontend history to show user's message immediately
+    setChatHistory(prev => [
+      ...prev,
+      {
+        sender: 'User',
+        text: text,
+        timestamp: new Date().toISOString()
+      }
+    ]);
 
     try {
       const res = await fetch('/api/chat', {
@@ -244,12 +251,41 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text })
       });
-      const data = await res.json();
-
-      // Add AUM bubble
-      setChatHistory(prev => [...prev, { sender: 'AUM', text: data.response, timestamp: new Date().toISOString() }]);
       
-      // Update profile
+      if (!res.ok) throw new Error("API call failed");
+
+      // Append an empty companion bubble that we will stream text into
+      setChatHistory(prev => [...prev, { sender: 'AUM', text: '', timestamp: new Date().toISOString() }]);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const token = trimmed.slice(6);
+            accumulated += token;
+            setChatHistory(prev => {
+              const updated = [...prev];
+              if (updated.length > 0) {
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  text: accumulated
+                };
+              }
+              return updated;
+            });
+          }
+        }
+      }
+
+      // Sync profile/actions
       const pRes = await fetch('/api/profile');
       const pData = await pRes.json();
       setProfile(pData);
@@ -257,6 +293,46 @@ export default function Dashboard() {
       console.error(e);
     } finally {
       setIsSendingChat(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploadingPhoto(true);
+    const formData = new FormData();
+    formData.append('files', files[0]);
+
+    try {
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const uploadData = await uploadRes.json();
+      const mediaUrl = uploadData.urls?.[0];
+
+      if (mediaUrl) {
+        // Send photo post message
+        await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: "Shared a photo",
+            type: "photo",
+            mediaUrl: mediaUrl
+          })
+        });
+
+        // Refresh chat history
+        const chRes = await fetch('/api/chat');
+        const chData = await chRes.json();
+        setChatHistory(chData);
+      }
+    } catch (err) {
+      console.error("Failed to upload photo:", err);
+    } finally {
+      setIsUploadingPhoto(false);
     }
   };
 
@@ -298,6 +374,7 @@ export default function Dashboard() {
     }
   };
 
+
   // Loading Screen
   if (isLoading || !profile || !context) {
     return (
@@ -308,17 +385,128 @@ export default function Dashboard() {
     );
   }
 
-  // Rate metrics
-  const completedCount = actions.filter(a => a.status === 'done').length;
-  const intentionalRate = profile.intentional_days_count && profile.total_actions_generated > 0
-    ? Math.round((profile.intentional_days_count / (profile.total_actions_generated / 5)) * 100)
-    : 75; // Baseline default
+  // Calculate month dividers helper
+  const renderChatHistoryWithMonthDividers = () => {
+    const list = [];
+    let lastMonthYear = "";
+
+    chatHistory.forEach((bubble, idx) => {
+      if (bubble.timestamp) {
+        const d = new Date(bubble.timestamp);
+        const monthYear = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        
+        if (monthYear !== lastMonthYear) {
+          lastMonthYear = monthYear;
+          list.push(
+            <div key={`month-${monthYear}`} style={styles.monthHeader}>
+              <span style={styles.monthHeaderSpan}>{monthYear}</span>
+            </div>
+          );
+        }
+      }
+
+      // Render system vs chat vs photo logs
+      if (bubble.type === 'activity_completion') {
+        list.push(
+          <div key={`sys-${idx}`} style={styles.systemLogMessage}>
+            <span style={styles.systemLogSpan}>{bubble.text}</span>
+          </div>
+        );
+      } else if (bubble.type === 'activity_rejection') {
+        list.push(
+          <div key={`sys-${idx}`} style={styles.systemLogMessage}>
+            <span style={{ ...styles.systemLogSpan, color: '#f59e0b', background: 'rgba(245,158,11,0.05)', borderColor: 'rgba(245,158,11,0.1)' }}>{bubble.text}</span>
+          </div>
+        );
+      } else {
+        const isUser = bubble.sender === 'User';
+        list.push(
+          <div 
+            key={`chat-${idx}`} 
+            style={{
+              ...styles.bubbleWrapper,
+              justifyContent: isUser ? 'flex-end' : 'flex-start'
+            }}
+          >
+            <div style={{
+              ...styles.bubble,
+              background: isUser ? 'linear-gradient(135deg, #128c7e 0%, #075e54 100%)' : 'rgba(255,255,255,0.04)',
+              border: isUser ? 'none' : '1px solid rgba(255,255,255,0.08)',
+              borderBottomRightRadius: isUser ? '0.15rem' : '0.85rem',
+              borderBottomLeftRadius: isUser ? '0.85rem' : '0.15rem',
+            }}>
+              <div style={{ 
+                fontSize: '0.65rem', 
+                fontWeight: '700', 
+                marginBottom: '0.2rem', 
+                color: isUser ? '#25d366' : '#a855f7',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                {isUser ? 'YOU' : (profile.companion_name || 'AUM').toUpperCase()}
+              </div>
+
+              {bubble.type === 'photo' && bubble.mediaUrl ? (
+                <div style={styles.photoContainer}>
+                  <img src={bubble.mediaUrl} alt="Shared memory" style={styles.photoImg} />
+                  <p style={{ ...styles.bubbleText, marginTop: '0.5rem' }}>{bubble.text}</p>
+                </div>
+              ) : (
+                <span style={styles.bubbleText}>{bubble.text}</span>
+              )}
+            </div>
+          </div>
+        );
+      }
+    });
+
+    // Append typing indicator bubble at the end of history if currently sending/generating chat
+    if (isSendingChat) {
+      list.push(
+        <div 
+          key="typing-indicator-bubble" 
+          style={{
+            ...styles.bubbleWrapper,
+            justifyContent: 'flex-start'
+          }}
+        >
+          <div style={{
+            ...styles.bubble,
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderBottomRightRadius: '0.85rem',
+            borderBottomLeftRadius: '0.15rem',
+          }}>
+            <div style={{ 
+              fontSize: '0.65rem', 
+              fontWeight: '700', 
+              marginBottom: '0.2rem', 
+              color: '#a855f7',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
+            }}>
+              {(profile.companion_name || 'AUM').toUpperCase()}
+            </div>
+            <div className="typing-indicator" style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '16px', padding: '4px 2px' }}>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return list;
+  };
+
+  const activeStage = profile.momentum_stage || "Stage 1: Activation";
 
   return (
     <div style={styles.dashboardContainer}>
       <canvas ref={canvasRef} style={styles.confettiCanvas}></canvas>
 
-      {/* Time Travel Bar */}
+      {/* Time Travel Simulated Clock */}
       <div style={styles.timeTravelBar}>
         <button onClick={() => setTimeSelectorOpen(!timeSelectorOpen)} style={styles.timeButton}>
           📅 Virtual Clock: {currentTimeDisplay} {virtualTime ? " (Simulated)" : " (Live)"}
@@ -348,39 +536,54 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Main 3-Column Grid */}
+      {/* Main 2-Column Grid */}
       <div style={styles.layoutGrid}>
         
-        {/* COLUMN 1: CONTEXT & WORLD ENGINE (Left) */}
-        <div style={styles.column}>
+        {/* COLUMN 1: LIFE MOMENTUM & CONTEXT LOGS (Left) */}
+        <div style={styles.columnLeft}>
           
-          {/* Momentum Meter Status Card */}
+          {/* Life Momentum Score Panel */}
           <div style={styles.panel}>
             <h3 style={styles.panelTitle}>Life Momentum Status</h3>
             <div style={styles.meterContainer}>
-              <svg width="140" height="140" viewBox="0 0 140 140">
-                <circle cx="70" cy="70" r="55" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="8" />
+              <svg width="120" height="120" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="48" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="6" />
                 <circle 
-                  cx="70" cy="70" r="55" 
+                  cx="60" cy="60" r="48" 
                   fill="transparent" 
                   stroke="url(#momentumGradient)" 
-                  strokeWidth="8" 
-                  strokeDasharray="345"
-                  strokeDashoffset={345 - (345 * (profile.momentum_score || 50)) / 100}
+                  strokeWidth="6" 
+                  strokeDasharray="301"
+                  strokeDashoffset={301 - (301 * (profile.momentum_score || 50)) / 100}
                   strokeLinecap="round"
                   style={{ transition: 'stroke-dashoffset 0.8s ease-in-out' }}
                 />
                 <defs>
                   <linearGradient id="momentumGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#6366f1" />
-                    <stop offset="100%" stopColor="#a855f7" />
+                    <stop offset="0%" stopColor="#128c7e" />
+                    <stop offset="100%" stopColor="#25d366" />
                   </linearGradient>
                 </defs>
               </svg>
               <div style={styles.meterText}>
                 <span style={styles.meterVal}>{profile.momentum_score || 50}</span>
-                <span style={styles.meterLabel}>Rolling Score</span>
+                <span style={styles.meterLabel}>Momentum</span>
               </div>
+            </div>
+
+            <div style={styles.readinessSection}>
+              <div className="flex justify-between align-center" style={{ width: '100%', marginBottom: '0.25rem' }}>
+                <span style={styles.readinessLabel}>Today's Readiness Score:</span>
+                <span style={styles.readinessValue}>{profile.readiness_score || 5}/10</span>
+              </div>
+              <div style={styles.progressBarBg}>
+                <div style={{ ...styles.progressBarFill, width: `${(profile.readiness_score || 5) * 10}%` }}></div>
+              </div>
+            </div>
+
+            <div style={styles.archetypeBox}>
+              <span style={styles.badgeSuccess}>{activeStage}</span>
+              <span style={styles.archetypeLabel}>Momentum Stage</span>
             </div>
 
             <div style={styles.metaStats}>
@@ -390,29 +593,24 @@ export default function Dashboard() {
               </div>
               <div style={styles.metaDivider}></div>
               <div style={styles.metaStatItem}>
-                <span style={styles.metaStatVal}>{intentionalRate}%</span>
-                <span style={styles.metaStatLabel}>Intentional Days</span>
+                <span style={styles.metaStatVal}>{profile.archetype || "Mindful Rookie"}</span>
+                <span style={styles.metaStatLabel}>Identity Archetype</span>
               </div>
-            </div>
-
-            <div style={styles.archetypeBox}>
-              <span style={styles.badgeSuccess}>{profile.archetype || "The Rebuilder"}</span>
-              <span style={styles.archetypeLabel}>Identity Archetype</span>
             </div>
           </div>
 
           {/* Daily Context Form Panel */}
           <div style={styles.panel}>
             <h3 style={styles.panelTitle}>
-              Daily Context Status: <span style={{ color: context.is_frozen ? '#10b981' : '#f59e0b' }}>
-                {context.is_frozen ? "Frozen" : "Awaiting Logs"}
+              Daily Context Logs: <span style={{ color: context.is_frozen ? '#10b981' : '#f59e0b' }}>
+                {context.is_frozen ? "Locked" : "Awaiting logs"}
               </span>
             </h3>
             
             {!context.is_frozen ? (
               <form onSubmit={handleSaveContext} style={styles.contextForm}>
                 <div style={styles.inputRow}>
-                  <label style={styles.formLabel}>Sleep Duration: {sleepHours}h</label>
+                  <label style={styles.formLabel}>Sleep Hours: {sleepHours}h</label>
                   <input 
                     type="range" min="4" max="10" step="0.1" 
                     value={sleepHours} 
@@ -440,48 +638,10 @@ export default function Dashboard() {
                     <label style={styles.formLabel}>Physical: {physicalEnergy}</label>
                     <input type="range" min="1" max="10" value={physicalEnergy} onChange={(e) => setPhysicalEnergy(e.target.value)} style={styles.slider} />
                   </div>
-                  <div style={styles.energyInput}>
-                    <label style={styles.formLabel}>Social: {socialEnergy}</label>
-                    <input type="range" min="1" max="10" value={socialEnergy} onChange={(e) => setSocialEnergy(e.target.value)} style={styles.slider} />
-                  </div>
-                  <div style={styles.energyInput}>
-                    <label style={styles.formLabel}>Creative: {creativeEnergy}</label>
-                    <input type="range" min="1" max="10" value={creativeEnergy} onChange={(e) => setCreativeEnergy(e.target.value)} style={styles.slider} />
-                  </div>
-                </div>
-
-                <div style={styles.inputRow}>
-                  <label style={styles.formLabel}>What did you create today?</label>
-                  <textarea 
-                    value={creationStory} 
-                    onChange={(e) => setCreationStory(e.target.value)} 
-                    placeholder="Describe any creative work, writing, project code..." 
-                    style={styles.textareaMini} 
-                  />
-                </div>
-
-                <div style={styles.inputRow}>
-                  <label style={styles.formLabel}>What pulled your attention today?</label>
-                  <textarea 
-                    value={consumptionStory} 
-                    onChange={(e) => setConsumptionStory(e.target.value)} 
-                    placeholder="Describe feeds, movies, scrolling or attention leaks..." 
-                    style={styles.textareaMini} 
-                  />
-                </div>
-
-                <div style={styles.inputRow}>
-                  <label style={styles.formLabel}>Weather</label>
-                  <select value={weatherOutlook} onChange={(e) => setWeatherOutlook(e.target.value)} className="glass-select">
-                    <option value="Clear">Clear & Sunny</option>
-                    <option value="Overcast">Overcast / Humid</option>
-                    <option value="Rainy">Raining</option>
-                    <option value="Cold">Cold</option>
-                  </select>
                 </div>
 
                 <button type="submit" disabled={isUpdatingContext} style={styles.submitBtn}>
-                  {isUpdatingContext ? "Saving Context..." : "Lock Context Logs"}
+                  {isUpdatingContext ? "Locking logs..." : "Lock Context Logs"}
                 </button>
               </form>
             ) : (
@@ -493,13 +653,7 @@ export default function Dashboard() {
                 <div style={styles.frozenItem}>
                   <span style={styles.frozenLabel}>⚡ Energies</span>
                   <span style={styles.frozenVal}>
-                    M: {context.energies?.mental} | P: {context.energies?.physical} | S: {context.energies?.social} | C: {context.energies?.creative}
-                  </span>
-                </div>
-                <div style={styles.frozenItem}>
-                  <span style={styles.frozenLabel}>🎨 Creation Index</span>
-                  <span style={styles.frozenVal}>
-                    {context.creation_minutes} mins creation vs {context.consumption_minutes} mins reels
+                    Mental: {context.energies?.mental} | Physical: {context.energies?.physical}
                   </span>
                 </div>
                 <button onClick={() => setContext(prev => ({ ...prev, is_frozen: false }))} style={styles.unfreezeBtn}>
@@ -509,12 +663,12 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* World Engine Panel */}
+          {/* World Engine layer */}
           <div style={styles.panel}>
-            <h3 style={styles.panelTitle}>World Engine ( NCR Integration)</h3>
+            <h3 style={styles.panelTitle}>World Engine (Live Environment)</h3>
             <div style={styles.worldRow}>
               <span style={styles.worldLabel}>Location:</span>
-              <span style={styles.worldVal}>{profile.city || "Bengaluru"}</span>
+              <span style={styles.worldVal}>{profile.city || "Gurgaon"}</span>
             </div>
             <div style={styles.worldRow}>
               <span style={styles.worldLabel}>Local AQI Level:</span>
@@ -522,196 +676,185 @@ export default function Dashboard() {
                 ...styles.worldVal, 
                 color: (profile.city === 'Gurgaon') ? '#ef4444' : '#10b981' 
               }}>
-                {(profile.city === 'Gurgaon') ? "250 (Hazardous / Poor)" : "65 (Moderate)"}
+                {(profile.city === 'Gurgaon') ? "250 (Critical / Hazardous)" : "65 (Moderate)"}
               </span>
             </div>
             <div style={styles.worldRow}>
-              <span style={styles.worldLabel}>Commute Traffic:</span>
-              <span style={styles.worldVal}>
-                {(profile.city === 'Gurgaon') ? "Critical Congestion" : "Moderate Traffic"}
-              </span>
-            </div>
-            <div style={styles.worldRow}>
-              <span style={styles.worldLabel}>Seasonal Triggers:</span>
+              <span style={styles.worldLabel}>Seasonal Trigger:</span>
               <span style={styles.worldVal}>Salary Week</span>
             </div>
+            <div style={styles.worldRow}>
+              <span style={styles.worldLabel}>Weather Outlook:</span>
+              <span style={styles.worldVal}>{context.environmental?.weather || "Clear"}</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={() => router.push('/onboarding')} style={{ ...styles.actionBtn, flex: 1 }}>⚙️ Onboarding Settings</button>
+            <button onClick={handleFullReset} style={{ ...styles.actionBtn, color: '#ef4444', borderColor: '#ef4444', flex: 1 }}>⚠️ Wipe OS Session</button>
           </div>
         </div>
 
-        {/* COLUMN 2: DAILY CHECKLIST & Star Ratings (Center) */}
-        <div style={{ ...styles.column, flexGrow: 1.5 }}>
-          <div style={{ padding: '0 0.5rem' }}>
-            <h2 style={styles.columnTitle}>Your Daily 5 Momentum Actions</h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-              Weaved with your Purpose Anchors. Expand cards for downstream causality logic.
-            </p>
-          </div>
-
-          <div style={styles.checklist}>
-            {actions.map((action) => {
-              const isExpanded = expandedActionId === action.id;
-              const isDone = action.status === 'done';
-              const isSkipped = action.status === 'skipped';
-
-              return (
-                <div 
-                  key={action.id} 
-                  style={{
-                    ...styles.actionCard,
-                    borderColor: isExpanded ? '#6366f1' : 'rgba(255,255,255,0.08)',
-                    background: isExpanded ? 'rgba(10, 10, 15, 0.9)' : 'rgba(255,255,255,0.01)'
-                  }}
-                  onClick={() => setExpandedActionId(isExpanded ? null : action.id)}
-                >
-                  <div style={styles.actionHeader}>
-                    <div style={styles.actionMain}>
-                      <span style={{
-                        ...styles.catBadge,
-                        backgroundColor: isDone ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.03)',
-                        color: isDone ? '#10b981' : '#d1d5db'
-                      }}>
-                        {action.category}
-                      </span>
-                      <h4 style={{
-                        ...styles.actionTextTitle,
-                        textDecoration: isDone ? 'line-through' : 'none',
-                        color: isDone ? '#9ca3af' : '#fff'
-                      }}>
-                        {action.text}
-                      </h4>
-                    </div>
-
-                    <div style={styles.actionControls} onClick={(e) => e.stopPropagation()}>
-                      {isDone ? (
-                        <div style={styles.starRow}>
-                          <span style={styles.starLabelMini}>Effectiveness:</span>
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button 
-                              key={star} 
-                              onClick={() => handleRateAction(action.id, star)}
-                              style={{
-                                ...styles.starBtn,
-                                color: (action.rating || 4) >= star ? '#fbbf24' : 'rgba(255,255,255,0.2)'
-                              }}
-                            >
-                              ★
-                            </button>
-                          ))}
-                          <button onClick={() => handleToggleAction(action.id, 'done')} style={styles.resetTaskBtn}>✕</button>
-                        </div>
-                      ) : isSkipped ? (
-                        <div style={styles.skippedState}>
-                          <span style={styles.skippedText}>Skipped</span>
-                          <button onClick={() => handleToggleAction(action.id, 'skipped')} style={styles.resetTaskBtn}>↺ Reset</button>
-                        </div>
-                      ) : (
-                        <div style={styles.todoControls}>
-                          <button onClick={() => handleToggleAction(action.id, 'todo')} style={styles.doneBtn}>✓ Complete</button>
-                          <button onClick={() => handleToggleAction(action.id, 'skipped')} style={styles.skipBtn}>✕ Skip</button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {isExpanded && (
-                    <div style={styles.expandedContent}>
-                      <div style={styles.explainBlock}>
-                        <span style={styles.explainLabel}>Why This Person? (Your Values & Chapter)</span>
-                        <p style={styles.explainText}>{action.whyRelevant || "Tailored to supporting your family values and sleep goals."}</p>
-                      </div>
-                      <div style={styles.explainBlock}>
-                        <span style={styles.explainLabel}>Why Today & Why Now? (Energies & Weather)</span>
-                        <p style={styles.explainText}>{action.whyToday || "Selected because your social reserves are high and traffic is moderate."}</p>
-                      </div>
-                      <div style={styles.explainBlock}>
-                        <span style={styles.explainLabel}>How to Execute</span>
-                        <p style={styles.explainText}>{action.howTo || "Spend 10 minutes checking in with your family phone-free."}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* COLUMN 3: COMPANION CHAT & MY JOURNEY (Right) */}
-        <div style={styles.column}>
+        {/* COLUMN 2: THE WHATSAPP LIFE FEED (Right) */}
+        <div style={styles.columnRight}>
           
-          {/* companion chat panel */}
-          <div style={{ ...styles.panel, display: 'flex', flexDirection: 'column', height: '620px' }}>
-            <style>{`
-              @keyframes typingBounce {
-                0%, 80%, 100% { transform: translateY(0); }
-                40% { transform: translateY(-5px); }
-              }
-              .typing-dot {
-                display: inline-block;
-                width: 6px;
-                height: 6px;
-                margin-right: 3px;
-                background-color: #a855f7;
-                border-radius: 50%;
-                animation: typingBounce 1.4s infinite ease-in-out both;
-              }
-              .typing-dot:nth-child(2) {
-                animation-delay: 0.2s;
-              }
-              .typing-dot:nth-child(3) {
-                animation-delay: 0.4s;
-              }
-            `}</style>
-            <h3 style={styles.panelTitle}>Companion Chat: {profile.companion_name || 'Aarav'}</h3>
-            <div style={styles.chatViewport} ref={chatScrollRef}>
-              <div style={styles.chatScroll}>
-                {chatHistory.map((bubble, idx) => (
-                  <div 
-                    key={idx} 
-                    style={{
-                      ...styles.bubbleWrapper,
-                      justifyContent: bubble.sender === 'User' ? 'flex-end' : 'flex-start'
-                    }}
-                  >
-                    <div style={{
-                      ...styles.bubble,
-                      background: bubble.sender === 'User' ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : 'rgba(255,255,255,0.03)',
-                      border: bubble.sender === 'User' ? 'none' : '1px solid rgba(255,255,255,0.08)'
-                    }}>
-                      <div style={{ 
-                        fontSize: '0.65rem', 
-                        fontWeight: '700', 
-                        marginBottom: '0.2rem', 
-                        color: bubble.sender === 'User' ? '#c7d2fe' : '#d8b4fe',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em'
-                      }}>
-                        {bubble.sender === 'User' ? 'YOU' : (profile.companion_name || 'AARAV').toUpperCase()}
-                      </div>
-                      <span style={styles.bubbleText}>{bubble.text}</span>
-                    </div>
+          <div style={styles.feedHeaderPanel}>
+            {/* Header WhatsApp Meta info */}
+            <div className="flex align-center justify-between" style={{ width: '100%' }}>
+              <div className="flex align-center gap-3">
+                <div style={styles.avatar}>🕉️</div>
+                <div>
+                  <h2 style={{ fontSize: '1.15rem', fontFamily: 'var(--font-display)', color: '#fff' }}>
+                    {profile.companion_name || 'Aarav'}
+                  </h2>
+                  <div className="flex align-center gap-1" style={{ marginTop: '0.15rem' }}>
+                    <span style={styles.onlineDot}></span>
+                    <span style={{ fontSize: '0.75rem', color: '#128c7e' }}>Listening & Journaling</span>
                   </div>
-                ))}
-                {isSendingChat && (
-                  <div style={{ ...styles.bubbleWrapper, justifyContent: 'flex-start' }}>
-                    <div style={{
-                      ...styles.bubble,
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      padding: '0.5rem 0.75rem'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', height: '14px' }}>
-                        <span className="typing-dot"></span>
-                        <span className="typing-dot"></span>
-                        <span className="typing-dot"></span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef}></div>
+                </div>
+              </div>
+
+              {/* Active Memory Layers indicators */}
+              <div style={{ textAlign: 'right' }}>
+                <span style={styles.memoryStatusTitle}>🧠 Active Journal Nodes</span>
+                <div className="flex gap-1" style={{ marginTop: '0.25rem' }}>
+                  <span className="badge badge-primary" style={{ fontSize: '0.6rem', padding: '0.15rem 0.4rem' }}>Friction Log</span>
+                  <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '0.15rem 0.4rem' }}>EV Scoring</span>
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Quick reflection templates */}
+          {/* Interactive Checklist (Today's Moves) pinned at the top */}
+          {actions.length > 0 && (
+            <div style={styles.pinnedMovesContainer}>
+              <div 
+                style={{ ...styles.movesCardHeader, cursor: 'pointer', userSelect: 'none' }} 
+                onClick={() => setShowMoves(!showMoves)}
+              >
+                <div className="flex align-center gap-2">
+                  <h3 style={styles.movesCardTitle}>Today's Moves</h3>
+                  <span style={styles.movesCountBadge}>{actions.filter(a => a.status === 'done').length} / {actions.length} Completed</span>
+                </div>
+                <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>{showMoves ? '▲ Collapse' : '▼ Expand'}</span>
+              </div>
+
+              {showMoves && (
+                <div style={styles.movesList}>
+                  {actions.map((act) => {
+                    const isExpanded = expandedActionId === act.id;
+                    const isDone = act.status === 'done';
+                    const isSkipped = act.status === 'skipped';
+
+                    return (
+                      <div 
+                        key={act.id} 
+                        style={{
+                          ...styles.moveItemRow,
+                          borderColor: isDone ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.06)',
+                          background: isDone ? 'rgba(16, 185, 129, 0.02)' : 'rgba(255,255,255,0.01)'
+                        }}
+                        onClick={() => setExpandedActionId(isExpanded ? null : act.id)}
+                      >
+                        <div style={styles.moveItemHeader}>
+                          <div style={{ flex: 1 }}>
+                            <div className="flex align-center gap-2">
+                              <span style={styles.moveCatBadge}>{act.category}</span>
+                              {act.success_probability && (
+                                <span style={styles.probIndicator}>{act.success_probability}% Likelihood</span>
+                              )}
+                            </div>
+                            <h4 style={{
+                              ...styles.moveTextTitle,
+                              textDecoration: isDone ? 'line-through' : 'none',
+                              color: isDone ? '#9ca3af' : '#fff'
+                            }}>{act.text}</h4>
+                            
+                            {/* The Explanation Engine output displayed directly */}
+                            {act.whyToday && (
+                              <p style={styles.moveExplanationWhy}>
+                                ➔ {act.whyToday}
+                              </p>
+                            )}
+                          </div>
+
+                          <div style={styles.moveControls} onClick={(e) => e.stopPropagation()}>
+                            {isDone ? (
+                              <div style={styles.starRow}>
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <button 
+                                    key={star} 
+                                    onClick={() => handleRateAction(act.id, star)}
+                                    style={{
+                                      ...styles.starBtn,
+                                      color: (act.rating || 4) >= star ? '#fbbf24' : 'rgba(255,255,255,0.2)'
+                                    }}
+                                  >
+                                    ★
+                                  </button>
+                                ))}
+                                <button onClick={() => handleToggleAction(act.id, 'done')} style={styles.resetTaskBtn}>✕</button>
+                              </div>
+                            ) : isSkipped ? (
+                              <div style={styles.skippedState}>
+                                <span style={styles.skippedText}>Ignored</span>
+                                <button onClick={() => handleToggleAction(act.id, 'skipped')} style={styles.resetTaskBtn}>↺ Reset</button>
+                              </div>
+                            ) : (
+                              <div style={styles.todoControls}>
+                                <button onClick={() => handleToggleAction(act.id, 'todo')} style={styles.doneBtn}>✓ Complete</button>
+                                <button onClick={() => handleToggleAction(act.id, 'skipped')} style={styles.skipBtn}>✕ Ignore</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div style={styles.moveExpandedContent}>
+                            <div style={styles.moveExplainBlock}>
+                              <span style={styles.moveExplainLabel}>Why This Move Matters</span>
+                              <p style={styles.moveExplainText}>{act.whyRelevant || "Customized to align with your personal context log variables."}</p>
+                            </div>
+                            {act.howTo && (
+                              <div style={styles.moveExplainBlock}>
+                                <span style={styles.moveExplainLabel}>How to Complete</span>
+                                <p style={styles.moveExplainText}>{act.howTo}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Scrolling Feed Container */}
+          <div style={styles.feedViewport} ref={chatScrollRef}>
+            
+            {/* Pinned Current Mission Card */}
+            {profile.pinned_mission && (
+              <div style={styles.pinnedMissionBanner}>
+                <span style={styles.pinIcon}>📌</span>
+                <span style={styles.pinText}>
+                  <strong>Current Mission</strong>: {profile.pinned_mission.title} • Day 38
+                </span>
+              </div>
+            )}
+
+            <div style={styles.feedScrollArea}>
+              
+              {/* Chronological events loop */}
+              {renderChatHistoryWithMonthDividers()}
+
+            </div>
+          </div>
+
+          {/* Feed Text Input & Media Attachment Controls */}
+          <div style={styles.feedInputPanel}>
+            {/* Quick response chips (Momentum Moments) */}
             <div style={styles.chipRow}>
               {reflectionChips.map((chip, idx) => (
                 <button 
@@ -725,9 +868,26 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <div style={styles.chatInputRow}>
+            <div className="flex gap-2" style={{ width: '100%', alignItems: 'center' }}>
+              {/* Photo Upload Attachment Icon */}
+              <button 
+                onClick={() => fileInputRef.current?.click()} 
+                style={styles.attachBtn}
+                title="Attach photo memory to life feed"
+                disabled={isUploadingPhoto}
+              >
+                {isUploadingPhoto ? "..." : "📷"}
+              </button>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handlePhotoUpload} 
+                accept="image/*" 
+                style={{ display: 'none' }} 
+              />
+
               <textarea 
-                placeholder={`Talk to ${profile.companion_name || 'Aarav'}...`} 
+                placeholder={`Message ${profile.companion_name || 'Aarav'}...`} 
                 value={chatInput} 
                 onChange={(e) => setChatInput(e.target.value)} 
                 onKeyDown={(e) => {
@@ -736,111 +896,22 @@ export default function Dashboard() {
                     handleSendChatMessage();
                   }
                 }}
-                style={{
-                  ...styles.chatInput,
-                  resize: 'none',
-                  height: '45px',
-                  minHeight: '40px',
-                  fontFamily: 'inherit',
-                  paddingTop: '0.6rem',
-                  lineHeight: '1.4'
-                }}
+                style={styles.feedTextarea}
                 disabled={isSendingChat}
               />
-              <button onClick={() => handleSendChatMessage()} style={styles.sendChatBtn} disabled={isSendingChat}>
+              <button 
+                onClick={() => handleSendChatMessage()} 
+                style={styles.feedSendBtn} 
+                disabled={isSendingChat || !chatInput.trim()}
+              >
                 {isSendingChat ? "..." : "Send"}
               </button>
             </div>
           </div>
 
-          {/* Toggle Sidebar Journey Drawer */}
-          <button onClick={() => setIsDrawerOpen(true)} style={styles.openDrawerBtn}>
-            📂 Slide Open: My Journey Timeline & Correlations
-          </button>
-
-          <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-            <button onClick={() => router.push('/onboarding')} style={{ ...styles.actionBtn, flex: 1 }}>⚙️ Onboard Settings</button>
-            <button onClick={handleFullReset} style={{ ...styles.actionBtn, color: '#ef4444', borderColor: '#ef4444', flex: 1 }}>⚠️ Wipe OS Session</button>
-          </div>
         </div>
+
       </div>
-
-      {/* SLIDE-OVERsidebar DRAWER PANEL */}
-      {isDrawerOpen && (
-        <div style={styles.drawerOverlay} onClick={() => setIsDrawerOpen(false)}>
-          <div style={styles.drawerContent} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.drawerHeader}>
-              <h2 style={styles.drawerTitle}>My Momentum Journey</h2>
-              <button onClick={() => setIsDrawerOpen(false)} style={styles.closeDrawerBtn}>✕ Close</button>
-            </div>
-
-            {/* Insights Section */}
-            <div style={styles.drawerSection}>
-              <h3 style={styles.drawerSecTitle}>Pearson Correlations & Insights</h3>
-              <div style={styles.insightsList}>
-                {profile.insights?.behavioral_insights && profile.insights.behavioral_insights.length > 0 ? (
-                  profile.insights.behavioral_insights.map((ins, idx) => (
-                    <div key={idx} style={styles.insightCard}>
-                      <span style={styles.insightIcon}>📈</span>
-                      <p style={styles.insightText}>{ins}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p style={styles.emptyText}>Correlations calculate every 3 days. Log more context to unlock.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Risks & Wins Section */}
-            <div style={styles.drawerSection}>
-              <h3 style={styles.drawerSecTitle}>Momentum Risks & Wins</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div style={styles.healthBlock}>
-                  <h4 style={{ ...styles.healthTitle, color: '#ef4444' }}>Risks</h4>
-                  <ul style={styles.healthList}>
-                    {profile.insights?.current_risks && profile.insights.current_risks.length > 0 ? (
-                      profile.insights.current_risks.map((risk, idx) => <li key={idx}>{risk}</li>)
-                    ) : (
-                      <li>No current risks</li>
-                    )}
-                  </ul>
-                </div>
-                <div style={styles.healthBlock}>
-                  <h4 style={{ ...styles.healthTitle, color: '#10b981' }}>Wins</h4>
-                  <ul style={styles.healthList}>
-                    {profile.insights?.current_wins && profile.insights.current_wins.length > 0 ? (
-                      profile.insights.current_wins.map((win, idx) => <li key={idx}>{win}</li>)
-                    ) : (
-                      <li>No recent wins</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Life Timeline Event ledger */}
-            <div style={styles.drawerSection}>
-              <h3 style={styles.drawerSecTitle}>Life Event Timeline</h3>
-              <div style={styles.timelineList}>
-                {profile.life_timeline && profile.life_timeline.length > 0 ? (
-                  profile.life_timeline.map((evt, idx) => (
-                    <div key={idx} style={styles.timelineItem}>
-                      <span style={styles.timelineDot}></span>
-                      <div style={styles.timelineDetails}>
-                        <span style={styles.timelineEvtTitle}>{evt.text}</span>
-                        <span style={styles.timelineEvtType}>{evt.type} ({evt.status})</span>
-                        <span style={styles.timelineDate}>{evt.date}</span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p style={styles.emptyText}>No life events logged yet. Mention them to AUM to add them.</p>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -858,7 +929,7 @@ class ConfettiEffect {
     this.canvas.width = window.innerWidth;
     this.canvas.height = window.innerHeight;
     this.particles = [];
-    const colors = ['#6366f1', '#a855f7', '#10b981', '#0ea5e9', '#f59e0b', '#ef4444'];
+    const colors = ['#128c7e', '#25d366', '#34b7f1', '#ece5dd', '#f59e0b', '#ef4444'];
     
     for (let i = 0; i < count; i++) {
       this.particles.push({
@@ -910,13 +981,13 @@ class ConfettiEffect {
   }
 }
 
-// Inline Vanilla CSS styles for premium dark mode
+// Inline CSS styled custom elements
 const styles = {
   dashboardContainer: {
     color: '#fff',
     minHeight: '100vh',
     padding: '1.5rem',
-    background: '#030305',
+    background: '#040508',
     fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
   },
   confettiCanvas: {
@@ -937,7 +1008,7 @@ const styles = {
   timeButton: {
     background: 'rgba(255, 255, 255, 0.04)',
     border: '1px solid rgba(255, 255, 255, 0.08)',
-    color: '#a855f7',
+    color: '#25d366',
     padding: '0.5rem 1rem',
     borderRadius: '0.75rem',
     cursor: 'pointer',
@@ -948,7 +1019,7 @@ const styles = {
     position: 'absolute',
     top: '110%',
     right: 0,
-    background: 'rgba(15, 15, 25, 0.95)',
+    background: 'rgba(15, 15, 25, 0.98)',
     border: '1px solid rgba(255, 255, 255, 0.1)',
     borderRadius: '1rem',
     padding: '0.75rem',
@@ -968,7 +1039,7 @@ const styles = {
     fontSize: '0.8rem',
   },
   simBtnPrimary: {
-    background: '#6366f1',
+    background: '#128c7e',
     border: 'none',
     color: '#fff',
     padding: '0.5rem',
@@ -987,38 +1058,59 @@ const styles = {
   },
   layoutGrid: {
     display: 'grid',
-    gridTemplateColumns: '1.2fr 2fr 1.2fr',
+    gridTemplateColumns: '1.2fr 3fr',
     gap: '1.5rem',
   },
-  column: {
+  columnLeft: {
     display: 'flex',
     flexDirection: 'column',
     gap: '1.25rem'
+  },
+  columnRight: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '1150px',
+    minHeight: '620px',
+    background: 'rgba(10, 12, 18, 0.6)',
+    backdropFilter: 'blur(25px)',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+    borderRadius: '1.5rem',
+    overflow: 'hidden',
+    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.35)'
+  },
+  pinnedMovesContainer: {
+    background: 'rgba(20, 24, 35, 0.6)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    padding: '0.85rem 1.25rem',
+    maxHeight: '320px',
+    overflowY: 'auto'
   },
   panel: {
     background: 'rgba(15, 15, 25, 0.7)',
     backdropFilter: 'blur(20px)',
     border: '1px solid rgba(255, 255, 255, 0.06)',
     borderRadius: '1.25rem',
-    padding: '1.5rem',
+    padding: '1.25rem',
     display: 'flex',
     flexDirection: 'column',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
   },
   panelTitle: {
-    fontSize: '1.05rem',
+    fontSize: '0.95rem',
     fontWeight: '600',
     marginBottom: '1rem',
     color: '#fff',
     borderBottom: '1px solid rgba(255,255,255,0.05)',
-    paddingBottom: '0.5rem'
+    paddingBottom: '0.5rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
   },
   meterContainer: {
     position: 'relative',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    margin: '0.5rem 0'
+    margin: '0.25rem 0'
   },
   meterText: {
     position: 'absolute',
@@ -1027,26 +1119,76 @@ const styles = {
     alignItems: 'center'
   },
   meterVal: {
-    fontSize: '2.25rem',
+    fontSize: '2rem',
     fontWeight: '800',
-    background: 'linear-gradient(135deg, #ffffff 0%, #a855f7 100%)',
+    background: 'linear-gradient(135deg, #ffffff 0%, #25d366 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
   },
   meterLabel: {
-    fontSize: '0.65rem',
+    fontSize: '0.6rem',
     color: '#9ca3af',
     textTransform: 'uppercase',
     letterSpacing: '0.05em'
   },
+  readinessSection: {
+    marginTop: '0.75rem',
+    padding: '0.5rem 0.75rem',
+    background: 'rgba(255,255,255,0.02)',
+    border: '1px solid rgba(255,255,255,0.04)',
+    borderRadius: '0.75rem'
+  },
+  readinessLabel: {
+    fontSize: '0.75rem',
+    color: '#9ca3af'
+  },
+  readinessValue: {
+    fontSize: '0.85rem',
+    fontWeight: '700',
+    color: '#25d366'
+  },
+  progressBarBg: {
+    width: '100%',
+    height: '6px',
+    background: 'rgba(255,255,255,0.05)',
+    borderRadius: '3px',
+    overflow: 'hidden'
+  },
+  progressBarFill: {
+    height: '100%',
+    background: '#128c7e',
+    borderRadius: '3px',
+    transition: 'width 0.5s ease-in-out'
+  },
+  archetypeBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    marginTop: '0.75rem',
+    padding: '0.5rem',
+    background: 'rgba(18, 140, 126, 0.05)',
+    border: '1px solid rgba(18, 140, 126, 0.15)',
+    borderRadius: '0.75rem'
+  },
+  badgeSuccess: {
+    color: '#25d366',
+    fontSize: '0.8rem',
+    fontWeight: '600'
+  },
+  archetypeLabel: {
+    fontSize: '0.6rem',
+    color: '#9ca3af',
+    marginTop: '0.15rem',
+    textTransform: 'uppercase'
+  },
   metaStats: {
     display: 'flex',
     justifyContent: 'space-around',
-    marginTop: '1.25rem',
-    background: 'rgba(255, 255, 255, 0.02)',
-    borderRadius: '0.75rem',
-    padding: '0.75rem 0.5rem',
-    border: '1px solid rgba(255,255,255,0.04)'
+    marginTop: '0.75rem',
+    background: 'rgba(255, 255, 255, 0.01)',
+    borderRadius: '0.5rem',
+    padding: '0.5rem 0.25rem',
+    border: '1px solid rgba(255,255,255,0.03)'
   },
   metaStatItem: {
     display: 'flex',
@@ -1054,135 +1196,100 @@ const styles = {
     alignItems: 'center'
   },
   metaStatVal: {
-    fontSize: '1.1rem',
+    fontSize: '0.9rem',
     fontWeight: '700',
-    color: '#fff'
+    color: '#fff',
+    textAlign: 'center'
   },
   metaStatLabel: {
-    fontSize: '0.65rem',
+    fontSize: '0.6rem',
     color: '#9ca3af',
     marginTop: '0.15rem'
   },
   metaDivider: {
     borderLeft: '1px solid rgba(255,255,255,0.08)',
-    height: '24px',
+    height: '20px',
     alignSelf: 'center'
-  },
-  archetypeBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    marginTop: '1rem',
-    padding: '0.75rem',
-    background: 'rgba(99, 102, 241, 0.05)',
-    border: '1px solid rgba(99, 102, 241, 0.12)',
-    borderRadius: '0.75rem'
-  },
-  badgeSuccess: {
-    background: 'rgba(168, 85, 247, 0.15)',
-    color: '#d8b4fe',
-    fontSize: '0.8rem',
-    fontWeight: '600',
-    padding: '0.25rem 0.75rem',
-    borderRadius: '1rem'
-  },
-  archetypeLabel: {
-    fontSize: '0.65rem',
-    color: '#9ca3af',
-    marginTop: '0.25rem',
-    textTransform: 'uppercase'
   },
   contextForm: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem'
+    gap: '0.85rem'
   },
   inputRow: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.35rem'
+    gap: '0.25rem'
   },
   formLabel: {
     fontSize: '0.75rem',
-    color: '#9ca3af',
-    fontWeight: '500'
+    color: '#9ca3af'
   },
   slider: {
     width: '100%',
-    accentColor: '#6366f1',
+    accentColor: '#128c7e',
     cursor: 'pointer'
   },
   energiesGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: '0.75rem'
+    gap: '0.5rem'
   },
   energyInput: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.25rem'
-  },
-  textareaMini: {
-    background: 'rgba(255,255,255,0.02)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '0.5rem',
-    padding: '0.5rem',
-    color: '#fff',
-    fontSize: '0.8rem',
-    minHeight: '45px',
-    outline: 'none',
-    resize: 'none'
+    gap: '0.2rem'
   },
   submitBtn: {
-    background: '#6366f1',
+    background: '#128c7e',
     color: '#fff',
     border: 'none',
-    padding: '0.65rem',
+    padding: '0.55rem',
     borderRadius: '0.5rem',
     cursor: 'pointer',
     fontWeight: '600',
-    fontSize: '0.85rem',
-    marginTop: '0.5rem'
+    fontSize: '0.8rem',
+    marginTop: '0.25rem'
   },
   frozenStats: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.75rem'
+    gap: '0.5rem'
   },
   frozenItem: {
     display: 'flex',
     flexDirection: 'column',
-    padding: '0.5rem',
-    background: 'rgba(255,255,255,0.02)',
+    padding: '0.4rem',
+    background: 'rgba(255,255,255,0.01)',
     borderRadius: '0.5rem',
-    border: '1px solid rgba(255,255,255,0.04)'
+    border: '1px solid rgba(255,255,255,0.03)'
   },
   frozenLabel: {
-    fontSize: '0.65rem',
+    fontSize: '0.6rem',
     color: '#9ca3af',
     fontWeight: 'bold',
     textTransform: 'uppercase'
   },
   frozenVal: {
-    fontSize: '0.85rem',
+    fontSize: '0.8rem',
     color: '#fff',
-    marginTop: '0.15rem'
+    marginTop: '0.1rem'
   },
   unfreezeBtn: {
     background: 'transparent',
-    border: '1px solid rgba(255,255,255,0.1)',
+    border: '1px solid rgba(255,255,255,0.08)',
     color: '#9ca3af',
-    padding: '0.5rem',
+    padding: '0.45rem',
     borderRadius: '0.5rem',
     cursor: 'pointer',
-    fontSize: '0.8rem',
-    marginTop: '0.5rem'
+    fontSize: '0.75rem',
+    marginTop: '0.25rem'
   },
   worldRow: {
     display: 'flex',
     justifyContent: 'space-between',
-    fontSize: '0.8rem',
-    padding: '0.4rem 0',
+    fontSize: '0.75rem',
+    padding: '0.35rem 0',
     borderBottom: '1px solid rgba(255,255,255,0.03)'
   },
   worldLabel: {
@@ -1191,85 +1298,280 @@ const styles = {
   worldVal: {
     fontWeight: '500'
   },
-  columnTitle: {
-    fontSize: '1.5rem',
-    fontWeight: '700',
-    background: 'linear-gradient(135deg, #ffffff 0%, #6366f1 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
+  actionBtn: {
+    background: 'transparent',
+    border: '1px solid rgba(255,255,255,0.08)',
+    color: '#9ca3af',
+    padding: '0.4rem',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    fontSize: '0.75rem',
+    textAlign: 'center'
   },
-  checklist: {
+  feedHeaderPanel: {
+    background: 'rgba(20, 24, 35, 0.8)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    padding: '0.85rem 1.25rem',
+  },
+  avatar: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    background: 'rgba(18, 140, 126, 0.15)',
+    border: '1px solid rgba(18, 140, 126, 0.3)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '1.25rem'
+  },
+  onlineDot: {
+    width: '7px',
+    height: '7px',
+    borderRadius: '50%',
+    backgroundColor: '#25d366',
+    boxShadow: '0 0 6px #25d366',
+    display: 'inline-block'
+  },
+  memoryStatusTitle: {
+    fontSize: '0.65rem',
+    color: '#9ca3af',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    fontWeight: '600'
+  },
+  feedViewport: {
+    flex: 1,
+    padding: '1rem',
+    overflowY: 'auto',
+    position: 'relative'
+  },
+  pinnedMissionBanner: {
+    position: 'sticky',
+    top: '0',
+    background: 'rgba(18, 140, 126, 0.9)',
+    border: '1px solid rgba(37, 211, 102, 0.3)',
+    borderRadius: '0.75rem',
+    padding: '0.5rem 0.75rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    zIndex: 10,
+    marginBottom: '1rem',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+  },
+  pinIcon: {
+    fontSize: '0.95rem'
+  },
+  pinText: {
+    fontSize: '0.75rem',
+    color: '#fff'
+  },
+  feedScrollArea: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.75rem'
+    gap: '1rem'
   },
-  actionCard: {
-    border: '1px solid',
+  monthHeader: {
+    display: 'flex',
+    justifyContent: 'center',
+    margin: '1.5rem 0 0.5rem 0'
+  },
+  monthHeaderSpan: {
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    color: '#a855f7',
+    background: 'rgba(168, 85, 247, 0.1)',
+    border: '1px solid rgba(168, 85, 247, 0.2)',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '1rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
+  },
+  systemLogMessage: {
+    display: 'flex',
+    justifyContent: 'center',
+    margin: '0.25rem 0'
+  },
+  systemLogSpan: {
+    fontSize: '0.7rem',
+    color: '#9ca3af',
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.06)',
+    padding: '0.2rem 0.6rem',
+    borderRadius: '0.5rem'
+  },
+  bubbleWrapper: {
+    display: 'flex',
+    width: '100%'
+  },
+  bubble: {
+    maxWidth: '75%',
+    padding: '0.75rem 1rem',
+    borderRadius: '0.85rem',
+    lineHeight: '1.45',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+    display: 'flex',
+    flexDirection: 'column',
+    position: 'relative'
+  },
+  bubbleText: {
+    fontSize: '0.9rem',
+    color: '#fff',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word'
+  },
+  photoContainer: {
+    borderRadius: '0.5rem',
+    overflow: 'hidden',
+    marginTop: '0.25rem',
+    border: '1px solid rgba(255,255,255,0.05)'
+  },
+  photoImg: {
+    width: '100%',
+    maxHeight: '220px',
+    objectFit: 'cover',
+    borderRadius: '0.4rem'
+  },
+  mediaCard: {
+    background: 'rgba(0,0,0,0.2)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '0.75rem',
+    padding: '0.75rem',
+    marginTop: '0.6rem',
+    width: '100%',
+    minWidth: '240px'
+  },
+  cardItemTitle: {
+    fontSize: '0.8rem',
+    fontWeight: 'bold',
+    color: '#fff'
+  },
+  cardItemSubtitle: {
+    fontSize: '0.7rem',
+    color: '#9ca3af',
+    marginTop: '0.1rem'
+  },
+  cardPlayBtn: {
+    background: '#128c7e',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '0.4rem',
+    padding: '0.3rem 0.6rem',
+    fontSize: '0.7rem',
+    cursor: 'pointer',
+    fontWeight: '600'
+  },
+  feedMovesCard: {
+    background: 'rgba(25, 28, 38, 0.7)',
+    border: '1px solid rgba(255,255,255,0.08)',
     borderRadius: '1rem',
     padding: '1rem',
+    margin: '1.25rem 0',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+  },
+  movesCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '0.75rem',
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
+    paddingBottom: '0.5rem'
+  },
+  movesCardTitle: {
+    fontSize: '0.9rem',
+    fontWeight: 'bold',
+    color: '#25d366',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
+  },
+  movesCountBadge: {
+    fontSize: '0.7rem',
+    background: 'rgba(37, 211, 102, 0.1)',
+    color: '#25d366',
+    padding: '0.15rem 0.4rem',
+    borderRadius: '0.5rem',
+    fontWeight: '600'
+  },
+  movesList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.6rem'
+  },
+  moveItemRow: {
+    border: '1px solid',
+    borderRadius: '0.75rem',
+    padding: '0.75rem',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'all 0.15s ease',
     display: 'flex',
     flexDirection: 'column'
   },
-  actionHeader: {
+  moveItemHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: '1rem'
   },
-  actionMain: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem',
-    flex: 1
-  },
-  catBadge: {
+  moveCatBadge: {
     alignSelf: 'flex-start',
-    fontSize: '0.65rem',
-    padding: '0.15rem 0.5rem',
-    borderRadius: '0.5rem',
+    fontSize: '0.6rem',
+    padding: '0.1rem 0.4rem',
+    borderRadius: '0.4rem',
+    background: 'rgba(255,255,255,0.04)',
+    color: '#9ca3af',
     fontWeight: '600'
   },
-  actionTextTitle: {
-    fontSize: '0.95rem',
-    fontWeight: '500',
-    lineHeight: '1.4'
+  probIndicator: {
+    fontSize: '0.6rem',
+    color: '#818cf8',
+    fontWeight: 'bold'
   },
-  actionControls: {
+  moveTextTitle: {
+    fontSize: '0.85rem',
+    fontWeight: '500',
+    marginTop: '0.2rem',
+    lineHeight: '1.3'
+  },
+  moveExplanationWhy: {
+    fontSize: '0.72rem',
+    color: '#a855f7',
+    marginTop: '0.2rem',
+    fontWeight: '500'
+  },
+  moveControls: {
     display: 'flex',
     alignItems: 'center'
   },
   todoControls: {
     display: 'flex',
-    gap: '0.5rem'
+    gap: '0.35rem'
   },
   doneBtn: {
-    background: 'rgba(16, 185, 129, 0.1)',
-    border: '1px solid rgba(16, 185, 129, 0.2)',
-    color: '#10b981',
-    padding: '0.35rem 0.75rem',
-    borderRadius: '0.5rem',
+    background: 'rgba(37, 211, 102, 0.1)',
+    border: '1px solid rgba(37, 211, 102, 0.25)',
+    color: '#25d366',
+    padding: '0.25rem 0.5rem',
+    borderRadius: '0.4rem',
     cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontWeight: '500'
+    fontSize: '0.75rem',
+    fontWeight: '600'
   },
   skipBtn: {
-    background: 'rgba(239, 68, 68, 0.05)',
+    background: 'rgba(239, 68, 68, 0.04)',
     border: '1px solid rgba(239, 68, 68, 0.15)',
     color: '#ef4444',
-    padding: '0.35rem 0.5rem',
-    borderRadius: '0.5rem',
+    padding: '0.25rem 0.4rem',
+    borderRadius: '0.4rem',
     cursor: 'pointer',
-    fontSize: '0.8rem'
+    fontSize: '0.75rem'
   },
   skippedState: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem'
+    gap: '0.35rem'
   },
   skippedText: {
-    fontSize: '0.8rem',
+    fontSize: '0.75rem',
     color: '#f59e0b',
     fontWeight: '500'
   },
@@ -1278,143 +1580,108 @@ const styles = {
     border: 'none',
     color: '#9ca3af',
     cursor: 'pointer',
-    fontSize: '0.8rem',
-    padding: '0.25rem'
+    fontSize: '0.75rem',
+    padding: '0.15rem'
   },
   starRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '0.25rem'
-  },
-  starLabelMini: {
-    fontSize: '0.75rem',
-    color: '#9ca3af',
-    marginRight: '0.25rem'
+    gap: '0.15rem'
   },
   starBtn: {
     background: 'transparent',
     border: 'none',
-    fontSize: '1.1rem',
+    fontSize: '1rem',
     cursor: 'pointer',
     padding: 0
   },
-  expandedContent: {
-    marginTop: '0.75rem',
+  moveExpandedContent: {
+    marginTop: '0.5rem',
     borderTop: '1px solid rgba(255,255,255,0.05)',
-    paddingTop: '0.75rem',
+    paddingTop: '0.5rem',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.75rem',
+    gap: '0.5rem',
     cursor: 'default'
   },
-  explainBlock: {
+  moveExplainBlock: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.15rem'
+    gap: '0.1rem'
   },
-  explainLabel: {
-    fontSize: '0.7rem',
-    color: '#818cf8',
+  moveExplainLabel: {
+    fontSize: '0.65rem',
+    color: '#128c7e',
     fontWeight: 'bold',
     textTransform: 'uppercase'
   },
-  explainText: {
-    fontSize: '0.85rem',
-    color: '#e5e7eb',
-    lineHeight: '1.45'
+  moveExplainText: {
+    fontSize: '0.78rem',
+    color: '#d1d5db',
+    lineHeight: '1.4'
   },
-  chatViewport: {
-    flex: 1,
-    overflowY: 'auto',
-    marginBottom: '0.5rem',
-    paddingRight: '0.25rem'
-  },
-  chatScroll: {
+  feedInputPanel: {
+    background: 'rgba(20, 24, 35, 0.8)',
+    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+    padding: '0.75rem 1.25rem',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.75rem'
-  },
-  bubbleWrapper: {
-    display: 'flex',
-    width: '100%'
-  },
-  bubble: {
-    maxWidth: '85%',
-    padding: '0.65rem 0.85rem',
-    borderRadius: '0.85rem',
-    borderBottomLeftRadius: '0.15rem',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word'
-  },
-  bubbleText: {
-    fontSize: '0.85rem',
-    lineHeight: '1.4',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word'
+    gap: '0.5rem'
   },
   chipRow: {
     display: 'flex',
     gap: '0.4rem',
     overflowX: 'auto',
-    padding: '0.25rem 0',
+    paddingBottom: '0.2rem',
     scrollbarWidth: 'none'
   },
   reflectionChip: {
     background: 'rgba(255,255,255,0.03)',
     border: '1px solid rgba(255,255,255,0.06)',
     color: '#9ca3af',
-    padding: '0.3rem 0.6rem',
+    padding: '0.25rem 0.5rem',
     borderRadius: '0.5rem',
     fontSize: '0.75rem',
     whiteSpace: 'nowrap',
     cursor: 'pointer'
   },
-  chatInputRow: {
+  attachBtn: {
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    borderRadius: '0.5rem',
+    color: '#9ca3af',
+    width: '40px',
+    height: '40px',
+    fontSize: '1.1rem',
+    cursor: 'pointer',
     display: 'flex',
-    gap: '0.5rem',
-    marginTop: '0.5rem'
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  chatInput: {
+  feedTextarea: {
     flex: 1,
     background: 'rgba(255,255,255,0.02)',
     border: '1px solid rgba(255,255,255,0.08)',
     borderRadius: '0.5rem',
-    padding: '0.5rem 0.75rem',
+    padding: '0.65rem 0.75rem',
     color: '#fff',
     fontSize: '0.85rem',
-    outline: 'none'
+    outline: 'none',
+    resize: 'none',
+    height: '40px',
+    lineHeight: '1.4',
+    fontFamily: 'inherit'
   },
-  sendChatBtn: {
-    background: '#6366f1',
+  feedSendBtn: {
+    background: '#128c7e',
     color: '#fff',
     border: 'none',
-    padding: '0.5rem 1rem',
+    padding: '0 1rem',
     borderRadius: '0.5rem',
     cursor: 'pointer',
     fontWeight: '600',
-    fontSize: '0.85rem'
-  },
-  openDrawerBtn: {
-    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(99, 102, 241, 0.1) 100%)',
-    border: '1px solid rgba(168, 85, 247, 0.25)',
-    color: '#c084fc',
-    padding: '0.75rem',
-    borderRadius: '1rem',
-    cursor: 'pointer',
     fontSize: '0.85rem',
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: '1.25rem'
-  },
-  actionBtn: {
-    background: 'transparent',
-    border: '1px solid rgba(255,255,255,0.1)',
-    color: '#9ca3af',
-    padding: '0.4rem',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontSize: '0.75rem',
-    textAlign: 'center'
+    height: '40px'
   },
   loadingContainer: {
     display: 'flex',
@@ -1422,159 +1689,15 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '80vh',
-    background: '#030305',
+    background: '#040508',
     color: '#fff'
   },
   spinner: {
-    width: '40px',
-    height: '40px',
-    border: '3px solid rgba(255, 255, 255, 0.05)',
-    borderTopColor: '#6366f1',
+    width: '35px',
+    height: '35px',
+    border: '3px solid rgba(255, 255, 255, 0.04)',
+    borderTopColor: '#25d366',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite'
-  },
-  drawerOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0,0,0,0.5)',
-    backdropFilter: 'blur(4px)',
-    zIndex: 1000,
-    display: 'flex',
-    justifyContent: 'flex-end'
-  },
-  drawerContent: {
-    width: '450px',
-    height: '100%',
-    background: '#0b0b12',
-    borderLeft: '1px solid rgba(255,255,255,0.08)',
-    boxShadow: '-10px 0 35px rgba(0,0,0,0.5)',
-    padding: '2rem 1.5rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.5rem',
-    overflowY: 'auto'
-  },
-  drawerHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
-    paddingBottom: '0.75rem'
-  },
-  drawerTitle: {
-    fontSize: '1.3rem',
-    fontWeight: '700',
-    color: '#fff'
-  },
-  closeDrawerBtn: {
-    background: 'transparent',
-    border: 'none',
-    color: '#9ca3af',
-    cursor: 'pointer',
-    fontSize: '0.9rem'
-  },
-  drawerSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.75rem'
-  },
-  drawerSecTitle: {
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    color: '#818cf8',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em'
-  },
-  insightsList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.75rem'
-  },
-  insightCard: {
-    background: 'rgba(99, 102, 241, 0.04)',
-    border: '1px solid rgba(99, 102, 241, 0.1)',
-    borderRadius: '0.75rem',
-    padding: '0.75rem',
-    display: 'flex',
-    gap: '0.75rem',
-    alignItems: 'center'
-  },
-  insightIcon: {
-    fontSize: '1.2rem'
-  },
-  insightText: {
-    fontSize: '0.85rem',
-    color: '#e5e7eb',
-    lineHeight: '1.4'
-  },
-  emptyText: {
-    fontSize: '0.8rem',
-    color: '#6b7280',
-    fontStyle: 'italic'
-  },
-  healthBlock: {
-    background: 'rgba(255,255,255,0.01)',
-    border: '1px solid rgba(255,255,255,0.04)',
-    borderRadius: '0.75rem',
-    padding: '0.75rem'
-  },
-  healthTitle: {
-    fontSize: '0.8rem',
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    marginBottom: '0.5rem'
-  },
-  healthList: {
-    paddingLeft: '1rem',
-    margin: 0,
-    fontSize: '0.8rem',
-    color: '#d1d5db',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.35rem'
-  },
-  timelineList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-    position: 'relative',
-    paddingLeft: '1rem',
-    borderLeft: '1px solid rgba(255,255,255,0.05)'
-  },
-  timelineItem: {
-    position: 'relative',
-    display: 'flex',
-    gap: '0.75rem'
-  },
-  timelineDot: {
-    position: 'absolute',
-    left: '-1.35rem',
-    top: '0.25rem',
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    background: '#a855f7',
-    boxShadow: '0 0 6px #a855f7'
-  },
-  timelineDetails: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.15rem'
-  },
-  timelineEvtTitle: {
-    fontSize: '0.85rem',
-    color: '#fff',
-    fontWeight: '500'
-  },
-  timelineEvtType: {
-    fontSize: '0.75rem',
-    color: '#a855f7'
-  },
-  timelineDate: {
-    fontSize: '0.7rem',
-    color: '#6b7280'
   }
 };

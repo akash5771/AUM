@@ -54,25 +54,36 @@ export async function orchestrateDayTransition(db, queryGeminiFn) {
     db.profile.failure_repository = db.profile.failure_repository.slice(-50);
   }
 
-  // 3. Compute final rolling Momentum Delta for yesterday (slow decay if inactive)
+  // 3. Compute Momentum Debt accrual, payoff, and decay
   const prevMomentum = profile.momentum_score || 50;
   const consumptionMinutes = context.consumption_minutes || 0;
-  
+  const creationMinutes = context.creation_minutes || 0;
+  const sleepHours = context.sleep?.hours || 7;
+  const stress = context.mood?.rating || 5;
+
+  // Accrual
+  let debtAccrued = 0;
+  if (sleepHours < 6.0) debtAccrued += 3.0;
+  if (consumptionMinutes >= 120) debtAccrued += 2.0;
+  if (completedCount === 0) debtAccrued += 4.0;
+
+  profile.momentum_debt = (profile.momentum_debt || 0) + debtAccrued;
+
+  // Payoff (Good day check: completed >= 3, sleep >= 7.5, stress < 5)
+  const isGoodDay = (completedCount >= 3) && (sleepHours >= 7.5) && (stress < 5);
+  if (isGoodDay) {
+    profile.momentum_debt = Math.max(0, profile.momentum_debt - 5.0);
+  }
+
+  // Apply decay to momentum score based on current debt (debt * 0.25)
   let decay = 0;
-  if (completedCount === 0) {
-    decay = -2.5; // slow slide if completely inactive
-  } else if (completedCount === 1) {
-    decay = -1.0; // minor decay for minimal effort
+  if (profile.momentum_debt > 0) {
+    decay = profile.momentum_debt * 0.25;
+    // Clamp maximum decay per day to 5.0 to avoid catastrophic crashes
+    decay = Math.min(5.0, decay);
   }
 
-  // Additional behavioral decay (doomscrolling)
-  if (consumptionMinutes >= 180) {
-    decay -= 1.5;
-  } else if (consumptionMinutes >= 120) {
-    decay -= 0.5;
-  }
-
-  const finalMomentum = Math.min(100, Math.max(0, prevMomentum + decay));
+  const finalMomentum = Math.min(100, Math.max(0, prevMomentum - decay));
   profile.momentum_score = Math.round(finalMomentum);
   
   // Reset daily accumulator
@@ -112,75 +123,12 @@ export async function orchestrateDayTransition(db, queryGeminiFn) {
   const intentionalDays = db.history.filter(h => h.intentional).length;
   profile.intentional_days_rate = totalDays > 0 ? Math.round((intentionalDays / totalDays) * 100) : 0;
 
-  // 5. Memory Engine: Chat Summarization (Pruning raw chat)
-  let daySummary = simulateTransitionSummary(yesterdayLog);
-  if (queryGeminiFn && db.chat_history.length > 0) {
-    const rawChatsText = db.chat_history.map(c => `${c.sender}: ${c.text}`).join('\n');
-    const summaryPrompt = `
-You are AUM's memory compression utility.
-Summarize the following chat transcript from yesterday into a concise 1-2 sentence behavioral summary.
-Focus on user struggles, work stress, context, and decisions made.
-
-Chat Transcript:
-${rawChatsText}
-
-Respond ONLY with the 1-2 sentence summary. Do not output codeblocks or introductory text.
-`;
-    try {
-      daySummary = await queryGeminiFn(summaryPrompt);
-    } catch (e) {
-      console.error("Gemini summary failed, using fallback:", e);
-    }
-  }
-
-  db.recent_summaries = db.recent_summaries || [];
-  db.recent_summaries.push({
-    date: yesterdayLog.date,
-    summary: daySummary
-  });
-  if (db.recent_summaries.length > 90) {
-    db.recent_summaries.shift();
-  }
-
-  // Prune raw chats older than 90 days, capping at a maximum of 1000 messages to prevent database bloat
-  const ninetyDaysAgo = new Date(now);
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-  db.chat_history = db.chat_history.filter(c => new Date(c.timestamp) >= ninetyDaysAgo);
-  if (db.chat_history.length > 1000) {
-    db.chat_history = db.chat_history.slice(-1000);
-  }
-
-  // 6. Identity Evolution Engine (Weekly evaluation - every 7 days)
-  if (db.history.length % 7 === 0 && queryGeminiFn) {
-    const weeklyPrompt = `
-You are AUM's Identity Evolution Engine.
-Analyze the user's past 30 days of behavior and historic memories.
-Look for long-term growth shifts (e.g. overcoming Reels addiction, establishing sleep consistency, starting creative side projects).
-
-Active Core Goal: ${profile.active_goal?.subGoal}
-Current Chapter: ${profile.current_chapter}
-Historic Memories:
-${db.semantic_memory?.map(m => `- ${m.text}`).join('\n')}
-
-Recent Chat Summaries:
-${db.recent_summaries.slice(-7).map(s => `- ${s.date}: ${s.summary}`).join('\n')}
-
-Generate exactly one declarative sentence describing a major shift in their identity evolution milestone (e.g. "You formerly avoided physical workouts under stress, but this month you successfully initiated morning gym routines under pressure").
-Do not output markdown or headers. Write a direct declarative sentence.
-`;
-    try {
-      const shiftMilestone = await queryGeminiFn(weeklyPrompt);
-      profile.identity_evolution = profile.identity_evolution || [];
-      profile.identity_evolution.push({
-        date: yesterdayLog.date,
-        text: shiftMilestone.trim()
-      });
-      if (profile.identity_evolution.length > 20) {
-        profile.identity_evolution.shift();
-      }
-    } catch (e) {
-      console.error("Identity evolution engine failed:", e);
-    }
+  // 5. Memory Engine: Run the Consolidator (Layer 2 summaries, Layer 3 structured facts/threads/goals, Layer 5 Behavioral DNA, Layer 6 Life Timeline, Layer 7 Outcomes, and TTL)
+  try {
+    const { consolidateDailyMemory } = await import('./memory_engine/consolidator.js');
+    await consolidateDailyMemory(db, actions, context, yesterdayLog.date, queryGeminiFn);
+  } catch (err) {
+    console.error("Failed to run next-gen memory consolidation:", err);
   }
 
   // 7. Reflection Engine (Statistical correlations - every 3 days)

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB, toggleActionStatus, rateAction, getDbCurrentTime } from '@/services/db';
-import { triggerCompanionComment } from '@/services/gemini';
+import { triggerCompanionComment } from '@/services/groq';
 
 export async function POST(request) {
   try {
@@ -25,31 +25,54 @@ export async function POST(request) {
     }
     
     // Fetch fresh database state
-    const db = await readDB();
+    let db = await readDB();
     
-    // If the task transitioned to "done", trigger companion comments
+    // Log User event to chat history
     if (status === 'done' && oldStatus !== 'done') {
+      db.chat_history.push({
+        sender: "User",
+        text: `✅ ${action.text}`,
+        type: "activity_completion",
+        timestamp: getDbCurrentTime(db).toISOString()
+      });
+      await writeDB(db);
+      
+      // Refresh DB
+      db = await readDB();
+
       // Check if all actions are now completed
       const allCompleted = db.actions.every(a => a.status === 'done');
       
       if (allCompleted) {
-        // Trigger screen-wide double dopamine hit message
         db.chat_history.push({
           sender: "AUM",
-          text: `Akash, you did it! 5 out of 5 actions completed today! That is a clean sweep of your momentum day. Take a moment to feel that sense of accomplishment. I am extremely proud of your consistency today!`,
+          text: `Akash, you did it! Complete clean sweep of today's moves. Small actions build momentum. Let's protect tomorrow now!`,
           timestamp: getDbCurrentTime(db).toISOString()
         });
         await writeDB(db);
       } else {
-        // Trigger a comment for this specific action
         await triggerCompanionComment('task_completed', {
           taskText: action.text,
           category: action.category
         });
       }
+    } else if (status === 'skipped' && oldStatus !== 'skipped') {
+      db.chat_history.push({
+        sender: "User",
+        text: `Ignored: ${action.text}`,
+        type: "activity_rejection",
+        timestamp: getDbCurrentTime(db).toISOString()
+      });
+      db.chat_history.push({
+        sender: "AUM",
+        text: "Looks like today got away from you. That's okay. Let's protect tomorrow instead.",
+        timestamp: getDbCurrentTime(db).toISOString()
+      });
+      await writeDB(db);
     }
     
     // If archetype evolved during the action, trigger the comment
+    db = await readDB();
     if (db.profile.archetype !== dbBefore.profile.archetype) {
       await triggerCompanionComment('archetype_unlocked', {
         archetype: db.profile.archetype

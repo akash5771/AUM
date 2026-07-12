@@ -137,28 +137,48 @@ export function buildUnifiedContext(db, dateOverride = null) {
   const formattedTimeStr = `${dayOfWeek} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 
   const current_state_object = {
-    time: formattedTimeStr,
-    chapter: profile.current_chapter || "Stable Routine",
-    goal: profile.active_goal?.subGoal || "Sleep Better",
-    momentum: profile.momentum_score || 50,
-    momentum_earned_today: profile.momentum_earned_today || 0,
-    stress: dbContext.mood?.rating || 5,
-    energy: {
-      mental: dbContext.energies?.mental || 7,
-      physical: dbContext.energies?.physical || 7,
-      social: dbContext.energies?.social || 7,
-      creative: dbContext.energies?.creative || 7
+    Physical: {
+      sleep_hours: dbContext.sleep?.hours || 7.0,
+      sleep_quality: dbContext.sleep?.quality || "good",
+      physical_energy: dbContext.energies?.physical || 7,
+      sleep_energy: dbContext.sleep?.energy || 7
     },
-    active_threads: profile.active_threads || [],
-    recent_events: db.insights?.current_wins || [],
-    location: {
+    Mental: {
+      stress_rating: dbContext.mood?.rating || 5,
+      mood_state: dbContext.mood?.state || "clear",
+      mental_energy: dbContext.energies?.mental || 7,
+      creative_energy: dbContext.energies?.creative || 7
+    },
+    Social: {
+      social_energy: dbContext.energies?.social || 7,
+      relationships_count: profile.relationships?.length || 0,
+      active_threads: profile.active_threads || []
+    },
+    Goal: {
+      active_goal: profile.active_goal?.subGoal || "Sleep Better",
+      current_chapter: profile.current_chapter || "Stable Routine",
+      pinned_mission: profile.pinned_mission?.title || "Lose 12% Body Fat"
+    },
+    Context: {
+      timestamp: now.toISOString(),
+      formatted_time: formattedTimeStr,
+      today: dayOfWeek
+    },
+    Environment: {
       city: locationCtx.city,
-      zone: locationCtx.zone
+      zone: locationCtx.zone,
+      weather: dbContext.environmental?.weather || "Clear",
+      aqi: worldMetrics.aqi || 80,
+      traffic: worldMetrics.traffic || "Low"
     },
-    weather: dbContext.environmental?.weather || "Clear",
-    today: dayOfWeek,
-    trajectory,
-    current_state_summary: dbContext.current_state_summary || ""
+    Trajectory: {
+      rolling_momentum: profile.momentum_score || 50,
+      momentum_earned_today: profile.momentum_earned_today || 0,
+      momentum_debt: profile.momentum_debt || 0,
+      readiness_score: profile.readiness_score || 5,
+      momentum_stage: profile.momentum_stage || "Stage 1: Activation",
+      trend: trajectory
+    }
   };
 
   return {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB, updateProfile } from '@/services/db';
-import { generateDailyActionsService, generateCompanionNameService } from '@/services/gemini';
+import { generateDailyActionsService, generateCompanionNameService } from '@/services/groq';
 
 export async function GET() {
   try {
@@ -51,6 +51,7 @@ export async function POST(request) {
       sub_scores: { recovery: 50, execution: 50, connection: 50, curiosity: 50, courage: 50, consistency: 50 },
       behavioral_dna: { stress_resilience_factor: 1.0, preferred_recovery_categories: ["Recovery"], weekend_activity_multiplier: 1.0 },
       effectiveness_ledger: [],
+      intervention_memory: [],
       failure_repository: [],
       identity_evolution: [],
       intentional_days_count: 0,

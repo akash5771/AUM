@@ -8,6 +8,7 @@ export default function Navigation() {
   const links = [
     { href: '/', label: 'Dashboard', icon: '⚡' },
     { href: '/identity', label: 'Identity Profile', icon: '🛡️' },
+    { href: '/memory', label: 'Memory Vault', icon: '🧠' },
   ];
   return (
     <header style={styles.header}>

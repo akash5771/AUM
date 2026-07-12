@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB, getDbCurrentTime, getMomentumDayString, processDayTransition } from '@/services/db';
-import { generateDailyActionsService } from '@/services/gemini';
+import { generateDailyActionsService } from '@/services/groq';
 
 export async function GET() {
   try {

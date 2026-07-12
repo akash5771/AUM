@@ -17,10 +17,41 @@
     "relationships": [],
     "streak": 0,
     "completion_rate": 0,
-    "total_actions_generated": 0,
+    "total_actions_generated": 5,
     "total_actions_completed": 0,
     "archetype": "Mindful Rookie",
     "momentum_score": 50,
+    "momentum_stage": "Stage 1: Activation",
+    "readiness_score": 10,
+    "pinned_mission": {
+      "title": "Lose 12% Body Fat",
+      "start_date": "2026-06-04"
+    },
+    "rejection_ledger": [],
+    "last_greeting_date": "2026-07-12",
+    "birthday": "07-12",
+    "momentum_earned_today": 0,
+    "active_threads": [
+      "Technical Issue",
+      "User's Stress"
+    ],
+    "location_profile": {
+      "home_base": {
+        "city": "Gurgaon",
+        "neighborhood": "DLF Phase 3",
+        "lat": 28.49,
+        "lng": 77.09
+      },
+      "work_base": {
+        "city": "Gurgaon",
+        "neighborhood": "Cyber City"
+      },
+      "comfort_radius": 30,
+      "travel_mode": false,
+      "travel_city": ""
+    },
+    "momentum_debt": 0,
+    "intervention_memory": [],
     "sub_scores": {
       "recovery": 50,
       "execution": 50,
@@ -42,6 +73,7 @@
     "intentional_days_count": 0,
     "intentional_days_rate": 0,
     "last_recommended_timestamps": {},
+    "companion_name": "Aarav",
     "onboarding_completed": false,
     "goal": "",
     "problem": "",
@@ -56,7 +88,11 @@
     "milestones": [],
     "level": 0,
     "xp": 0,
-    "level_up_celebration_pending": false
+    "level_up_celebration_pending": false,
+    "last_generated_day": "2026-07-12",
+    "sent_nudges": [
+      "birthday_2026-07-12"
+    ]
   },
   "context": {
     "sleep": {
@@ -88,15 +124,530 @@
       "time": "Morning",
       "day_of_week": "Monday",
       "weather": "Clear"
-    }
+    },
+    "current_state_summary": "Akash is calm and testing, with low emotional risk on a relaxed birthday weekend morning."
   },
-  "actions": [],
-  "backups": [],
-  "chat_history": [],
-  "semantic_memory": [],
+  "actions": [
+    {
+      "id": "kb_rec_early_sleep",
+      "text": "Turn off all screens by 9:30 PM and sleep early.",
+      "category": "Recovery",
+      "difficulty": 2,
+      "friction": 2,
+      "impact": 7,
+      "minimum_readiness": 1,
+      "maximum_readiness": 10,
+      "commute_friendly": false,
+      "cost_score": 0,
+      "repeat_interval": 1,
+      "duration_mins": 480,
+      "applicable_days": [],
+      "applicable_times": [
+        "Night"
+      ],
+      "requires_day_off": false,
+      "energy_cost": {
+        "mental": 2,
+        "physical": 1,
+        "social": 1,
+        "creative": 1
+      },
+      "financial_cost": "free",
+      "restricted_values": [],
+      "intensities": {
+        "emotional": "Low",
+        "social_friction": "Low",
+        "recovery_cost": "Low"
+      },
+      "applicable_goals": [
+        "Sleep Better",
+        "Reduce Burnout"
+      ],
+      "weather_restricted": false,
+      "defaultWhyToday": "Sleeping early matches natural melatonin release peaks, increasing deep sleep proportion.",
+      "defaultWhyRelevant": "Optimizing your sleep architecture is the highest-leverage step to lowering stress and restoring focus.",
+      "defaultHowTo": "Put your phone in another room at 9:30 PM. Read a physical book or listen to white noise until asleep.",
+      "whyToday": "To build consistent progress towards your focus: \"Sleep Better\".",
+      "success_probability": 98
+    },
+    {
+      "id": "kb_learn_ted",
+      "text": "Watch a short 10-minute TED clip.",
+      "category": "Learning",
+      "difficulty": 2,
+      "friction": 2,
+      "impact": 5,
+      "minimum_readiness": 3,
+      "maximum_readiness": 10,
+      "commute_friendly": true,
+      "cost_score": 0,
+      "repeat_interval": 3,
+      "duration_mins": 10,
+      "applicable_days": [],
+      "applicable_times": [
+        "Morning",
+        "Afternoon",
+        "Evening",
+        "Night"
+      ],
+      "requires_day_off": false,
+      "energy_cost": {
+        "mental": 2,
+        "physical": 1,
+        "social": 1,
+        "creative": 1
+      },
+      "financial_cost": "free",
+      "restricted_values": [],
+      "intensities": {
+        "emotional": "Low",
+        "social_friction": "Low",
+        "recovery_cost": "Low"
+      },
+      "applicable_goals": [
+        "Language/Learning",
+        "Build Startup"
+      ],
+      "weather_restricted": false,
+      "defaultWhyToday": "Interactive video learning triggers dopamine loops centered around constructive discovery.",
+      "defaultWhyRelevant": "Feeding your professional and creative curiosity keeps work feeling expansive.",
+      "defaultHowTo": "Pick a TED clip on psychology, design, or biology and watch it attentively.",
+      "whyToday": "Selected to sustain positive momentum without overloading your energy buffer.",
+      "success_probability": 98
+    },
+    {
+      "id": "kb_joy_read",
+      "text": "Read 15 pages of a fiction or biography book.",
+      "category": "Joy",
+      "difficulty": 1,
+      "friction": 2,
+      "impact": 5,
+      "minimum_readiness": 1,
+      "maximum_readiness": 10,
+      "commute_friendly": true,
+      "cost_score": 0,
+      "repeat_interval": 1,
+      "duration_mins": 20,
+      "applicable_days": [],
+      "applicable_times": [
+        "Morning",
+        "Afternoon",
+        "Evening",
+        "Night"
+      ],
+      "requires_day_off": false,
+      "energy_cost": {
+        "mental": 2,
+        "physical": 1,
+        "social": 1,
+        "creative": 2
+      },
+      "financial_cost": "free",
+      "restricted_values": [],
+      "intensities": {
+        "emotional": "Low",
+        "social_friction": "Low",
+        "recovery_cost": "Low"
+      },
+      "applicable_goals": [
+        "Sleep Better",
+        "Reduce Burnout",
+        "Reading"
+      ],
+      "weather_restricted": false,
+      "defaultWhyToday": "Reading narrative fiction lowers heart rate and provides healthy cognitive escapism.",
+      "defaultWhyRelevant": "This serves as a high-quality alternative to screen time, settling your brain before rest.",
+      "defaultHowTo": "Find a quiet corner. Set your phone to Do Not Disturb. Read 15 pages of your current physical book.",
+      "whyToday": "To build consistent progress towards your focus: \"Sleep Better\".",
+      "success_probability": 98
+    },
+    {
+      "id": "kb_joy_movie",
+      "text": "Watch a classic, high-rating movie without checking your phone.",
+      "category": "Joy",
+      "difficulty": 1,
+      "friction": 2,
+      "impact": 5,
+      "minimum_readiness": 1,
+      "maximum_readiness": 10,
+      "commute_friendly": false,
+      "cost_score": 1,
+      "repeat_interval": 4,
+      "duration_mins": 120,
+      "applicable_days": [
+        "Friday",
+        "Saturday",
+        "Sunday"
+      ],
+      "applicable_times": [
+        "Evening",
+        "Night"
+      ],
+      "requires_day_off": false,
+      "energy_cost": {
+        "mental": 1,
+        "physical": 1,
+        "social": 2,
+        "creative": 1
+      },
+      "financial_cost": "cheap",
+      "restricted_values": [],
+      "intensities": {
+        "emotional": "Low",
+        "social_friction": "Low",
+        "recovery_cost": "Low"
+      },
+      "applicable_goals": [
+        "Reduce Burnout"
+      ],
+      "weather_restricted": false,
+      "defaultWhyToday": "Engaging in structured, high-quality storytelling restores emotional energy.",
+      "defaultWhyRelevant": "Learning to enjoy leisure guilt-free is key to escaping professional burnout cycles.",
+      "defaultHowTo": "Pick a movie. Put your phone in another room. Let yourself fully sink into the film.",
+      "whyToday": "Selected to sustain positive momentum without overloading your energy buffer.",
+      "success_probability": 98
+    },
+    {
+      "id": "kb_learn_podcast",
+      "text": "Listen to a 20-minute educational podcast.",
+      "category": "Learning",
+      "difficulty": 2,
+      "friction": 1,
+      "impact": 5,
+      "minimum_readiness": 1,
+      "maximum_readiness": 10,
+      "commute_friendly": true,
+      "cost_score": 0,
+      "repeat_interval": 1,
+      "duration_mins": 20,
+      "applicable_days": [],
+      "applicable_times": [
+        "Morning",
+        "Afternoon",
+        "Evening",
+        "Night"
+      ],
+      "requires_day_off": false,
+      "energy_cost": {
+        "mental": 3,
+        "physical": 1,
+        "social": 1,
+        "creative": 2
+      },
+      "financial_cost": "free",
+      "restricted_values": [],
+      "intensities": {
+        "emotional": "Low",
+        "social_friction": "Low",
+        "recovery_cost": "Low"
+      },
+      "applicable_goals": [
+        "Build Startup",
+        "Language/Learning"
+      ],
+      "weather_restricted": false,
+      "defaultWhyToday": "Audio learning utilizes passive time (like commuting or cooking) for active mental enrichment.",
+      "defaultWhyRelevant": "Absorbing insights from fields like design or psychology feeds your professional curiosity.",
+      "defaultHowTo": "Listen to an episode on Spotify or Apple Podcasts while doing chores or light stretches.",
+      "whyToday": "Selected to sustain positive momentum without overloading your energy buffer.",
+      "success_probability": 98
+    }
+  ],
+  "backups": [
+    {
+      "id": "kb_phys_stretch",
+      "text": "Complete a 15-minute full body mobility stretch.",
+      "category": "Physical",
+      "difficulty": 1,
+      "friction": 1,
+      "impact": 4,
+      "minimum_readiness": 1,
+      "maximum_readiness": 10,
+      "commute_friendly": true,
+      "cost_score": 0,
+      "repeat_interval": 1,
+      "duration_mins": 15,
+      "applicable_days": [],
+      "applicable_times": [
+        "Morning",
+        "Afternoon",
+        "Evening",
+        "Night"
+      ],
+      "requires_day_off": false,
+      "energy_cost": {
+        "mental": 1,
+        "physical": 1,
+        "social": 1,
+        "creative": 1
+      },
+      "financial_cost": "free",
+      "restricted_values": [],
+      "intensities": {
+        "emotional": "Low",
+        "social_friction": "Low",
+        "recovery_cost": "Low"
+      },
+      "applicable_goals": [
+        "Reduce Burnout",
+        "Sleep Better"
+      ],
+      "weather_restricted": false,
+      "defaultWhyToday": "Physical stretching resets muscle spindles and alleviates desk-bound structural tension.",
+      "defaultWhyRelevant": "Lowering physical stiffness signals safety to the autonomic nervous system, aiding recovery.",
+      "defaultHowTo": "Hold gentle stretches for your hips, hamstrings, and chest for 30 seconds each, breathing slowly."
+    },
+    {
+      "id": "kb_rec_breathing",
+      "text": "Practice a 5-minute box breathing cycle.",
+      "category": "Recovery",
+      "difficulty": 1,
+      "friction": 1,
+      "impact": 4,
+      "minimum_readiness": 1,
+      "maximum_readiness": 10,
+      "commute_friendly": true,
+      "cost_score": 0,
+      "repeat_interval": 1,
+      "duration_mins": 5,
+      "applicable_days": [],
+      "applicable_times": [
+        "Morning",
+        "Afternoon",
+        "Evening",
+        "Night"
+      ],
+      "requires_day_off": false,
+      "energy_cost": {
+        "mental": 1,
+        "physical": 1,
+        "social": 1,
+        "creative": 1
+      },
+      "financial_cost": "free",
+      "restricted_values": [],
+      "intensities": {
+        "emotional": "Low",
+        "social_friction": "Low",
+        "recovery_cost": "Low"
+      },
+      "applicable_goals": [
+        "Reduce Burnout",
+        "Sleep Better",
+        "Build Startup"
+      ],
+      "weather_restricted": false,
+      "defaultWhyToday": "Box breathing directly stimulates the vagus nerve to decrease heart rate and blood pressure.",
+      "defaultWhyRelevant": "To manage startup anxiety, this lowers amygdala arousal, keeping you logical under pressure.",
+      "defaultHowTo": "Inhale for 4 seconds, hold for 4, exhale for 4, hold for 4. Complete 10 full cycles."
+    }
+  ],
+  "chat_history": [
+    {
+      "sender": "User",
+      "text": "hello",
+      "timestamp": "2026-07-12T01:03:55.016Z"
+    },
+    {
+      "sender": "User",
+      "text": "hello test",
+      "timestamp": "2026-07-12T01:44:56.544Z"
+    },
+    {
+      "sender": "User",
+      "text": "hello from debug test",
+      "timestamp": "2026-07-12T01:49:24.699Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Good morning, Akash.\n\nYou slept 7 hours yesterday.\n\nToday is the weekend.\n\nLet's protect your momentum. Ready?",
+      "timestamp": "2026-07-12T01:49:51.922Z",
+      "type": "text"
+    },
+    {
+      "sender": "AUM",
+      "text": "Happy Birthday, Akash. What's one thing you're proud of from the last year?",
+      "timestamp": "2026-07-12T01:49:51.922Z",
+      "type": "text"
+    },
+    {
+      "sender": "User",
+      "text": "testing the fix now",
+      "timestamp": "2026-07-12T01:50:49.735Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Let's take a breath. You're testing the fix now. How's that going?",
+      "timestamp": "2026-07-12T01:50:50.761Z"
+    },
+    {
+      "sender": "User",
+      "text": "hi how are you",
+      "timestamp": "2026-07-12T07:44:55.630Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "I'm doing well, thanks. You seem a bit stressed, though. How's the technical issue coming along?",
+      "timestamp": "2026-07-12T07:47:51.018Z"
+    },
+    {
+      "sender": "User",
+      "text": "hi how are you",
+      "timestamp": "2026-07-12T07:51:57.679Z"
+    },
+    {
+      "sender": "AUM",
+      "text": "Hey Akash, I'm here for you. It's your birthday weekend, and I can sense you're still dealing with that technical issue. How's it going? You're not alone in this. I'm listening. What's one thing you're proud of from the last year?",
+      "timestamp": "2026-07-12T07:51:58.953Z"
+    }
+  ],
+  "semantic_memory": [
+    {
+      "id": "m1",
+      "text": "User initiated conversation with a casual greeting",
+      "category": "pattern",
+      "date": "2026-07-12"
+    },
+    {
+      "id": "m2",
+      "text": "User may be seeking a response to gauge AI's understanding",
+      "category": "goal",
+      "date": "2026-07-12"
+    },
+    {
+      "id": "m3",
+      "text": "User's greeting is brief and lacks personal details",
+      "category": "preference",
+      "date": "2026-07-12"
+    },
+    {
+      "id": "m4",
+      "text": "User initiated conversation with a debug test",
+      "category": "pattern",
+      "date": "2026-07-12"
+    },
+    {
+      "id": "m5",
+      "text": "User is likely looking for a response or testing AI functionality",
+      "category": "goal",
+      "date": "2026-07-12"
+    },
+    {
+      "id": "m6",
+      "text": "User prefers a casual greeting",
+      "category": "preference",
+      "date": "2026-07-12"
+    },
+    {
+      "id": "m7",
+      "text": "User is testing a fix",
+      "category": "pattern",
+      "date": "2026-07-12"
+    },
+    {
+      "id": "m8",
+      "text": "User is cautious and wants to assess the fix",
+      "category": "insight",
+      "date": "2026-07-12"
+    }
+  ],
   "recent_summaries": [],
+  "memory": {
+    "raw_chat": [
+      {
+        "sender": "User",
+        "text": "hi how are you",
+        "timestamp": "2026-07-12T07:44:55.632Z",
+        "type": "text"
+      },
+      {
+        "sender": "AUM",
+        "text": "I'm doing well, thanks. You seem a bit stressed, though. How's the technical issue coming along?",
+        "timestamp": "2026-07-12T07:47:51.018Z",
+        "type": "text"
+      },
+      {
+        "sender": "User",
+        "text": "hi how are you",
+        "timestamp": "2026-07-12T07:51:57.680Z",
+        "type": "text"
+      },
+      {
+        "sender": "AUM",
+        "text": "Hey Akash, I'm here for you. It's your birthday weekend, and I can sense you're still dealing with that technical issue. How's it going? You're not alone in this. I'm listening. What's one thing you're proud of from the last year?",
+        "timestamp": "2026-07-12T07:51:58.953Z",
+        "type": "text"
+      }
+    ],
+    "summaries": [],
+    "structured": {
+      "identity": {},
+      "goals": [],
+      "projects": [],
+      "preferences": [],
+      "relationships": [],
+      "threads": [
+        {
+          "thread": "Technical Issue",
+          "status": "Active",
+          "last_update": "2026-07-12",
+          "importance": 5,
+          "priority": "Medium"
+        },
+        {
+          "thread": "User's Stress",
+          "status": "Active",
+          "last_update": "2026-07-12",
+          "importance": 5,
+          "priority": "Medium"
+        }
+      ]
+    },
+    "growth_signals": [],
+    "behavioral_dna": {},
+    "timeline": [],
+    "outcome_memory": [],
+    "last_consolidation_time": "2026-07-12T07:47:56.742Z"
+  },
   "insights": {
-    "behavioral_insights": [],
+    "behavioral_insights": [
+      {
+        "timestamp": "2026-07-12T01:04:01.571Z",
+        "user_message": "hello",
+        "signals": [],
+        "reason": "Analysis failed or timed out"
+      },
+      {
+        "timestamp": "2026-07-12T01:44:57.407Z",
+        "user_message": "hello test",
+        "signals": [],
+        "reason": "The conversation has just started with a greeting and no substantial information is provided to extract any growth signals."
+      },
+      {
+        "timestamp": "2026-07-12T01:49:25.634Z",
+        "user_message": "hello from debug test",
+        "signals": [],
+        "reason": "No explicit growth signals or negative signals detected in the conversation."
+      },
+      {
+        "timestamp": "2026-07-12T01:50:50.760Z",
+        "user_message": "testing the fix now",
+        "signals": [],
+        "reason": "The user's message 'testing the fix now' does not provide enough context to extract any growth signals."
+      },
+      {
+        "timestamp": "2026-07-12T07:47:56.729Z",
+        "user_message": "hi how are you",
+        "signals": [],
+        "reason": "The conversation turn does not explicitly show any allowed growth signals or negative signals."
+      },
+      {
+        "timestamp": "2026-07-12T07:52:05.502Z",
+        "user_message": "hi how are you",
+        "signals": [],
+        "reason": "Analysis failed"
+      }
+    ],
     "current_risks": [],
     "current_wins": [],
     "current_experiments": []
