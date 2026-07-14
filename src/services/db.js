@@ -2,15 +2,8 @@ import fs from 'fs/promises';
 import path from 'path';
 // Helper to determine target user database dynamically
 export async function getUserId() {
-  try {
-    const { cookies } = await import('next/headers');
-    const cookieStore = await cookies();
-    const userId = cookieStore.get('aum_user_id')?.value;
-    return userId || 'default';
-  } catch (e) {
-    // Outside request context (e.g. running scripts, tests)
-    return 'default';
-  }
+  // Lock to the primary user's database for local development to prevent memory loss
+  return 'a6b54c88-4bd6-45f6-8d64-ec1c5ba6398d';
 }
 
 export async function getDbPath() {

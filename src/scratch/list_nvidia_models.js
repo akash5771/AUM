@@ -36,8 +36,8 @@ async function main() {
     }
     
     const data = await response.json();
-    const deepseekModels = data.data.filter(m => m.id.toLowerCase().includes('deepseek'));
-    console.log(JSON.stringify(deepseekModels, null, 2));
+    const filteredModels = data.data.filter(m => m.id.toLowerCase().includes('llama') || m.id.toLowerCase().includes('deepseek'));
+    console.log(filteredModels.map(m => m.id));
   } catch (e) {
     console.error('Error:', e.message);
   }

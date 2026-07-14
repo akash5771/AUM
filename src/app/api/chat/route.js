@@ -2,6 +2,18 @@ import { NextResponse } from 'next/server';
 import { readDB, writeDB, getDbCurrentTime, getMomentumDayString } from '@/services/db';
 import { generateChatResponseService, generateChatResponseStream } from '@/services/groq';
 
+const QUICK_INTERCEPTS = {
+  "good night": "Good night, Akash. Rest well.",
+  "goodnight": "Good night. Sleep well.",
+  "gn": "Good night. Rest well.",
+  "good morning": "Good morning. Hope you have a good day ahead.",
+  "gm": "Good morning. Hope you have a good day.",
+  "hello": "Hey. What's up?",
+  "hi": "Hey. What's on your mind?",
+  "hey": "Hey. What's up?",
+  "bye": "Talk soon. Take care."
+};
+
 // Helper to check and inject morning greetings and contextual nudges
 async function injectContextualMessages(db) {
   const profile = db.profile || {};
@@ -155,6 +167,40 @@ export async function POST(request) {
       return NextResponse.json({ response: responseText });
     }
 
+
+    const cleanMsg = message.toLowerCase().trim();
+    if (QUICK_INTERCEPTS[cleanMsg]) {
+      const responseText = QUICK_INTERCEPTS[cleanMsg];
+      
+      db.chat_history.push({
+        sender: "User",
+        text: message,
+        timestamp: now.toISOString()
+      });
+      db.chat_history.push({
+        sender: "AUM",
+        text: responseText,
+        timestamp: now.toISOString(),
+        type: "text"
+      });
+      await writeDB(db);
+
+      const sseStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(`data: ${responseText}\n\n`));
+          controller.close();
+        }
+      });
+
+      return new Response(sseStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Content-Encoding': 'none'
+        }
+      });
+    }
 
     const stream = await generateChatResponseStream(message);
     return new Response(stream, {

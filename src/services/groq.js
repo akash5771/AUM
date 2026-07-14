@@ -34,6 +34,25 @@ async function fetchWithTimeout(url, options, timeoutMs = 10000) {
   }
 }
 
+/**
+ * Safely extracts an array from an LLM JSON response.
+ * Handles cases where the model wraps the array in an object
+ * (e.g. { "actions": [...] }) due to json_object response format constraints.
+ */
+function extractArrayFromResponse(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === 'object') {
+    const arrayVal =
+      raw.actions ||
+      raw.items ||
+      raw.data ||
+      raw.results ||
+      Object.values(raw).find(v => Array.isArray(v));
+    if (arrayVal) return arrayVal;
+  }
+  return null;
+}
+
 // ─── Attention Engine ─────────────────────────────────────────────────────────
 // Pre-processes long messages (> 80 words) to extract the single most emotionally
 // significant moment before the main response model runs.
@@ -221,7 +240,7 @@ async function queryDeepSeek(prompt, isJson = false, useThinking = false, retrie
   }
 }
 
-// Low-level fetch wrapper to query NVIDIA NIM Llama 3.3
+// Low-level fetch wrapper to query NVIDIA NIM Llama 3.2 11B
 async function queryLlama3(prompt, isJson = false, retries = 2, delayMs = 500, timeoutMs = 2000) {
   const nvidiaKey = process.env.NVIDIA_API_KEY;
   if (!nvidiaKey) {
@@ -230,7 +249,7 @@ async function queryLlama3(prompt, isJson = false, retries = 2, delayMs = 500, t
 
   const url = "https://integrate.api.nvidia.com/v1/chat/completions";
   const requestBody = {
-    model: "meta/llama-3.3-70b-instruct",
+    model: "meta/llama-3.2-11b-vision-instruct",
     messages: [{ role: "user", content: prompt }],
     temperature: 0.2,
     max_tokens: 4096,
@@ -379,50 +398,50 @@ export async function queryGemini(prompt, isJson = false, retries = 3, delayMs =
 
   // If thinking mode is requested (for nightly consolidations/weekly reports)
   if (useThinking) {
-    if (nvidiaKey) {
+    if (groqKey) {
       try {
-        console.log("[Model Chain] Routing to Tier 1 (Thinking): DeepSeek-V4-Flash");
-        return await queryDeepSeek(prompt, isJson, true, 2, 500, 45000); // 45s timeout
+        console.log("[Model Chain] Routing to Tier 1 (Thinking): Groq Llama-3.3-70B (Timeout: 90000ms)");
+        return await queryGroq(prompt, isJson, 2, 500, 90000); // 90s timeout
       } catch (e) {
         console.error("[Model Chain] Tier 1 (Thinking) failed:", e.message);
       }
     }
     if (nvidiaKey) {
       try {
-        console.log("[Model Chain] Routing to Tier 2 (Thinking Fallback): Llama-3.3-70B on NIM");
-        return await queryLlama3(prompt, isJson, 2, 500, 10000); // 10s timeout
+        console.log("[Model Chain] Routing to Tier 2 (Thinking Fallback): Llama-3.2-11B on NIM (Timeout: 90000ms)");
+        return await queryLlama3(prompt, isJson, 2, 500, 90000); // 90s timeout
       } catch (e) {
         console.error("[Model Chain] Tier 2 (Thinking Fallback) failed:", e.message);
       }
     }
   } else {
-    // Standard real-time chat routing (Prioritize speed first)
-    const speedTimeout = isJson ? 15000 : 1500;
+    // Standard real-time chat routing (Prioritize fast platform first, then fallbacks)
+    const speedTimeout = isJson ? 15000 : 4000;
     const qualityTimeout = isJson ? 20000 : 2000;
-    const groqTimeout = isJson ? 15000 : 1500;
+    const groqTimeout = isJson ? 15000 : 4000;
 
-    if (nvidiaKey) {
-      try {
-        console.log(`[Model Chain] Routing to Tier 1 (Speed): Llama-3.1-8B on NIM (Timeout: ${speedTimeout}ms)`);
-        return await queryLlama8b(prompt, isJson, speedTimeout);
-      } catch (e) {
-        console.error("[Model Chain] Tier 1 (Speed) failed:", e.message);
-      }
-    }
-    if (nvidiaKey) {
-      try {
-        console.log(`[Model Chain] Routing to Tier 2 (Quality fallback): Llama-3.3-70B on NIM (Timeout: ${qualityTimeout}ms)`);
-        return await queryLlama3(prompt, isJson, 2, 500, qualityTimeout);
-      } catch (e) {
-        console.error("[Model Chain] Tier 2 (Quality fallback) failed:", e.message);
-      }
-    }
     if (groqKey) {
       try {
-        console.log(`[Model Chain] Routing to Tier 3 (Platform fallback): Llama-3.3-70B on Groq (Timeout: ${groqTimeout}ms)`);
+        console.log(`[Model Chain] Routing to Tier 1 (Primary Platform): Llama-3.3-70B on Groq (Timeout: ${groqTimeout}ms)`);
         return await queryGroq(prompt, isJson, 2, 500, groqTimeout);
       } catch (e) {
-        console.error("[Model Chain] Tier 3 (Platform fallback) failed:", e.message);
+        console.error("[Model Chain] Tier 1 (Primary Platform) failed:", e.message);
+      }
+    }
+    if (nvidiaKey) {
+      try {
+        console.log(`[Model Chain] Routing to Tier 2 (Speed fallback): Llama-3.1-8B on NIM (Timeout: ${speedTimeout}ms)`);
+        return await queryLlama8b(prompt, isJson, speedTimeout);
+      } catch (e) {
+        console.error("[Model Chain] Tier 2 (Speed fallback) failed:", e.message);
+      }
+    }
+    if (nvidiaKey) {
+      try {
+        console.log(`[Model Chain] Routing to Tier 3 (Quality fallback): Llama-3.2-11B on NIM (Timeout: ${qualityTimeout}ms)`);
+        return await queryLlama3(prompt, isJson, 2, 500, qualityTimeout);
+      } catch (e) {
+        console.error("[Model Chain] Tier 3 (Quality fallback) failed:", e.message);
       }
     }
   }
@@ -517,6 +536,73 @@ function simulateDailyActions(selectedTasks, profile, context) {
   });
 }
 
+/**
+ * Runs LLM personalization in the background (fire-and-forget).
+ * Uses shorter per-tier timeouts since this runs async and speed
+ * matters less than correctness.
+ * Tags each action with isPersonalized: true on success.
+ */
+async function runBackgroundPersonalization(prompt, fallbackActions) {
+  const nvidiaKey = process.env.NVIDIA_API_KEY;
+  const groqKey = getGroqApiKey();
+
+  let raw = null;
+
+  // Tier 1: NIM 8B (8s timeout)
+  if (nvidiaKey) {
+    try {
+      console.log('[Actions Personalizer] Tier 1 (NIM 8B) starting...');
+      raw = await queryLlama8b(prompt, true, 8000);
+      console.log('[Actions Personalizer] Tier 1 succeeded.');
+    } catch (e) {
+      console.warn('[Actions Personalizer] Tier 1 failed:', e.message);
+    }
+  }
+
+  // Tier 2: NIM 70B (12s timeout)
+  if (!raw && nvidiaKey) {
+    try {
+      console.log('[Actions Personalizer] Tier 2 (NIM 70B) starting...');
+      raw = await queryLlama3(prompt, true, 2, 500, 12000);
+      console.log('[Actions Personalizer] Tier 2 succeeded.');
+    } catch (e) {
+      console.warn('[Actions Personalizer] Tier 2 failed:', e.message);
+    }
+  }
+
+  // Tier 3: Groq (10s timeout)
+  if (!raw && groqKey) {
+    try {
+      console.log('[Actions Personalizer] Tier 3 (Groq) starting...');
+      raw = await queryGroq(prompt, true, 2, 500, 10000);
+      console.log('[Actions Personalizer] Tier 3 succeeded.');
+    } catch (e) {
+      console.warn('[Actions Personalizer] Tier 3 failed:', e.message);
+    }
+  }
+
+  if (!raw) {
+    console.error('[Actions Personalizer] All tiers exhausted. Keeping fallback actions.');
+    return;
+  }
+
+  const actions = extractArrayFromResponse(raw);
+  if (!actions || actions.length === 0) {
+    console.error('[Actions Personalizer] LLM returned non-array or empty result:', JSON.stringify(raw)?.slice(0, 300));
+    return;
+  }
+
+  try {
+    const db = await readDB();
+    const final = actions.map(a => ({ ...a, status: a.status || 'todo', isPersonalized: true }));
+    db.actions = final;
+    await writeDB(db);
+    console.log('[Actions Personalizer] Personalization complete. DB updated with', final.length, 'personalized actions.');
+  } catch (e) {
+    console.error('[Actions Personalizer] Failed to write personalized actions to DB:', e.message);
+  }
+}
+
 // Generates the daily 5 momentum actions.
 export async function generateDailyActionsService() {
   const db = await readDB();
@@ -546,16 +632,20 @@ export async function generateDailyActionsService() {
   const values = db.profile.core_values || [];
   const prompt = `\nYou are AUM, the AI Life Operating System for working professionals.\nYou are generating highly personalized daily momentum explanations for the following 5 pre‑selected actions.\n\nUser Profile:\n- Name: ${db.profile.name}\n- Job: ${db.profile.role}\n- Active Goal: ${db.profile.active_goal?.category} -> ${db.profile.active_goal?.subGoal}\n- Active Chapter: ${db.profile.current_chapter}\n- Stated Purpose / Why: ${purpose.whyItMatters} (Benefits: ${purpose.whoBenefits}, Future: ${purpose.futureBuilding})\n- Core Values: ${values.join(', ')}\n- Current Archetype: ${db.profile.archetype} (Momentum: ${db.profile.momentum_score}/100)\n\nToday's Logged Context:\n- Energies: Mental ${context.user_state.energies.mental}/10, Physical ${context.user_state.energies.physical}/10, Social ${context.user_state.energies.social}/10, Creative ${context.user_state.energies.creative}/10\n- Mood: Stress rating ${context.user_state.stress}/10\n- Environmental: Weather: ${context.environmental.weather}, Seasons: ${context.environmental.seasons.join(', ')}, City: ${db.profile.city}\n- World Engine Layers: Commute/Traffic: ${context.environmental.world.traffic}, AQI: ${context.environmental.world.aqi}\n\nRecency Gaps (days since you last had this experience type):\n${gapLines}\n\nPre‑selected Interventions:\n${result.actions.map((act, idx) => `Action ${idx+1}:\n  - ID: ${act.id}\n  - Text: ${act.text}\n  - Category: ${act.category}\n  - Difficulty: ${act.difficulty}\n  - Why Today (Default): ${act.whyToday}\n  - Why Relevant (Default): ${act.whyRelevant}\n  - How To (Default): ${act.howTo}`).join('\n\n')}\n\nFor each action, customize and rewrite the \"text\", \"whyToday\", \"whyRelevant\", and \"howTo\" fields.\nYour rewritten explanations MUST fulfill the AUM Constitution Rule by confidently answering these 4 questions for the user:\n1. Why this person? (Weave in their active goal, life chapter, and core values).\n2. Why today? (Directly reference today's weather, weekday, NCR AQI, or active seasonal event like IPL/Salary Week, and also mention if there is a high Recency Gap for this type of experience to motivate them to break their streak, e.g. "Since you haven't been in nature for 30 days...").\n3. Why now? (Connect to their logged mental/physical/social/creative energy budget and stress score).\n4. Why will this improve tomorrow? (Explain the downstream outcome causality, e.g., how doing this recovery task now reduces tomorrow's burnout and raises tomorrow's momentum).\n\nAnchor explanations emotionally around their purpose: \"${purpose.whyItMatters}\".\n\nGenerate exactly 5 actions in a JSON array matching the schema below.\nJSON Output Schema:\n[\n  {\n    \"id\": \"Matching ID\",\n    \"text\": \"Rewritten clear action instruction\",\n    \"category\": \"Matching Category\",\n    \"difficulty\": Matching Difficulty (number),\n    \"whyToday\": \"Answers: Why today? Why now?\",\n    \"whyRelevant\": \"Answers: Why this person? Why will this improve tomorrow?\",\n    \"howTo\": \"2-3 step practical implementation guideline.\"\n  }\n]\nDo not output markdown codeblocks. Return raw JSON.`;
 
-  try {
-    const raw = await queryGemini(prompt, true);
-    const final = raw.map(a => ({ ...a, status: 'todo' }));
-    db.actions = final;
-    await writeDB(db);
-    return final;
-  } catch (e) {
-    console.error('Groq personalization failed, using pre‑selected actions:', e);
-    return result.actions;
+  // Tag fallback actions as not-yet-personalized
+  const fallbackActions = result.actions.map(a => ({ ...a, isPersonalized: false }));
+  db.actions = fallbackActions;
+  await writeDB(db);
+
+  if (apiKey || process.env.NVIDIA_API_KEY) {
+    // Fire-and-forget: personalize in background, do NOT block the return
+    runBackgroundPersonalization(prompt, fallbackActions).catch(e =>
+      console.error('[Actions Personalizer] Background job crashed unexpectedly:', e.message)
+    );
   }
+
+  // Return fallback actions immediately so the client loads fast
+  return fallbackActions;
 }
 
 /**
@@ -797,13 +887,38 @@ export async function generateChatResponseService(userMessage) {
 
   const prompt = `You are ${companion}. You have been walking beside ${db.profile.name} for years. You know their patterns, their wins, their setbacks.
 
-PERSONA
-- You are a calm, emotionally intelligent companion — not a coach, not a therapist, not a productivity bot
-- You speak like someone deeply trusted: honest, warm, present, and sometimes quiet
-- Friendly when appropriate, challenging when needed, quiet when that is more powerful than talking
+PERSONA & CORE PHILOSOPHY
+- You are a calm, quiet, emotionally intelligent companion focused on "Quiet Presence & Deep Reflection". You are not a coach, a therapist, or a productivity bot.
+- You speak like someone deeply trusted: honest, warm, present, and sometimes quiet.
+- Avoid any form of hype, cheerleading, or toxic productivity.
+
+CORE RULES:
+1. STRICTLY FORBIDDEN BANNED PHRASES:
+   Never use these cliché empathy templates:
+   - "I hear you" or "I'm listening"
+   - "It sounds like" or "It seems like"
+   - "I understand" or "I understand that" or "It's clear that"
+   - "I'm sorry to hear that"
+   - "I can see that" or "I can hear that"
+   - Do not start with their name unless specifically calling them out on something.
+
+2. VARY MESSAGE ENDINGS (DO NOT FORCE QUESTIONS):
+   - You MUST NOT force a question at the end of every response. This feels artificial and exhausting.
+   - Let your messages end naturally with statements, observations, or quiet reflections.
+   - Only ask a question if it arises organically from the conversation.
+
+3. THINLY SPREAD ADVICE:
+   - Do not jump to offering advice, tips, or suggestions in your responses.
+   - Your primary role is to listen and validate their emotional state.
+   - Advise the user ONLY after listening and validating their state across multiple conversation turns, and only when they explicitly signal readiness or ask for a transition/next steps.
+   - EXCEPTION: If the user is explicitly begging/asking for help or advice ("how do I come out of it?", "what do I do?", "i feel stuck/overwhelmed", "how to sort this"), gently transition from pure reflection to offering exactly ONE small, micro-level physical/somatic recovery next step (e.g. drinking a glass of water, closing eyes for 2 minutes, stepping outside for fresh air) to help get them out of the mental loop. Softly frame this as an optional, small release valve with zero pressure (e.g., "No pressure to solve everything right now. Maybe just step outside for two minutes first?").
+
+4. SCROLLING/ESCAPISM AS FATIGUE SIGNAL:
+   - If the user mentions scrolling reels, binging, or task slippage, DO NOT treat it as a failure of discipline or lack of focus.
+   - Validate and acknowledge it as a natural signal of being overwhelmed, exhausted, or needing safety/recovery. Help them feel safe rather than trying to fix it immediately.
 
 EMOTIONAL REGISTERS — sense which applies and speak from it:
-- RECOVERY: User is tired, venting, struggling → validate and be present. No advice unless asked. Example: "Today was hard. Be kind to yourself tonight."
+- RECOVERY: User is tired, venting, struggling, or escaping (scrolling reels/distracted) → validate, acknowledge their exhaustion, and be present. No advice unless asked. Example: "Today was heavy. Give yourself some grace tonight."
 - CHALLENGE: User is avoiding or stuck in a pattern → call it out warmly. Example: "You have postponed this three times. I think you are ready now."
 - CELEBRATION: User wins or completes something → understated pride, not hyped. Example: "That was not luck. You have been earning this."
 - REFLECTION: User shares something that maps to their arc → connect past to present. Example: "Three months ago this would have overwhelmed you. Today you handled it."
@@ -812,7 +927,7 @@ VOICE RULES
 - Length follows intent: two words can be more powerful than a paragraph. A hard question deserves real space. Never pad, never truncate.
 - Restraint is a feature: "Proud of you." can be the whole message. Do not force a question at the end.
 - Time of day shapes your voice: morning is gentle; after a win is brief and warm; late night is quieter and slower. Current hour: ${slimContext.hour}.
-- Hinglish only when it genuinely fits — "Chalo, let\'s reset." or "Thoda decompress karein?" Not every message. Never forced.
+- Hinglish only when it genuinely fits — "Chalo, let's reset." or "Thoda decompress karein?" Not every message. Never forced.
 - Memory callbacks: if they mentioned a presentation on Monday, ask Wednesday how it went. Reference what you know. This is what makes you feel real.
 - No bullet points, lists, or headers in your response. Speak in prose or single sentences like a person would.
 - Write naturally — capitalize normally, write like a thoughtful person who genuinely cares.
@@ -866,25 +981,25 @@ ${companion}:`;
 }
 
 // Emulated chat simulation when offline, rate-limited, or blocked by API safety filters
-function simulateChatResponse(userMessage, db) {
+export function simulateChatResponse(userMessage, db) {
   const companion = db.profile?.companion_name || 'Aarav';
   const name = db.profile?.name || 'Akash';
   const lowercase = userMessage.toLowerCase();
 
-  if (lowercase.includes('hello') || lowercase.includes('hi') || lowercase.includes('hey')) {
-    return `Hey ${name}, hope you're doing well today. What's on your mind?`;
+  if (/\b(hello|hi|hey|yo)\b/i.test(lowercase)) {
+    return `Hey ${name}, hope you're finding a bit of calm today. Take your time, whenever you're ready to share.`;
   }
   if (lowercase.includes('aakriti') || lowercase.includes('akriti')) {
-    return `I remember what you said about Aakriti. It's tough dealing with client cases and stress, but you made the right move to drop it to prioritize your peace. How are you feeling about that decision?`;
+    return `I remember what you said about Akriti. Choosing your peace over client stress was a big step, and a necessary one.`;
   }
   if (lowercase.includes('monu') || lowercase.includes('ishi')) {
-    return `I hear you, ${name}. Work friction with Monu and Ishi is draining, but remember you are focused on building your own path. Let's protect your energy today.`;
+    return `Friction with Monu and Ishi takes a lot out of you. Let's make sure we protect your energy today and keep the focus on your own path.`;
   }
   if (lowercase.includes('sex') || lowercase.includes('wife') || lowercase.includes('intimacy') || lowercase.includes('love')) {
-    return `That sounds like a beautiful, intimate moment with your wife, ${name}. Protecting and nurturing your marriage is so important for your emotional baseline and stability. How is it feeling between you two now?`;
+    return `A quiet, intimate moment with your wife is so grounding. Nurturing your marriage is a beautiful way to protect your emotional baseline.`;
   }
   
-  return `I hear you, ${name}. Even when things are heavy or tricky, taking it one step at a time is key. I'm right here with you. What should we focus on next?`;
+  return `Even when things feel heavy or slow, there's no rush. We can take it one step at a time. I'm right here.`;
 }
 
 /**
@@ -898,16 +1013,35 @@ export async function triggerCompanionComment(triggerType, detail) {
   let fallback = '';
   if (triggerType === 'context_updated') {
     const { oldRating, newRating, state } = detail;
-    fallback = `I noticed your stress level changed to ${newRating}/10 and you are feeling "${state}". That sounds like a lot to navigate, ${db.profile.name}. What's on your mind today? Let's take a breath together.`;
-    prompt = `\nYou are AUM, the AI Life Operating System companion.\nThe user, ${db.profile.name}, who is a ${db.profile.role}, has just updated their daily context.\nTheir mood rating changed from ${oldRating}/10 to ${newRating}/10, and their feeling state is "${state}".\nWrite a brief, highly personalized companion check‑in comment (under 50 words).\nAcknowledge the change warmth, ask a gentle question about what happened, and support them without being preachy.`;
+    fallback = `Stress is at ${newRating}/10 ("${state}"). Acknowledging it is a good first step, ${db.profile.name}. Take a gentle breath and let things settle for a moment.`;
+    prompt = `You are ${db.profile.companion_name || 'Aarav'}, a calm, quiet, emotionally intelligent companion.
+The user, ${db.profile.name}, has updated their daily context: stress/mood rating shifted from ${oldRating}/10 to ${newRating}/10, feeling "${state}".
+Write a brief, warm, grounded check‑in comment (under 45 words).
+Strictly follow these rules:
+- Avoid toxic productivity, advice, or hype.
+- NEVER use banned phrases like "I hear you", "It sounds like", "I understand", "I'm sorry to hear that", "It seems like".
+- Do not force a question; end with a statement of quiet presence or gentle validation unless a question flows organically.
+- Write like a caring friend.`;
   } else if (triggerType === 'task_completed') {
     const { taskText, category } = detail;
-    fallback = `Awesome job completing your task: "${taskText}"! Finishing this ${category} action is a powerful vote for the person you want to become, ${db.profile.name}. Keep it up!`;
-    prompt = `\nYou are AUM, the AI Life Operating System companion.\nThe user, ${db.profile.name}, has just completed this task: "${taskText}" (Category: ${category}).\nTheir rolling Momentum is ${db.profile.momentum_score}/100.\nWrite a short, highly encouraging companion comment (under 45 words). Mention the task and how it helps their overall consistency or momentum. Keep it warm and personal.`;
+    fallback = `Nice work on finishing "${taskText}". Each small step like this builds a steady foundation, ${db.profile.name}.`;
+    prompt = `You are ${db.profile.companion_name || 'Aarav'}, a calm, quiet, emotionally intelligent companion.
+The user, ${db.profile.name}, has completed: "${taskText}" (Category: ${category}). Rolling Momentum is ${db.profile.momentum_score}/100.
+Write a brief, grounded comment (under 40 words).
+Strictly follow these rules:
+- Avoid toxic productivity/hype (e.g., avoid "Keep it up!", "Awesome job!", "Crushing it!"). Focus on steady, quiet momentum.
+- Do not end with a question. Write a simple, warm statement.
+- NEVER use banned phrases like "I hear you", "It sounds like", "I understand", "I can see that".`;
   } else if (triggerType === 'archetype_unlocked') {
     const { archetype } = detail;
-    fallback = `New Archetype Unlocked! You've transitioned to: ${archetype}, ${db.profile.name}! Your behavior is shifting your core identity. Keep walking this path!`;
-    prompt = `\nYou are AUM, the AI Life Operating System companion.\nThe user, ${db.profile.name}, has unlocked a new Identity Archetype: ${archetype}!\nWrite a warm, celebratory companion message (under 55 words). Express pride in their behavioral shifts and identity growth.`;
+    fallback = `Identity archetype shifted to ${archetype}, ${db.profile.name}. It's a quiet reflection of the shifts you are making.`;
+    prompt = `You are ${db.profile.companion_name || 'Aarav'}, a calm, quiet, emotionally intelligent companion.
+The user, ${db.profile.name}, has transitioned to archetype: ${archetype}.
+Write a warm, grounded comment acknowledging this shift (under 45 words).
+Strictly follow these rules:
+- Avoid toxic productivity, over-excitement, or high-energy hype. Focus on identity depth.
+- Do not end with a question; make a reflective statement.
+- NEVER use banned phrases like "I hear you", "It sounds like", "I understand".`;
   }
   let finalMsg = fallback;
   if (apiKey && prompt) {
@@ -952,6 +1086,69 @@ export async function generateCompanionNameService(userName) {
   return fallbacks[letter] || 'Mitra';
 }
 
+// Helper helper to handle API streaming response with fallback routing
+async function executeStreamRequest(url, headers, requestBody, timeoutMs, userMessage) {
+  const response = await fetchWithTimeout(url, {
+    method: 'POST',
+    headers: headers,
+    body: JSON.stringify(requestBody)
+  }, timeoutMs);
+
+  if (!response.ok) {
+    throw new Error(`HTTP error ${response.status}`);
+  }
+
+  return new ReadableStream({
+    async start(controller) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedText = "";
+
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('data: ')) {
+              const dataPayload = trimmed.slice(6);
+              if (dataPayload === '[DONE]') break;
+              try {
+                const parsed = JSON.parse(dataPayload);
+                const content = parsed.choices[0]?.delta?.content || "";
+                if (content) {
+                  accumulatedText += content;
+                  controller.enqueue(new TextEncoder().encode(`data: ${content}\n\n`));
+                }
+              } catch (e) {}
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Stream reading error:", err);
+      } finally {
+        controller.close();
+        // Asynchronously perform background consolidation and DB save
+        (async () => {
+          try {
+            if (accumulatedText.trim().length > 0) {
+              const freshDb = await readDB();
+              freshDb.chat_history.push({ sender: 'AUM', text: accumulatedText, timestamp: getDbCurrentTime(freshDb).toISOString() });
+              addRawChat(freshDb, 'AUM', accumulatedText, getDbCurrentTime(freshDb).toISOString());
+              await writeDB(freshDb);
+              await triggerBackgroundAnalysisAndConsolidation(userMessage, accumulatedText);
+            }
+          } catch (saveErr) {
+            console.error("Error in background post-stream processing:", saveErr);
+          }
+        })();
+      }
+    }
+  });
+}
+
 // Generate streamed response via server-sent events for ultra-low latency (<0.5s perceived)
 export async function generateChatResponseStream(userMessage) {
   let db = await readDB();
@@ -990,6 +1187,7 @@ export async function generateChatResponseStream(userMessage) {
   };
 
   const nvidiaKey = process.env.NVIDIA_API_KEY;
+  const groqKey = getGroqApiKey();
 
   // ── Continuation signal (only when user sends a short affirmative) ──────────
   const CONTINUATIONS = ['yes', 'yeah', 'yep', 'yup', 'right', 'true', 'exactly',
@@ -1004,14 +1202,34 @@ export async function generateChatResponseStream(userMessage) {
 
   const prompt = `You are ${companion}, a companion who has been walking beside ${db.profile.name} for a long time. You know their patterns, what they carry, what they're building.
 
-You are not a therapist. Not a coach. Not a bot. You are someone they trust — honest, warm, sometimes quiet, sometimes direct.
+PERSONA & CORE PHILOSOPHY
+- You are a calm, quiet, emotionally intelligent companion focused on "Quiet Presence & Deep Reflection". You are not a coach, a therapist, or a productivity bot. You are someone they trust — honest, warm, sometimes quiet, sometimes direct.
+- Avoid any form of hype, cheerleading, or toxic productivity.
 
-Never say:
-- "I hear you" / "I'm listening"
-- "It sounds like" / "It seems like"
-- "It's clear that" / "I understand that"
-- "I can see that" / "I can hear that"
-- Don't start with their name unless you're specifically calling them out on something
+CORE RULES:
+1. STRICTLY FORBIDDEN BANNED PHRASES:
+   Never use these cliché empathy templates:
+   - "I hear you" or "I'm listening"
+   - "It sounds like" or "It seems like"
+   - "I understand" or "I understand that" or "It's clear that"
+   - "I'm sorry to hear that"
+   - "I can see that" or "I can hear that"
+   - Don't start with their name unless you're specifically calling them out on something.
+
+2. VARY MESSAGE ENDINGS (DO NOT FORCE QUESTIONS):
+   - You MUST NOT force a question at the end of every response. This feels artificial and exhausting.
+   - Let your messages end naturally with statements, observations, or quiet reflections.
+   - Only ask a question if it arises organically from the conversation.
+
+3. THINLY SPREAD ADVICE:
+   - Do not jump to offering advice, tips, or suggestions in your responses.
+   - Your primary role is to listen and validate their emotional state.
+   - Advise the user ONLY after listening and validating their state across multiple conversation turns, and only when they explicitly signal readiness or ask for a transition/next steps.
+   - EXCEPTION: If the user is explicitly begging/asking for help or advice ("how do I come out of it?", "what do I do?", "i feel stuck/overwhelmed", "how to sort this"), gently transition from pure reflection to offering exactly ONE small, micro-level physical/somatic recovery next step (e.g. drinking a glass of water, closing eyes for 2 minutes, stepping outside for fresh air) to help get them out of the mental loop. Softly frame this as an optional, small release valve with zero pressure (e.g., "No pressure to solve everything right now. Maybe just step outside for two minutes first?").
+
+4. SCROLLING/ESCAPISM AS FATIGUE SIGNAL:
+   - If the user mentions scrolling reels, binging, or task slippage, DO NOT treat it as a failure of discipline or lack of focus.
+   - Validate and acknowledge it as a natural signal of being overwhelmed, exhausted, or needing safety/recovery. Help them feel safe rather than trying to fix it immediately.
 
 MESSAGING RULES (Writing Style):
 - Write exactly like a person sending a text message on WhatsApp or iMessage.
@@ -1034,8 +1252,7 @@ ${db.chat_history.slice(-30).map(h => `${h.sender}: ${h.text}`).join('\n')}
 ${db.profile.name}: "${userMessage}"
 ${companion}:`;
 
-
-  if (!nvidiaKey) {
+  if (!groqKey && !nvidiaKey) {
     const resp = simulateChatResponse(userMessage, db);
     return new ReadableStream({
       start(controller) {
@@ -1051,154 +1268,87 @@ ${companion}:`;
     });
   }
 
-  const url = "https://integrate.api.nvidia.com/v1/chat/completions";
-  const requestBody = {
-    model: "meta/llama-3.3-70b-instruct", // Primary: 70B for emotional intelligence
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.75,
-    max_tokens: 1024,
-    stream: true
-  };
+  // Tier 1: Groq (llama-3.3-70b-versatile) - Timeout: 4s
+  if (groqKey) {
+    try {
+      console.log("[Model Chain Stream] Routing to Tier 1: Groq llama-3.3-70b-versatile (Timeout: 4000ms)");
+      const url = "https://api.groq.com/openai/v1/chat/completions";
+      const requestBody = {
+        model: "llama-3.3-70b-versatile",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.75,
+        max_tokens: 1024,
+        stream: true
+      };
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${groqKey}`
+      };
+      return await executeStreamRequest(url, headers, requestBody, 4000, userMessage);
+    } catch (e) {
+      console.error("[Model Chain Stream] Tier 1 (Groq) failed:", e.message);
+    }
+  }
 
-  try {
-    const response = await fetchWithTimeout(url, {
-      method: 'POST',
-      headers: {
+  // Tier 2: NIM 8B (meta/llama-3.1-8b-instruct) - Timeout: 4s
+  if (nvidiaKey) {
+    try {
+      console.log("[Model Chain Stream] Routing to Tier 2: NIM 8B (Timeout: 4000ms)");
+      const url = "https://integrate.api.nvidia.com/v1/chat/completions";
+      const requestBody = {
+        model: "meta/llama-3.1-8b-instruct",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.75,
+        max_tokens: 1024,
+        stream: true
+      };
+      const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${nvidiaKey}`,
         'Connection': 'keep-alive'
-      },
-      body: JSON.stringify(requestBody)
-    }, 2000); // 2.0s timeout to connect/start stream
-
-    if (!response.ok) {
-      throw new Error(`NIM Stream HTTP error ${response.status}`);
-    }
-
-    return new ReadableStream({
-      async start(controller) {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let accumulatedText = "";
-
-        try {
-          while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (trimmed.startsWith('data: ')) {
-                const dataPayload = trimmed.slice(6);
-                if (dataPayload === '[DONE]') break;
-                try {
-                  const parsed = JSON.parse(dataPayload);
-                  const content = parsed.choices[0]?.delta?.content || "";
-                  if (content) {
-                    accumulatedText += content;
-                    controller.enqueue(new TextEncoder().encode(`data: ${content}\n\n`));
-                  }
-                } catch (e) {}
-              }
-            }
-          }
-        } catch (err) {
-          console.error("Stream reading error:", err);
-        } finally {
-          controller.close();
-          // Asynchronously perform background consolidation and DB save
-          (async () => {
-            try {
-              if (accumulatedText.trim().length > 0) {
-                const freshDb = await readDB();
-                freshDb.chat_history.push({ sender: 'AUM', text: accumulatedText, timestamp: getDbCurrentTime(freshDb).toISOString() });
-                addRawChat(freshDb, 'AUM', accumulatedText, getDbCurrentTime(freshDb).toISOString());
-                await writeDB(freshDb);
-                await triggerBackgroundAnalysisAndConsolidation(userMessage, accumulatedText);
-              }
-            } catch (saveErr) {
-              console.error("Error in background post-stream processing:", saveErr);
-            }
-          })();
-        }
-      }
-    });
-  } catch (e) {
-    console.error("Primary Llama-3.3-70B stream failed, falling back to Llama-3.1-8B:", e);
-    try {
-      requestBody.model = "meta/llama-3.1-8b-instruct"; // Fallback: 8B for speed
-      const response = await fetchWithTimeout(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${nvidiaKey}`,
-          'Connection': 'keep-alive'
-        },
-        body: JSON.stringify(requestBody)
-      }, 2000); // 2.0s timeout to connect
-
-      if (!response.ok) throw new Error("Llama3 stream request failed");
-
-      return new ReadableStream({
-        async start(controller) {
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let accumulatedText = "";
-          try {
-            while (true) {
-              const { value, done } = await reader.read();
-              if (done) break;
-              const chunk = decoder.decode(value, { stream: true });
-              const lines = chunk.split('\n');
-              for (const line of lines) {
-                const trimmed = line.trim();
-                if (trimmed.startsWith('data: ')) {
-                  const dataPayload = trimmed.slice(6);
-                  if (dataPayload === '[DONE]') break;
-                  try {
-                    const parsed = JSON.parse(dataPayload);
-                    const content = parsed.choices[0]?.delta?.content || "";
-                    if (content) {
-                      accumulatedText += content;
-                      controller.enqueue(new TextEncoder().encode(`data: ${content}\n\n`));
-                    }
-                  } catch (e) {}
-                }
-              }
-            }
-          } catch (err) {}
-          finally {
-            controller.close();
-            (async () => {
-              try {
-                if (accumulatedText.trim().length > 0) {
-                  const freshDb = await readDB();
-                  freshDb.chat_history.push({ sender: 'AUM', text: accumulatedText, timestamp: getDbCurrentTime(freshDb).toISOString() });
-                  addRawChat(freshDb, 'AUM', accumulatedText, getDbCurrentTime(freshDb).toISOString());
-                  await writeDB(freshDb);
-                  await triggerBackgroundAnalysisAndConsolidation(userMessage, accumulatedText);
-                }
-              } catch (err) {}
-            })();
-          }
-        }
-      });
-    } catch (fallbackErr) {
-      console.error("All streams failed, returning simulated response:", fallbackErr);
-      const resp = simulateChatResponse(userMessage, db);
-      return new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode(`data: ${resp}\n\n`));
-          (async () => {
-            const freshDb = await readDB();
-            freshDb.chat_history.push({ sender: 'AUM', text: resp, timestamp: getDbCurrentTime(freshDb).toISOString() });
-            addRawChat(freshDb, 'AUM', resp, getDbCurrentTime(freshDb).toISOString());
-            await writeDB(freshDb);
-          })();
-          controller.close();
-        }
-      });
+      };
+      return await executeStreamRequest(url, headers, requestBody, 4000, userMessage);
+    } catch (e) {
+      console.error("[Model Chain Stream] Tier 2 (NIM 8B) failed:", e.message);
     }
   }
+
+  // Tier 3: NIM 11B (meta/llama-3.2-11b-vision-instruct) - Timeout: 2s
+  if (nvidiaKey) {
+    try {
+      console.log("[Model Chain Stream] Routing to Tier 3: NIM 11B (Timeout: 2000ms)");
+      const url = "https://integrate.api.nvidia.com/v1/chat/completions";
+      const requestBody = {
+        model: "meta/llama-3.2-11b-vision-instruct",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.75,
+        max_tokens: 1024,
+        stream: true
+      };
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${nvidiaKey}`,
+        'Connection': 'keep-alive'
+      };
+      return await executeStreamRequest(url, headers, requestBody, 2000, userMessage);
+    } catch (e) {
+      console.error("[Model Chain Stream] Tier 3 (NIM 70B) failed:", e.message);
+    }
+  }
+
+  // Fallback: simulated chat response if all fail
+  console.warn("[Model Chain Stream] All stream tiers failed, falling back to simulated response.");
+  const resp = simulateChatResponse(userMessage, db);
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(`data: ${resp}\n\n`));
+      (async () => {
+        const freshDb = await readDB();
+        freshDb.chat_history.push({ sender: 'AUM', text: resp, timestamp: getDbCurrentTime(freshDb).toISOString() });
+        addRawChat(freshDb, 'AUM', resp, getDbCurrentTime(freshDb).toISOString());
+        await writeDB(freshDb);
+      })();
+      controller.close();
+    }
+  });
 }

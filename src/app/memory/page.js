@@ -128,7 +128,7 @@ export default function MemoryVaultPage() {
                       <span style={styles.metaLabel}>People Involved:</span>
                       <div style={styles.tagGroup}>
                         {event.people.map((p, i) => (
-                          <span key={i} style={{ ...styles.tag, borderColor: 'rgba(236, 72, 153, 0.3)', color: '#f472b6' }}>👤 {p}</span>
+                          <span key={i} style={{ ...styles.tag, border: '1px solid rgba(236, 72, 153, 0.3)', color: '#f472b6' }}>👤 {p}</span>
                         ))}
                       </div>
                     </div>

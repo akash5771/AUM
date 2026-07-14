@@ -76,6 +76,28 @@ export default function Dashboard() {
     }
   }, [chatHistory, isSendingChat, actions]);
 
+  // Poll for personalized actions after initial load
+  useEffect(() => {
+    if (!actions || actions.length === 0) return;
+    if (actions.every(a => a.isPersonalized)) return; // already personalized
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/actions');
+        if (!res.ok) return;
+        const fresh = await res.json();
+        if (Array.isArray(fresh) && fresh.some(a => a.isPersonalized)) {
+          setActions(fresh);
+          clearInterval(interval);
+        }
+      } catch (e) {
+        // silently ignore poll errors
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [actions]);
+
   // Route to onboarding if not completed
   useEffect(() => {
     if (profile && !profile.onboarding_completed) {
@@ -751,7 +773,7 @@ export default function Dashboard() {
                         key={act.id} 
                         style={{
                           ...styles.moveItemRow,
-                          borderColor: isDone ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.06)',
+                          border: isDone ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.06)',
                           background: isDone ? 'rgba(16, 185, 129, 0.02)' : 'rgba(255,255,255,0.01)'
                         }}
                         onClick={() => setExpandedActionId(isExpanded ? null : act.id)}

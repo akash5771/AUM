@@ -4,647 +4,52 @@
  * and the expected-value expected utility decider pipeline.
  */
 
-// --- 1. Interventions Knowledge Base ---
-export const INTERVENTIONS_KB = [
-  {
-    id: "kb_phys_gym",
-    text: "Perform a 45-minute strength workout at the gym.",
-    category: "Physical",
-    difficulty: 4,
-    friction: 7,
-    impact: 8,
-    minimum_readiness: 5,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 2, // premium
-    repeat_interval: 2, // days
-    duration_mins: 60,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening"],
-    requires_day_off: false,
-    energy_cost: { mental: 2, physical: 5, social: 2, creative: 1 },
-    financial_cost: "premium",
-    restricted_values: ["Time-Sparing"],
-    intensities: { emotional: "Medium", social_friction: "Medium", recovery_cost: "High" },
-    applicable_goals: ["Lose Fat", "Build Muscle"],
-    weather_restricted: false,
-    defaultWhyToday: "Physical loading triggers muscle protein synthesis and raises basal metabolic rate.",
-    defaultWhyRelevant: "To support your fat loss goal, resistance training preserves lean mass while elevating calorie burn.",
-    defaultHowTo: "Do 3 sets of squats, overhead presses, and lat pulldowns. Keep rest times around 90 seconds."
-  },
-  {
-    id: "kb_phys_walk",
-    text: "Go for a brisk 20-minute outdoor walk.",
-    category: "Physical",
-    difficulty: 1,
-    friction: 2,
-    impact: 5,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 0, // free
-    repeat_interval: 1,
-    duration_mins: 20,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening"],
-    requires_day_off: false,
-    energy_cost: { mental: 1, physical: 2, social: 1, creative: 1 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Lose Fat", "Sleep Better", "Reduce Burnout"],
-    weather_restricted: true,
-    defaultWhyToday: "Low-intensity physical movement under daylight supports circadian entrainment.",
-    defaultWhyRelevant: "A quick walk lowers baseline cortisol, supporting stress recovery and weight control.",
-    defaultHowTo: "Walk outside without looking at your phone. Maintain a brisk pace where you can talk but not sing."
-  },
-  {
-    id: "kb_phys_stretch",
-    text: "Complete a 15-minute full body mobility stretch.",
-    category: "Physical",
-    difficulty: 1,
-    friction: 1,
-    impact: 4,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: true,
-    cost_score: 0, // free
-    repeat_interval: 1,
-    duration_mins: 15,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 1, physical: 1, social: 1, creative: 1 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Reduce Burnout", "Sleep Better"],
-    weather_restricted: false,
-    defaultWhyToday: "Physical stretching resets muscle spindles and alleviates desk-bound structural tension.",
-    defaultWhyRelevant: "Lowering physical stiffness signals safety to the autonomic nervous system, aiding recovery.",
-    defaultHowTo: "Hold gentle stretches for your hips, hamstrings, and chest for 30 seconds each, breathing slowly."
-  },
-  {
-    id: "kb_rec_breathing",
-    text: "Practice a 5-minute box breathing cycle.",
-    category: "Recovery",
-    difficulty: 1,
-    friction: 1,
-    impact: 4,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: true,
-    cost_score: 0,
-    repeat_interval: 1,
-    duration_mins: 5,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 1, physical: 1, social: 1, creative: 1 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Reduce Burnout", "Sleep Better", "Build Startup"],
-    weather_restricted: false,
-    defaultWhyToday: "Box breathing directly stimulates the vagus nerve to decrease heart rate and blood pressure.",
-    defaultWhyRelevant: "To manage startup anxiety, this lowers amygdala arousal, keeping you logical under pressure.",
-    defaultHowTo: "Inhale for 4 seconds, hold for 4, exhale for 4, hold for 4. Complete 10 full cycles."
-  },
-  {
-    id: "kb_rec_water",
-    text: "Drink a large glass of clean water.",
-    category: "Recovery",
-    difficulty: 1,
-    friction: 1,
-    impact: 3,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: true,
-    cost_score: 0,
-    repeat_interval: 1,
-    duration_mins: 1,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 1, physical: 1, social: 1, creative: 1 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Reduce Burnout", "Sleep Better"],
-    weather_restricted: false,
-    defaultWhyToday: "Hydration immediately restores cellular homeostasis and relieves micro-fatigue.",
-    defaultWhyRelevant: "Maintaining optimal hydration is the simplest way to reduce midday physical stress.",
-    defaultHowTo: "Fill a 300ml glass of water and drink it slowly, standing up."
-  },
-  {
-    id: "kb_joy_song",
-    text: "Listen to the song \"Kun Faya Kun\" to reset your mind.",
-    category: "Joy",
-    difficulty: 1,
-    friction: 1,
-    impact: 4,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: true,
-    cost_score: 0,
-    repeat_interval: 1,
-    duration_mins: 6,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 1, physical: 1, social: 1, creative: 1 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Reduce Burnout"],
-    weather_restricted: false,
-    defaultWhyToday: "Auditory meditation resets emotional status and decreases acute beta-wave brain patterns.",
-    defaultWhyRelevant: "Connecting to peaceful music helps ground your emotional baseline during hectic periods.",
-    defaultHowTo: "Put on headphones, close your eyes, and listen to the song without doing anything else."
-  },
-  {
-    id: "kb_learn_article",
-    text: "Read a 3-minute educational article of interest.",
-    category: "Learning",
-    difficulty: 1,
-    friction: 1,
-    impact: 4,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: true,
-    cost_score: 0,
-    repeat_interval: 2,
-    duration_mins: 3,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 2, physical: 1, social: 1, creative: 1 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Language/Learning", "Build Startup"],
-    weather_restricted: false,
-    defaultWhyToday: "Consuming a short structural thought maintains mental plasticity without cognitive exhaustion.",
-    defaultWhyRelevant: "Shifting consumption from scrolling to curated knowledge preserves baseline focus.",
-    defaultHowTo: "Read a pre-selected short newsletter issue or article on pocket/browser."
-  },
-  {
-    id: "kb_learn_ted",
-    text: "Watch a short 10-minute TED clip.",
-    category: "Learning",
-    difficulty: 2,
-    friction: 2,
-    impact: 5,
-    minimum_readiness: 3,
-    maximum_readiness: 10,
-    commute_friendly: true,
-    cost_score: 0,
-    repeat_interval: 3,
-    duration_mins: 10,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 2, physical: 1, social: 1, creative: 1 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Language/Learning", "Build Startup"],
-    weather_restricted: false,
-    defaultWhyToday: "Interactive video learning triggers dopamine loops centered around constructive discovery.",
-    defaultWhyRelevant: "Feeding your professional and creative curiosity keeps work feeling expansive.",
-    defaultHowTo: "Pick a TED clip on psychology, design, or biology and watch it attentively."
-  },
-  {
-    id: "kb_phys_walk_short",
-    text: "Take a quick 10-minute walk outside.",
-    category: "Physical",
-    difficulty: 1,
-    friction: 2,
-    impact: 5,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 0,
-    repeat_interval: 1,
-    duration_mins: 10,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening"],
-    requires_day_off: false,
-    energy_cost: { mental: 1, physical: 1, social: 1, creative: 1 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Lose Fat", "Reduce Burnout"],
-    weather_restricted: true,
-    defaultWhyToday: "A brief walk outdoors restarts circadian rhythm cues and decreases blood pooling in the legs.",
-    defaultWhyRelevant: "Breaking desk-bound cycles with micro-movements maintains vascular and cognitive performance.",
-    defaultHowTo: "Walk around the building block or garden nearby without your phone."
-  },
-  {
-    id: "kb_creat_write_short",
-    text: "Write one paragraph (journal entry or work outline).",
-    category: "Creative",
-    difficulty: 2,
-    friction: 3,
-    impact: 5,
-    minimum_readiness: 2,
-    maximum_readiness: 10,
-    commute_friendly: true,
-    cost_score: 0,
-    repeat_interval: 1,
-    duration_mins: 10,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 3, physical: 1, social: 1, creative: 3 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Reading/Writing", "Build Startup"],
-    weather_restricted: false,
-    defaultWhyToday: "Translating loose neural connections into syntax forces structured executive focus.",
-    defaultWhyRelevant: "Building a daily expression habit transitions you from an attention consumer to a creator.",
-    defaultHowTo: "Open a draft notes app. Write at least 4-5 lines of text on any topic of interest."
-  },
-  {
-    id: "kb_soc_cafe",
-    text: "Visit a local cozy café for coffee or tea.",
-    category: "Social",
-    difficulty: 2,
-    friction: 6,
-    impact: 5,
-    minimum_readiness: 4,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 1, // cheap
-    repeat_interval: 4,
-    duration_mins: 60,
-    applicable_days: ["Friday", "Saturday", "Sunday"],
-    applicable_times: ["Afternoon", "Evening"],
-    requires_day_off: false,
-    energy_cost: { mental: 2, physical: 2, social: 3, creative: 2 },
-    financial_cost: "cheap",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Medium", recovery_cost: "Low" },
-    applicable_goals: ["Reduce Burnout", "Dating/Social"],
-    weather_restricted: false,
-    defaultWhyToday: "Moderate environmental novelty triggers passive auditory curiosity and reduces isolation.",
-    defaultWhyRelevant: "Stepping outside your immediate office/home ecosystem helps break cognitive loop states.",
-    defaultHowTo: "Locate a local specialty coffee cafe. Sit down, sip a beverage, and read or observe without work screens."
-  },
-  {
-    id: "kb_rec_massage",
-    text: "Schedule a 60-minute recovery massage or spa wellness session.",
-    category: "Recovery",
-    difficulty: 3,
-    friction: 8,
-    impact: 8,
-    minimum_readiness: 4,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 2, // premium
-    repeat_interval: 14,
-    duration_mins: 90,
-    applicable_days: ["Saturday", "Sunday"],
-    applicable_times: ["Morning", "Afternoon", "Evening"],
-    requires_day_off: true,
-    energy_cost: { mental: 1, physical: 1, social: 2, creative: 1 },
-    financial_cost: "premium",
-    restricted_values: ["Saving Stance"],
-    intensities: { emotional: "Low", social_friction: "Medium", recovery_cost: "Low" },
-    applicable_goals: ["Reduce Burnout"],
-    weather_restricted: false,
-    defaultWhyToday: "Somatic therapy physically reduces deep-seated muscle tension and releases serotonin.",
-    defaultWhyRelevant: "As a professional carrying intense work stress, structured recovery is a baseline necessity.",
-    defaultHowTo: "Book a local sports massage or deep tissue treatment. Focus on breathing during the session."
-  },
-  {
-    id: "kb_adv_amusement_park",
-    text: "Visit a local amusement park or adventure zone.",
-    category: "Adventure",
-    difficulty: 5,
-    friction: 10,
-    impact: 9,
-    minimum_readiness: 6,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 2, // premium
-    repeat_interval: 30,
-    duration_mins: 180,
-    applicable_days: ["Saturday", "Sunday"],
-    applicable_times: ["Morning", "Afternoon"],
-    requires_day_off: true,
-    energy_cost: { mental: 3, physical: 5, social: 4, creative: 3 },
-    financial_cost: "premium",
-    restricted_values: ["Saving Stance"],
-    intensities: { emotional: "High", social_friction: "High", recovery_cost: "High" },
-    applicable_goals: ["Reduce Burnout"],
-    weather_restricted: true,
-    defaultWhyToday: "Intense environmental acceleration triggers systemic adrenaline releases followed by deep cortisol resets.",
-    defaultWhyRelevant: "Participating in high-novelty, child-like adventure breaks up professional hyper-logical mental modes.",
-    defaultHowTo: "Book a ticket to a local park or activity zone and spend the day riding and walking outdoors."
-  },
-  {
-    id: "kb_rec_early_sleep",
-    text: "Turn off all screens by 9:30 PM and sleep early.",
-    category: "Recovery",
-    difficulty: 2,
-    friction: 2,
-    impact: 7,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 0,
-    repeat_interval: 1,
-    duration_mins: 480,
-    applicable_days: [],
-    applicable_times: ["Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 2, physical: 1, social: 1, creative: 1 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Sleep Better", "Reduce Burnout"],
-    weather_restricted: false,
-    defaultWhyToday: "Sleeping early matches natural melatonin release peaks, increasing deep sleep proportion.",
-    defaultWhyRelevant: "Optimizing your sleep architecture is the highest-leverage step to lowering stress and restoring focus.",
-    defaultHowTo: "Put your phone in another room at 9:30 PM. Read a physical book or listen to white noise until asleep."
-  },
-  {
-    id: "kb_soc_family_dinner",
-    text: "Have a phone-free dinner with your family.",
-    category: "Social",
-    difficulty: 2,
-    friction: 3,
-    impact: 6,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 0,
-    repeat_interval: 1,
-    duration_mins: 45,
-    applicable_days: [],
-    applicable_times: ["Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 1, physical: 1, social: 3, creative: 1 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Parenting", "Marriage"],
-    weather_restricted: false,
-    defaultWhyToday: "Intimate family connections act as a primary emotional buffer against career stress.",
-    defaultWhyRelevant: "Nurturing your relationships keeps you grounded and provides critical perspective on work conflicts.",
-    defaultHowTo: "Leave all phones in a drawer. Sit at the table and ask each person about one high and one low from their day."
-  },
-  {
-    id: "kb_soc_call_friend",
-    text: "Call a close friend for a 15-minute catch up.",
-    category: "Social",
-    difficulty: 2,
-    friction: 2,
-    impact: 6,
-    minimum_readiness: 2,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 0,
-    repeat_interval: 2,
-    duration_mins: 15,
-    applicable_days: [],
-    applicable_times: ["Afternoon", "Evening"],
-    requires_day_off: false,
-    energy_cost: { mental: 2, physical: 1, social: 3, creative: 1 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Medium", recovery_cost: "Low" },
-    applicable_goals: ["Dating/Social"],
-    weather_restricted: false,
-    defaultWhyToday: "Relational conversations outside your work circle reduce professional isolation.",
-    defaultWhyRelevant: "Maintaining strong social ties supports emotional balance and long-term satisfaction.",
-    defaultHowTo: "Call a friend you haven't spoken to in a while. Ask them about their life first and listen actively."
-  },
-  {
-    id: "kb_creat_write",
-    text: "Write 500 words on a topic of interest (journal, post, code design).",
-    category: "Creative",
-    difficulty: 3,
-    friction: 4,
-    impact: 6,
-    minimum_readiness: 4,
-    maximum_readiness: 10,
-    commute_friendly: true,
-    cost_score: 0,
-    repeat_interval: 2,
-    duration_mins: 30,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 4, physical: 1, social: 1, creative: 5 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Medium", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Build Startup", "Reading/Writing"],
-    weather_restricted: false,
-    defaultWhyToday: "Writing forces cognitive structure, clarifying thoughts and training focus.",
-    defaultWhyRelevant: "Developing a creation habit shifts your balance from screen consumption to constructive output.",
-    defaultHowTo: "Open a clean document. Set a 20-minute timer. Write continuously without editing or checking details."
-  },
-  {
-    id: "kb_creat_build",
-    text: "Spend 45 minutes coding or designing a personal side project.",
-    category: "Creative",
-    difficulty: 4,
-    friction: 5,
-    impact: 7,
-    minimum_readiness: 5,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 0,
-    repeat_interval: 2,
-    duration_mins: 45,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 5, physical: 1, social: 1, creative: 5 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "High", social_friction: "Low", recovery_cost: "Medium" },
-    applicable_goals: ["Build Startup"],
-    weather_restricted: false,
-    defaultWhyToday: "Building feeds curiosity and builds technical agency outside your daily corporate role.",
-    defaultWhyRelevant: "Taking action on your startup vision builds momentum towards career independence.",
-    defaultHowTo: "Define one small feature (e.g. one API route or UI block). Build only that feature without distractions."
-  },
-  {
-    id: "kb_joy_read",
-    text: "Read 15 pages of a fiction or biography book.",
-    category: "Joy",
-    difficulty: 1,
-    friction: 2,
-    impact: 5,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: true,
-    cost_score: 0,
-    repeat_interval: 1,
-    duration_mins: 20,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 2, physical: 1, social: 1, creative: 2 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Sleep Better", "Reduce Burnout", "Reading"],
-    weather_restricted: false,
-    defaultWhyToday: "Reading narrative fiction lowers heart rate and provides healthy cognitive escapism.",
-    defaultWhyRelevant: "This serves as a high-quality alternative to screen time, settling your brain before rest.",
-    defaultHowTo: "Find a quiet corner. Set your phone to Do Not Disturb. Read 15 pages of your current physical book."
-  },
-  {
-    id: "kb_joy_movie",
-    text: "Watch a classic, high-rating movie without checking your phone.",
-    category: "Joy",
-    difficulty: 1,
-    friction: 2,
-    impact: 5,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 1, // cheap
-    repeat_interval: 4,
-    duration_mins: 120,
-    applicable_days: ["Friday", "Saturday", "Sunday"],
-    applicable_times: ["Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 1, physical: 1, social: 2, creative: 1 },
-    financial_cost: "cheap",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Reduce Burnout"],
-    weather_restricted: false,
-    defaultWhyToday: "Engaging in structured, high-quality storytelling restores emotional energy.",
-    defaultWhyRelevant: "Learning to enjoy leisure guilt-free is key to escaping professional burnout cycles.",
-    defaultHowTo: "Pick a movie. Put your phone in another room. Let yourself fully sink into the film."
-  },
-  {
-    id: "kb_learn_podcast",
-    text: "Listen to a 20-minute educational podcast.",
-    category: "Learning",
-    difficulty: 2,
-    friction: 1,
-    impact: 5,
-    minimum_readiness: 1,
-    maximum_readiness: 10,
-    commute_friendly: true,
-    cost_score: 0,
-    repeat_interval: 1,
-    duration_mins: 20,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening", "Night"],
-    requires_day_off: false,
-    energy_cost: { mental: 3, physical: 1, social: 1, creative: 2 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Build Startup", "Language/Learning"],
-    weather_restricted: false,
-    defaultWhyToday: "Audio learning utilizes passive time (like commuting or cooking) for active mental enrichment.",
-    defaultWhyRelevant: "Absorbing insights from fields like design or psychology feeds your professional curiosity.",
-    defaultHowTo: "Listen to an episode on Spotify or Apple Podcasts while doing chores or light stretches."
-  },
-  {
-    id: "kb_adv_local_park",
-    text: "Explore a nearby local park or biodiversity trail.",
-    category: "Adventure",
-    difficulty: 2,
-    friction: 4,
-    impact: 6,
-    minimum_readiness: 3,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 0,
-    repeat_interval: 3,
-    duration_mins: 40,
-    applicable_days: ["Saturday", "Sunday"],
-    applicable_times: ["Morning", "Afternoon"],
-    requires_day_off: false,
-    energy_cost: { mental: 1, physical: 3, social: 1, creative: 2 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Medium", social_friction: "Low", recovery_cost: "Low" },
-    applicable_goals: ["Reduce Burnout", "Lose Fat"],
-    weather_restricted: true,
-    defaultWhyToday: "Time spent in natural green spaces resets attention pathways and lowers stress markers.",
-    defaultWhyRelevant: "Relocating or exploring local outdoor spaces breaks routine and expands your reality.",
-    defaultHowTo: "Check the local database for a park. Spend 30 minutes walking, observing trees, and listening to sounds."
-  },
-  {
-    id: "kb_adv_bookstore",
-    text: "Visit a local bookstore and browse the shelves silently.",
-    category: "Adventure",
-    difficulty: 2,
-    friction: 4,
-    impact: 6,
-    minimum_readiness: 2,
-    maximum_readiness: 10,
-    commute_friendly: false,
-    cost_score: 1, // cheap
-    repeat_interval: 5,
-    duration_mins: 45,
-    applicable_days: ["Friday", "Saturday", "Sunday"],
-    applicable_times: ["Afternoon", "Evening"],
-    requires_day_off: false,
-    energy_cost: { mental: 2, physical: 2, social: 2, creative: 3 },
-    financial_cost: "cheap",
-    restricted_values: [],
-    intensities: { emotional: "Low", social_friction: "Medium", recovery_cost: "Low" },
-    applicable_goals: ["Reduce Burnout", "Reading"],
-    weather_restricted: false,
-    defaultWhyToday: "Physical bookstores trigger curiosity through tactile browsing and quiet spaces.",
-    defaultWhyRelevant: "This gets you out of the house into an offline learning environment without high social demands.",
-    defaultHowTo: "Go to a local bookstore. Browse sections you don't normally read. Pick up one book that intrigues you."
-  },
-  {
-    id: "kb_contrib_mentor",
-    text: "Write a message offering help or mentorship to a junior colleague.",
-    category: "Contribution",
-    difficulty: 2,
-    friction: 3,
-    impact: 6,
-    minimum_readiness: 3,
-    maximum_readiness: 10,
-    commute_friendly: true,
-    cost_score: 0,
-    repeat_interval: 5,
-    duration_mins: 15,
-    applicable_days: [],
-    applicable_times: ["Morning", "Afternoon", "Evening"],
-    requires_day_off: false,
-    energy_cost: { mental: 3, physical: 1, social: 3, creative: 2 },
-    financial_cost: "free",
-    restricted_values: [],
-    intensities: { emotional: "Medium", social_friction: "High", recovery_cost: "Low" },
-    applicable_goals: ["Build Startup", "Career Growth"],
-    weather_restricted: false,
-    defaultWhyToday: "Altruistic actions stimulate dopamine release and provide a strong sense of purpose.",
-    defaultWhyRelevant: "Investing in others builds positive circles, reinforcing your professional leadership.",
-    defaultHowTo: "Send a message on LinkedIn or Slack to a junior peer offering a 15-minute call to answer questions."
-  }
-];
+import fs from 'fs';
+import path from 'path';
+
+// Load and normalize task library dynamically
+let tasksLibrary = [];
+try {
+  const libraryPath = path.join(process.cwd(), 'data', 'tasks_library.json');
+  const rawLib = JSON.parse(fs.readFileSync(libraryPath, 'utf8'));
+  tasksLibrary = rawLib.map(t => {
+    // Map friction_score -> friction, impact_score -> impact
+    return {
+      ...t,
+      friction: t.friction_score !== undefined ? t.friction_score : t.friction,
+      impact: t.impact_score !== undefined ? t.impact_score : t.impact,
+      // Provide defaults for missing engine fields
+      minimum_readiness: t.minimum_readiness !== undefined ? t.minimum_readiness : (t.difficulty ? Math.max(1, t.difficulty - 1) : 1),
+      maximum_readiness: t.maximum_readiness !== undefined ? t.maximum_readiness : 10,
+      cost_score: t.cost_score !== undefined ? t.cost_score : 0,
+      restricted_values: t.restricted_values || [],
+      weather_restricted: t.weather_restricted !== undefined ? t.weather_restricted : false,
+      requires_day_off: t.requires_day_off !== undefined ? t.requires_day_off : false,
+      applicable_days: t.applicable_days || [],
+      applicable_times: t.applicable_times || ["Morning", "Afternoon", "Evening", "Night"],
+      repeat_interval: t.repeat_interval !== undefined ? t.repeat_interval : 1
+    };
+  });
+} catch (error) {
+  console.error('Failed to read tasks library, using fallback empty list:', error);
+}
+
+export const INTERVENTIONS_KB = tasksLibrary;
 
 // --- 2. Local Places Database ---
 export const LOCAL_PLACES_DB = [
   // Gurgaon
-  { city: "Gurgaon", name: "Tau Devi Lal Biodiversity Park", category: "Adventure", cost: "free", weather_restricted: true },
-  { city: "Gurgaon", name: "Quill and Canvas Bookstore", category: "Adventure", cost: "cheap", weather_restricted: false },
-  { city: "Gurgaon", name: "Blue Tokai Café at Galleria", category: "Social", cost: "cheap", weather_restricted: false },
-  { city: "Gurgaon", name: "Leisure Valley Park", category: "Adventure", cost: "free", weather_restricted: true },
+  { city: "Gurgaon", name: "Aravali Biodiversity Park walk", category: "Adventure", cost: "free", weather_restricted: true },
+  { city: "Gurgaon", name: "Tau Devi Lal Park jog", category: "Adventure", cost: "free", weather_restricted: true },
+  { city: "Gurgaon", name: "Leisure Valley Park stroll", category: "Adventure", cost: "free", weather_restricted: true },
+  { city: "Gurgaon", name: "Bahrisons Booksellers Galleria", category: "Adventure", cost: "cheap", weather_restricted: false },
+  { city: "Gurgaon", name: "Quill and Canvas Bookstore South Point Mall", category: "Adventure", cost: "cheap", weather_restricted: false },
 
-  // Bengaluru
-  { city: "Bengaluru", name: "Cubbon Park Walk", category: "Adventure", cost: "free", weather_restricted: true },
-  { city: "Bengaluru", name: "Blossom Book House on Church Street", category: "Adventure", cost: "cheap", weather_restricted: false },
-  { city: "Bengaluru", name: "Lalbagh Botanical Garden", category: "Adventure", cost: "free", weather_restricted: true },
-  { city: "Bengaluru", name: "Third Wave Coffee Indiranagar", category: "Social", cost: "cheap", weather_restricted: false },
+  // Bangalore
+  { city: "Bangalore", name: "Cubbon Park nature walk", category: "Adventure", cost: "free", weather_restricted: true },
+  { city: "Bangalore", name: "Lalbagh Botanical Garden walk", category: "Adventure", cost: "cheap", weather_restricted: true },
+  { city: "Bangalore", name: "Blossom Book House Church Street", category: "Adventure", cost: "cheap", weather_restricted: false },
+  { city: "Bangalore", name: "Bookworm Church Street", category: "Adventure", cost: "cheap", weather_restricted: false },
 
   // Ballia
   { city: "Ballia", name: "Surha Taal Lake walk", category: "Adventure", cost: "free", weather_restricted: true },
@@ -836,14 +241,14 @@ export function generateExplanationTag(task, context, db) {
     }
   }
 
-  if (stress >= 7 && (task.category === "Recovery" || task.category === "Joy")) {
+  if (stress >= 7 && (task.category === "Recovery" || task.category === "Joy" || task.category === "Spiritual")) {
     if (isStressClimbing) {
       return "Because your stress has been climbing for three days.";
     }
     return "Because your stress is currently high and we need to calm your nervous system.";
   }
 
-  if (sleepHours < 6.5 && (task.category === "Recovery" || task.category === "Joy")) {
+  if (sleepHours < 6.5 && (task.category === "Recovery" || task.category === "Joy" || task.category === "Spiritual")) {
     return "Because protecting your sleep is the highest leverage recovery today.";
   }
 
@@ -912,8 +317,8 @@ export function scoreCandidates(candidates, context, profile, db, readiness) {
     // Compute Probability
     let finalProb = Math.min(0.98, Math.max(0.05, baseProb * preferenceScore * noveltyScore));
 
-    // 4. Expected Value (Impact * Probability)
-    const ev = task.impact * finalProb;
+    // 4. Expected Value (Impact * Probability * momentum_multiplier)
+    const ev = task.impact * finalProb * (task.momentum_multiplier || 1.0);
 
     return {
       task,
@@ -935,8 +340,30 @@ export function simulateAndChooseDaySet(scoredCandidates, context, count) {
     };
   }
 
-  // Pick top N candidates
-  const selectedSet = sorted.slice(0, count).map(s => s.task);
+  // Pick top N candidates with category diversity constraint: no more than 2 tasks from the same category
+  const selectedSet = [];
+  const categoryCounts = {};
+
+  for (const candidate of sorted) {
+    if (selectedSet.length >= count) break;
+    const cat = candidate.task.category || "Uncategorized";
+    const currentCount = categoryCounts[cat] || 0;
+    if (currentCount < 2) {
+      selectedSet.push(candidate.task);
+      categoryCounts[cat] = currentCount + 1;
+    }
+  }
+
+  // Fallback to top remaining regardless of category if selectedSet count is insufficient
+  if (selectedSet.length < count) {
+    const selectedIds = selectedSet.map(s => s.id);
+    for (const candidate of sorted) {
+      if (selectedSet.length >= count) break;
+      if (!selectedIds.includes(candidate.task.id)) {
+        selectedSet.push(candidate.task);
+      }
+    }
+  }
   
   // Pick 2 backups from remaining candidates
   const selectedIds = selectedSet.map(s => s.id);
@@ -1056,7 +483,7 @@ export function getRecommendedInterventions(profile, context, history, db) {
     count = 3; // Force fewer recommendations
     // Filter candidates strictly for low friction recovery / joy tasks
     candidates = generateCandidates(db, context, coreValues, stage, readiness).filter(t => 
-      t.friction <= 3 && (t.category === "Recovery" || t.category === "Joy")
+      t.friction <= 3 && (t.category === "Recovery" || t.category === "Joy" || t.category === "Spiritual")
     );
     scored = scoreCandidates(candidates, context, profile, db, readiness);
     result = simulateAndChooseDaySet(scored, context, count);
@@ -1107,8 +534,8 @@ export function getRecommendedInterventions(profile, context, history, db) {
 
 export function calculateCategoryGaps(db) {
   const categories = [
-    "Exercise", "Learning", "Recovery", "Entertainment", "Travel", 
-    "Nature", "Food", "Relationships", "Work", "Parenting", "Spiritual", "Creation", "Adventure"
+    "Breathwork", "Movement", "Mindset", "Journaling", "Manifestation",
+    "Learning", "Sensory/Experiential", "Social", "Recovery", "Spiritual"
   ];
   const gaps = {};
   const now = new Date();

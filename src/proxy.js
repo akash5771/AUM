@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-export function proxy(request) {
+export default function proxy(request) {
   // Let the request continue and prepare response
   const response = NextResponse.next();
   
