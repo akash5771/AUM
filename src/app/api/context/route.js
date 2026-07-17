@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB, getDbCurrentTime, updateContext, updateRealtimeMomentum } from '@/services/db';
 import { triggerCompanionComment, parseCheckinStoryService } from '@/services/groq';
+import { isPeriodUnlocked } from '@/services/recommendations';
 
 export async function GET() {
   try {
@@ -90,6 +91,57 @@ export async function POST(request) {
         state: newMoodState,
         energy: avgEnergy
       };
+
+      // Generate a dynamic recovery task
+      try {
+        const { generateSingleContextualAction } = await import('@/services/groq');
+        const locationType = "Home";
+        const currentAssumedLocation = `${locationType}`;
+        const newAction = await generateSingleContextualAction(freshDb, currentAssumedLocation);
+        
+        // Find if we have a locked task to replace, or if we can just push it
+        const latestDb = await readDB();
+        const lockedTaskIndex = latestDb.actions.findIndex(a => 
+          a.status === 'todo' && 
+          a.scheduled_time && 
+          !isPeriodUnlocked(a.scheduled_time, timeOfDay)
+        );
+        
+        if (lockedTaskIndex !== -1) {
+          latestDb.actions[lockedTaskIndex] = {
+            ...latestDb.actions[lockedTaskIndex],
+            text: newAction.text,
+            category: newAction.category,
+            difficulty: newAction.difficulty,
+            whyToday: `Anxious Moment: ${newAction.whyToday} (Triggered by your logged stress/energy state)`,
+            whyRelevant: newAction.whyRelevant,
+            howTo: newAction.howTo,
+            scheduled_time: timeOfDay, // Unlock immediately!
+            locked: false
+          };
+        } else {
+          const uniqueId = `task-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+          latestDb.actions.push({
+            ...newAction,
+            id: uniqueId,
+            status: 'todo',
+            scheduled_time: timeOfDay,
+            locked: false
+          });
+          latestDb.profile.total_actions_generated = (latestDb.profile.total_actions_generated || 0) + 1;
+        }
+        
+        // Add chat message announcing it
+        latestDb.chat_history.push({
+          sender: "AUM",
+          text: `🚨 Akash, I noticed your stress is at ${newMoodRating}/10 (${newMoodState}) and average energy is low. I've unlocked a recovery task for you: "${newAction.text}". Let's take a break to restore your energy buffer.`,
+          timestamp: now.toISOString()
+        });
+        
+        await writeDB(latestDb);
+      } catch (err) {
+        console.error("Failed to generate dynamic stress task:", err);
+      }
     }
 
     if (shouldTriggerComment) {

@@ -1,7 +1,398 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
+import statements from '@/data/statements.json';
+
+
+const ChatInput = memo(({ companionName, onSendMessage, onPhotoUpload, isSendingChat }) => {
+  const [inputValue, setInputValue] = useState('');
+  const fileInputRef = useRef(null);
+
+  const handleSend = () => {
+    if (!inputValue.trim() || isSendingChat) return;
+    onSendMessage(inputValue);
+    setInputValue('');
+  };
+
+  return (
+    <div style={styles.feedInputPanel}>
+      <div className="flex gap-2" style={{ width: '100%', alignItems: 'center' }}>
+        <button onClick={() => fileInputRef.current?.click()} style={styles.attachBtn}>📷</button>
+        <input type="file" ref={fileInputRef} onChange={onPhotoUpload} accept="image/*" style={{ display: 'none' }} />
+        
+        <input 
+          type="text" 
+          placeholder={`Message ${companionName}...`}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+          style={styles.chatInput}
+        />
+        <button
+          onClick={handleSend}
+          disabled={!inputValue.trim() || isSendingChat}
+          style={{
+            ...styles.sendBtn,
+            opacity: (!inputValue.trim() || isSendingChat) ? 0.4 : 1
+          }}
+        >▶</button>
+      </div>
+    </div>
+  );
+});
+ChatInput.displayName = 'ChatInput';
+
+const ChecklistSection = memo(({
+  actions,
+  showMoves,
+  expandedActionId,
+  onToggleShowMoves,
+  onToggleAction,
+  onRateAction,
+  onSetExpandedActionId
+}) => {
+  if (actions.length === 0) return null;
+  return (
+    <div style={styles.pinnedMovesContainer}>
+      <div 
+        style={{ ...styles.movesCardHeader, cursor: 'pointer', userSelect: 'none' }} 
+        onClick={onToggleShowMoves}
+      >
+        <div className="flex align-center gap-2">
+          <h3 style={styles.movesCardTitle}>Today's Moves</h3>
+          <span style={styles.movesCountBadge}>
+            {actions.filter(a => a.status === 'done').length} / {actions.length} Done
+          </span>
+        </div>
+        <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>{showMoves ? '▲ Collapse' : '▼ Expand'}</span>
+      </div>
+      {showMoves && (
+        <div style={styles.movesList}>
+          {actions.map((act) => {
+            const isExpanded = expandedActionId === act.id;
+            const isDone = act.status === 'done';
+            const isSkipped = act.status === 'skipped';
+
+            return (
+              <div 
+                key={act.id} 
+                style={{
+                  ...styles.moveItemRow,
+                  border: isDone ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.06)',
+                  background: isDone ? 'rgba(16, 185, 129, 0.02)' : 'rgba(255,255,255,0.01)'
+                }}
+                onClick={() => onSetExpandedActionId(isExpanded ? null : act.id)}
+              >
+                <div style={styles.moveItemHeader}>
+                  <div style={{ flex: 1 }}>
+                    <span style={styles.moveCatBadge}>{act.category}</span>
+                    <h4 style={{
+                      ...styles.moveTextTitle,
+                      textDecoration: isDone ? 'line-through' : 'none',
+                      color: isDone ? '#9ca3af' : '#fff'
+                    }}>{act.text}</h4>
+                    {act.whyToday && (
+                      <p style={styles.moveExplanationWhy}>➔ {act.whyToday}</p>
+                    )}
+                  </div>
+                  <div style={styles.moveControls} onClick={(e) => e.stopPropagation()}>
+                    {isDone ? (
+                      <div style={styles.starRow}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button key={star} onClick={() => onRateAction(act.id, star)} style={{...styles.starBtn, color: (act.rating || 4) >= star ? '#fbbf24' : 'rgba(255,255,255,0.2)'}}>★</button>
+                        ))}
+                        <button onClick={() => onToggleAction(act.id, 'done')} style={styles.resetTaskBtn}>✕</button>
+                      </div>
+                    ) : isSkipped ? (
+                      <div style={styles.skippedState}>
+                        <span style={styles.skippedText}>Ignored</span>
+                        <button onClick={() => onToggleAction(act.id, 'skipped')} style={styles.resetTaskBtn}>↺ Reset</button>
+                      </div>
+                    ) : (
+                      <div style={styles.todoControls}>
+                        <button onClick={() => onToggleAction(act.id, 'todo')} style={styles.doneBtn}>✓ Complete</button>
+                        <button onClick={() => onToggleAction(act.id, 'skipped')} style={styles.skipBtn}>✕ Ignore</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+});
+ChecklistSection.displayName = 'ChecklistSection';
+
+const ChatHistorySection = memo(({
+  chatHistory,
+  isSendingChat,
+  activeReactionIdx,
+  onReaction,
+  onSetActiveReactionIdx
+}) => {
+  const longPressTimer = useRef(null);
+  const list = [];
+  let lastMonthYear = "";
+  const REACTIONS = ['👍', '❤️', '👏', '🌱'];
+
+  chatHistory.forEach((bubble, idx) => {
+    if (bubble.timestamp) {
+      const d = new Date(bubble.timestamp);
+      const monthYear = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+      
+      if (monthYear !== lastMonthYear) {
+        lastMonthYear = monthYear;
+        list.push(
+          <div key={`month-${monthYear}`} style={styles.monthHeader}>
+            <span style={styles.monthHeaderSpan}>{monthYear}</span>
+          </div>
+        );
+      }
+    }
+
+    if (bubble.type === 'activity_completion') {
+      list.push(
+        <div key={`sys-${idx}`} style={styles.systemLogMessage}>
+          <span style={styles.systemLogSpan}>{bubble.text}</span>
+        </div>
+      );
+    } else if (bubble.type === 'activity_rejection') {
+      list.push(
+        <div key={`sys-${idx}`} style={styles.systemLogMessage}>
+          <span style={{ ...styles.systemLogSpan, color: '#f59e0b', background: 'rgba(245,158,11,0.05)', borderColor: 'rgba(245,158,11,0.1)' }}>{bubble.text}</span>
+        </div>
+      );
+    } else {
+      const isUser = bubble.sender === 'User';
+      const timeStr = bubble.timestamp
+        ? new Date(bubble.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()
+        : '';
+      const isReactionActive = activeReactionIdx === idx;
+
+      list.push(
+        <div 
+          key={`chat-${idx}`} 
+          style={{
+            ...styles.bubbleWrapper,
+            justifyContent: isUser ? 'flex-end' : 'flex-start',
+            position: 'relative'
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start', maxWidth: '78%', position: 'relative' }}>
+            
+            {/* Reaction strip — shown on hover/long-press for AUM messages */}
+            {!isUser && isReactionActive && (
+              <div style={styles.reactionStrip}>
+                {REACTIONS.map(emoji => (
+                  <button
+                    key={emoji}
+                    style={{
+                      ...styles.reactionOption,
+                      transform: bubble.reaction === emoji ? 'scale(1.3)' : 'scale(1)'
+                    }}
+                    onClick={() => onReaction(idx, emoji)}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Main bubble */}
+            <div
+              style={{
+                ...styles.bubble,
+                background: isUser ? 'linear-gradient(135deg, #128c7e 0%, #075e54 100%)' : '#1e2235',
+                border: isUser ? 'none' : '1px solid rgba(255,255,255,0.07)',
+                borderBottomRightRadius: isUser ? '0.15rem' : '0.85rem',
+                borderBottomLeftRadius: isUser ? '0.85rem' : '0.15rem',
+                cursor: !isUser ? 'default' : undefined,
+              }}
+              onMouseEnter={!isUser ? () => onSetActiveReactionIdx(idx) : undefined}
+              onMouseLeave={!isUser ? () => onSetActiveReactionIdx(null) : undefined}
+              onTouchStart={!isUser ? () => { longPressTimer.current = setTimeout(() => onSetActiveReactionIdx(idx), 500); } : undefined}
+              onTouchEnd={!isUser ? () => { clearTimeout(longPressTimer.current); } : undefined}
+            >
+              {bubble.type === 'photo' && bubble.mediaUrl ? (
+                <div style={styles.photoContainer}>
+                  <img src={bubble.mediaUrl} alt="Shared memory" style={styles.photoImg} />
+                  <p style={{ ...styles.bubbleText, marginTop: '0.5rem' }}>{bubble.text}</p>
+                </div>
+              ) : (
+                <span style={styles.bubbleText}>{bubble.text}</span>
+              )}
+            </div>
+
+            {/* Timestamp + reaction pill row */}
+            <div style={styles.bubbleMeta}>
+              {bubble.reaction && (
+                <span
+                  style={styles.reactionPill}
+                  onClick={() => !isUser && onReaction(idx, bubble.reaction)}
+                  title="Click to remove"
+                >
+                  {bubble.reaction}
+                </span>
+              )}
+              <span style={styles.timestampText}>{timeStr}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  });
+
+  if (isSendingChat) {
+    list.push(
+      <div 
+        key="typing-indicator-bubble" 
+        style={{
+          ...styles.bubbleWrapper,
+          justifyContent: 'flex-start'
+        }}
+      >
+        <div style={{
+          ...styles.bubble,
+          background: '#1e2235',
+          border: '1px solid rgba(255,255,255,0.07)',
+          borderBottomRightRadius: '0.85rem',
+          borderBottomLeftRadius: '0.15rem',
+        }}>
+          <div className="typing-indicator" style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '16px', padding: '4px 2px' }}>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{list}</>;
+});
+ChatHistorySection.displayName = 'ChatHistorySection';
+
+// Safely resolve imported statements with robust fallback array
+const getActiveStatements = () => {
+  const fallback = [
+    "The world doesn't have a fitness or productivity problem; it has a consistency problem.",
+    "Small disruptions compound into major life drift. Interrupt the cycle before it becomes permanent.",
+    "AUM helps you recover your momentum before you drift too far from the life you want to build.",
+    "The goal of AUM is not maximum productivity; it is sustained momentum.",
+    "Progress is not measured by perfection. It is measured by the ability to return.",
+    "Momentum is life's most valuable asset. It is easier to lose than motivation, but compounds faster than discipline.",
+    "Momentum creates identity. Evolve your identity through small, daily, consistent choices.",
+    "You do not fail because you lack discipline; you fail because life becomes too complex to execute good decisions.",
+    "During burnout, we protect momentum. During consistency, we expand it. During high performance, we challenge it.",
+    "We track not only actions, but identity evolution. Evolve from surviving life to intentionally shaping it.",
+    "Return after a missed workout, after emotional eating, after burnout. Learn to return, always."
+  ];
+
+  if (!statements) return fallback;
+
+  if (Array.isArray(statements)) {
+    return statements.length > 0 ? statements : fallback;
+  }
+
+  // Handle case where statements is imported as module with default export
+  if (statements.default && Array.isArray(statements.default)) {
+    return statements.default.length > 0 ? statements.default : fallback;
+  }
+
+  return fallback;
+};
+
+const InspirationBanner = memo(() => {
+  const [statement, setStatement] = useState('');
+  const [isFading, setIsFading] = useState(false);
+  const [isClicking, setIsClicking] = useState(false);
+
+  const rotateStatement = useCallback(() => {
+    setIsFading(true);
+    setTimeout(() => {
+      setStatement(prev => {
+        const activeList = getActiveStatements();
+        const filtered = activeList.filter(s => s !== prev);
+        if (filtered.length === 0) return prev;
+        return filtered[Math.floor(Math.random() * filtered.length)];
+      });
+      setIsFading(false);
+    }, 400); // Wait for fade out
+  }, []);
+
+  // Initialize statement on mount
+  useEffect(() => {
+    try {
+      const activeList = getActiveStatements();
+      console.log('Hydration check - loaded statements count:', activeList.length);
+      if (activeList.length > 0) {
+        const initial = activeList[Math.floor(Math.random() * activeList.length)];
+        setStatement(initial);
+      }
+    } catch (err) {
+      console.error('Error initializing InspirationBanner statement:', err);
+    }
+  }, []);
+
+  // Rotate every 4 minutes (240000ms)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      rotateStatement();
+    }, 240000);
+    return () => clearInterval(interval);
+  }, [rotateStatement]);
+
+  const handleClick = () => {
+    if (isClicking) return;
+    setIsClicking(true);
+    rotateStatement();
+    setTimeout(() => {
+      setIsClicking(false);
+    }, 600); // Click animation duration
+  };
+
+  if (!statement) return null;
+
+  return (
+    <>
+      <style>{`
+        @keyframes bannerPulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(0.97) rotate(-0.5deg); }
+          100% { transform: scale(1); }
+        }
+        .banner-click-animate {
+          animation: bannerPulse 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+      `}</style>
+      <div 
+        onClick={handleClick}
+        className={isClicking ? 'banner-click-animate' : ''}
+        style={{
+          ...styles.bannerContainer,
+          opacity: isFading ? 0.3 : 1,
+          transition: 'opacity 0.4s ease-in-out'
+        }}
+      >
+        <div style={styles.bannerGlow}></div>
+        <div style={styles.bannerContent}>
+          <span style={styles.bannerIcon}>✨</span>
+          <p style={styles.bannerText}>"{statement}"</p>
+        </div>
+      </div>
+    </>
+  );
+});
+InspirationBanner.displayName = 'InspirationBanner';
 
 export default function ChatPage() {
   const router = useRouter();
@@ -15,13 +406,10 @@ export default function ChatPage() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [expandedActionId, setExpandedActionId] = useState(null);
   const [showMoves, setShowMoves] = useState(true);
-  const [chatInput, setChatInput] = useState('');
   const [activeReactionIdx, setActiveReactionIdx] = useState(null);
 
   // Refs
   const chatScrollRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const longPressTimer = useRef(null);
 
   // Fetch initial profile, actions & chat history
   useEffect(() => {
@@ -79,8 +467,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleSendChatMessage = async (textOverride) => {
-    const text = textOverride || chatInput;
+  const handleSendChatMessage = useCallback(async (text) => {
     if (!text.trim() || isSendingChat) return;
 
     setIsSendingChat(true);
@@ -95,7 +482,6 @@ export default function ChatPage() {
       });
       
       if (!res.ok) throw new Error("API call failed");
-      if (!textOverride) setChatInput('');
 
       // Append an empty companion bubble that we will stream text into
       setChatHistory(prev => [...prev, { sender: 'AUM', text: '', timestamp: new Date().toISOString() }]);
@@ -137,9 +523,9 @@ export default function ChatPage() {
     } finally {
       setIsSendingChat(false);
     }
-  };
+  }, [isSendingChat]);
 
-  const handlePhotoUpload = async (e) => {
+  const handlePhotoUpload = useCallback(async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -177,9 +563,9 @@ export default function ChatPage() {
     } finally {
       setIsUploadingPhoto(false);
     }
-  };
+  }, []);
 
-  const handleToggleAction = async (actionId, currentStatus) => {
+  const handleToggleAction = useCallback(async (actionId, currentStatus) => {
     let nextStatus = 'todo';
     if (currentStatus === 'todo') {
       nextStatus = 'done';
@@ -195,13 +581,15 @@ export default function ChatPage() {
       });
       const data = await res.json();
       setActions(data.actions || []);
-      setChatHistory(data.chat_history || chatHistory);
+      if (data.chat_history) {
+        setChatHistory(data.chat_history);
+      }
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
 
-  const handleRateAction = async (actionId, rating) => {
+  const handleRateAction = useCallback(async (actionId, rating) => {
     try {
       const res = await fetch('/api/actions/toggle', {
         method: 'POST',
@@ -213,9 +601,9 @@ export default function ChatPage() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
 
-  const handleReaction = async (messageIndex, emoji) => {
+  const handleReaction = useCallback(async (messageIndex, emoji) => {
     // Optimistically update local state
     setChatHistory(prev => {
       const updated = [...prev];
@@ -238,149 +626,19 @@ export default function ChatPage() {
     } catch (e) {
       console.error('Failed to save reaction:', e);
     }
-  };
+  }, []);
 
+  const handleToggleShowMoves = useCallback(() => {
+    setShowMoves(prev => !prev);
+  }, []);
 
-  const renderChatHistoryWithMonthDividers = () => {
-    const list = [];
-    let lastMonthYear = "";
-    const REACTIONS = ['👍', '❤️', '👏', '🌱'];
+  const handleSetExpandedActionId = useCallback((id) => {
+    setExpandedActionId(id);
+  }, []);
 
-    chatHistory.forEach((bubble, idx) => {
-      if (bubble.timestamp) {
-        const d = new Date(bubble.timestamp);
-        const monthYear = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-        
-        if (monthYear !== lastMonthYear) {
-          lastMonthYear = monthYear;
-          list.push(
-            <div key={`month-${monthYear}`} style={styles.monthHeader}>
-              <span style={styles.monthHeaderSpan}>{monthYear}</span>
-            </div>
-          );
-        }
-      }
-
-      if (bubble.type === 'activity_completion') {
-        list.push(
-          <div key={`sys-${idx}`} style={styles.systemLogMessage}>
-            <span style={styles.systemLogSpan}>{bubble.text}</span>
-          </div>
-        );
-      } else if (bubble.type === 'activity_rejection') {
-        list.push(
-          <div key={`sys-${idx}`} style={styles.systemLogMessage}>
-            <span style={{ ...styles.systemLogSpan, color: '#f59e0b', background: 'rgba(245,158,11,0.05)', borderColor: 'rgba(245,158,11,0.1)' }}>{bubble.text}</span>
-          </div>
-        );
-      } else {
-        const isUser = bubble.sender === 'User';
-        const timeStr = bubble.timestamp
-          ? new Date(bubble.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase()
-          : '';
-        const isReactionActive = activeReactionIdx === idx;
-
-        list.push(
-          <div 
-            key={`chat-${idx}`} 
-            style={{
-              ...styles.bubbleWrapper,
-              justifyContent: isUser ? 'flex-end' : 'flex-start',
-              position: 'relative'
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start', maxWidth: '78%', position: 'relative' }}>
-              
-              {/* Reaction strip — shown on hover/long-press for AUM messages */}
-              {!isUser && isReactionActive && (
-                <div style={styles.reactionStrip}>
-                  {REACTIONS.map(emoji => (
-                    <button
-                      key={emoji}
-                      style={{
-                        ...styles.reactionOption,
-                        transform: bubble.reaction === emoji ? 'scale(1.3)' : 'scale(1)'
-                      }}
-                      onClick={() => handleReaction(idx, emoji)}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Main bubble */}
-              <div
-                style={{
-                  ...styles.bubble,
-                  background: isUser ? 'linear-gradient(135deg, #128c7e 0%, #075e54 100%)' : '#1e2235',
-                  border: isUser ? 'none' : '1px solid rgba(255,255,255,0.07)',
-                  borderBottomRightRadius: isUser ? '0.15rem' : '0.85rem',
-                  borderBottomLeftRadius: isUser ? '0.85rem' : '0.15rem',
-                  cursor: !isUser ? 'default' : undefined,
-                }}
-                onMouseEnter={!isUser ? () => setActiveReactionIdx(idx) : undefined}
-                onMouseLeave={!isUser ? () => setActiveReactionIdx(null) : undefined}
-                onTouchStart={!isUser ? () => { longPressTimer.current = setTimeout(() => setActiveReactionIdx(idx), 500); } : undefined}
-                onTouchEnd={!isUser ? () => { clearTimeout(longPressTimer.current); } : undefined}
-              >
-                {bubble.type === 'photo' && bubble.mediaUrl ? (
-                  <div style={styles.photoContainer}>
-                    <img src={bubble.mediaUrl} alt="Shared memory" style={styles.photoImg} />
-                    <p style={{ ...styles.bubbleText, marginTop: '0.5rem' }}>{bubble.text}</p>
-                  </div>
-                ) : (
-                  <span style={styles.bubbleText}>{bubble.text}</span>
-                )}
-              </div>
-
-              {/* Timestamp + reaction pill row */}
-              <div style={styles.bubbleMeta}>
-                {bubble.reaction && (
-                  <span
-                    style={styles.reactionPill}
-                    onClick={() => !isUser && handleReaction(idx, bubble.reaction)}
-                    title="Click to remove"
-                  >
-                    {bubble.reaction}
-                  </span>
-                )}
-                <span style={styles.timestampText}>{timeStr}</span>
-              </div>
-            </div>
-          </div>
-        );
-      }
-    });
-
-    if (isSendingChat) {
-      list.push(
-        <div 
-          key="typing-indicator-bubble" 
-          style={{
-            ...styles.bubbleWrapper,
-            justifyContent: 'flex-start'
-          }}
-        >
-          <div style={{
-            ...styles.bubble,
-            background: '#1e2235',
-            border: '1px solid rgba(255,255,255,0.07)',
-            borderBottomRightRadius: '0.85rem',
-            borderBottomLeftRadius: '0.15rem',
-          }}>
-            <div className="typing-indicator" style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '16px', padding: '4px 2px' }}>
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    return list;
-  };
+  const handleSetActiveReactionIdx = useCallback((idx) => {
+    setActiveReactionIdx(idx);
+  }, []);
 
   if (!profile) {
     return (
@@ -413,76 +671,19 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Interactive Checklist (Today's Moves) pinned at the top */}
-        {actions.length > 0 && (
-          <div style={styles.pinnedMovesContainer}>
-            <div 
-              style={{ ...styles.movesCardHeader, cursor: 'pointer', userSelect: 'none' }} 
-              onClick={() => setShowMoves(!showMoves)}
-            >
-              <div className="flex align-center gap-2">
-                <h3 style={styles.movesCardTitle}>Today's Moves</h3>
-                <span style={styles.movesCountBadge}>{actions.filter(a => a.status === 'done').length} / {actions.length} Done</span>
-              </div>
-              <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>{showMoves ? '▲ Collapse' : '▼ Expand'}</span>
-            </div>
-            {showMoves && (
-              <div style={styles.movesList}>
-                {actions.map((act) => {
-                  const isExpanded = expandedActionId === act.id;
-                  const isDone = act.status === 'done';
-                  const isSkipped = act.status === 'skipped';
+        {/* Rotating Inspiring Statement Banner */}
+        <InspirationBanner />
 
-                  return (
-                    <div 
-                      key={act.id} 
-                      style={{
-                        ...styles.moveItemRow,
-                        border: isDone ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.06)',
-                        background: isDone ? 'rgba(16, 185, 129, 0.02)' : 'rgba(255,255,255,0.01)'
-                      }}
-                      onClick={() => setExpandedActionId(isExpanded ? null : act.id)}
-                    >
-                      <div style={styles.moveItemHeader}>
-                        <div style={{ flex: 1 }}>
-                          <span style={styles.moveCatBadge}>{act.category}</span>
-                          <h4 style={{
-                            ...styles.moveTextTitle,
-                            textDecoration: isDone ? 'line-through' : 'none',
-                            color: isDone ? '#9ca3af' : '#fff'
-                          }}>{act.text}</h4>
-                          {act.whyToday && (
-                            <p style={styles.moveExplanationWhy}>➔ {act.whyToday}</p>
-                          )}
-                        </div>
-                        <div style={styles.moveControls} onClick={(e) => e.stopPropagation()}>
-                          {isDone ? (
-                            <div style={styles.starRow}>
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <button key={star} onClick={() => handleRateAction(act.id, star)} style={{...styles.starBtn, color: (act.rating || 4) >= star ? '#fbbf24' : 'rgba(255,255,255,0.2)'}}>★</button>
-                              ))}
-                              <button onClick={() => handleToggleAction(act.id, 'done')} style={styles.resetTaskBtn}>✕</button>
-                            </div>
-                          ) : isSkipped ? (
-                            <div style={styles.skippedState}>
-                              <span style={styles.skippedText}>Ignored</span>
-                              <button onClick={() => handleToggleAction(act.id, 'skipped')} style={styles.resetTaskBtn}>↺ Reset</button>
-                            </div>
-                          ) : (
-                            <div style={styles.todoControls}>
-                              <button onClick={() => handleToggleAction(act.id, 'todo')} style={styles.doneBtn}>✓ Complete</button>
-                              <button onClick={() => handleToggleAction(act.id, 'skipped')} style={styles.skipBtn}>✕ Ignore</button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Interactive Checklist (Today's Moves) pinned at the top */}
+        <ChecklistSection
+          actions={actions}
+          showMoves={showMoves}
+          expandedActionId={expandedActionId}
+          onToggleShowMoves={handleToggleShowMoves}
+          onToggleAction={handleToggleAction}
+          onRateAction={handleRateAction}
+          onSetExpandedActionId={handleSetExpandedActionId}
+        />
 
         {/* Viewport */}
         <div style={styles.feedViewport} ref={chatScrollRef}>
@@ -496,39 +697,23 @@ export default function ChatPage() {
           )}
 
           <div style={styles.feedScrollArea}>
-            {renderChatHistoryWithMonthDividers()}
+            <ChatHistorySection
+              chatHistory={chatHistory}
+              isSendingChat={isSendingChat}
+              activeReactionIdx={activeReactionIdx}
+              onReaction={handleReaction}
+              onSetActiveReactionIdx={handleSetActiveReactionIdx}
+            />
           </div>
         </div>
 
         {/* Input */}
-        <div style={styles.feedInputPanel}>
-          <div className="flex gap-2" style={{ width: '100%', alignItems: 'center' }}>
-            <button onClick={() => fileInputRef.current?.click()} style={styles.attachBtn}>📷</button>
-            <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} accept="image/*" style={{ display: 'none' }} />
-            
-            <input 
-              type="text" 
-              placeholder={`Message ${profile?.companion_name || 'Aarav'}...`}
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendChatMessage();
-                }
-              }}
-              style={styles.chatInput}
-            />
-            <button
-              onClick={() => handleSendChatMessage()}
-              disabled={!chatInput.trim() || isSendingChat}
-              style={{
-                ...styles.sendBtn,
-                opacity: (!chatInput.trim() || isSendingChat) ? 0.4 : 1
-              }}
-            >▶</button>
-          </div>
-        </div>
+        <ChatInput
+          companionName={profile?.companion_name || 'Aarav'}
+          onSendMessage={handleSendChatMessage}
+          onPhotoUpload={handlePhotoUpload}
+          isSendingChat={isSendingChat}
+        />
 
       </div>
     </div>
@@ -723,5 +908,58 @@ const styles = {
   chatInput: { flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '1.5rem', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.9rem', outline: 'none' },
   sendBtn: { background: 'rgba(18, 140, 126, 0.9)', border: 'none', color: '#fff', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'opacity 0.2s' },
   loadingContainer: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#040508' },
-  spinner: { width: '30px', height: '30px', border: '3px solid rgba(255, 255, 255, 0.04)', borderTopColor: '#25d366', borderRadius: '50%', animation: 'spin 1s linear infinite' }
+  spinner: { width: '30px', height: '30px', border: '3px solid rgba(255, 255, 255, 0.04)', borderTopColor: '#25d366', borderRadius: '50%', animation: 'spin 1s linear infinite' },
+  bannerContainer: {
+    position: 'relative',
+    background: 'rgba(15, 18, 28, 0.45)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    borderTop: '1px solid rgba(255, 255, 255, 0.03)',
+    padding: '0.85rem 1.25rem',
+    cursor: 'pointer',
+    userSelect: 'none',
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 4px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+  },
+  bannerGlow: {
+    position: 'absolute',
+    top: '-50%',
+    left: '50%',
+    transform: 'translateX(-55%)',
+    width: '80%',
+    height: '100%',
+    background: 'radial-gradient(ellipse at center, rgba(168, 85, 247, 0.15) 0%, rgba(168, 85, 247, 0) 70%)',
+    pointerEvents: 'none',
+    zIndex: 0,
+  },
+  bannerContent: {
+    position: 'relative',
+    zIndex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.75rem',
+    maxWidth: '100%',
+  },
+  bannerIcon: {
+    fontSize: '1rem',
+    color: '#a855f7',
+    textShadow: '0 0 8px rgba(168, 85, 247, 0.6)',
+    flexShrink: 0,
+  },
+  bannerText: {
+    fontSize: '0.85rem',
+    color: '#e2e8f0',
+    fontWeight: '400',
+    fontStyle: 'italic',
+    lineHeight: '1.4',
+    textAlign: 'center',
+    margin: 0,
+    letterSpacing: '0.015em',
+    textShadow: '0 2px 4px rgba(0,0,0,0.4)',
+  },
 };

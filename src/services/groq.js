@@ -20,6 +20,33 @@ function getApiKey() {
   return getGroqApiKey();
 }
 
+export async function detectChatSignals(userMessage) {
+  const prompt = `You are a sentiment and activity analyzer for a life operating system.
+Analyze the user's message for emotional signals (stress, anxiety, happiness, joy, focus, pride) and activity signals (e.g. working, sitting and writing, procrastinating).
+
+Message: "${userMessage}"
+
+Identify if there is any strong signal (intensity >= 5 on a scale of 1-10).
+Output a raw JSON object with these exact fields:
+{
+  "hasSignal": boolean,
+  "signalType": "stress" | "anxiety" | "joy" | "focus" | "pride" | "happiness" | "writing" | "working" | "procrastinating" | "none",
+  "intensity": number (1 to 10)
+}
+Do not return any markdown format, just the raw JSON.`;
+  try {
+    const res = await queryGemini(prompt, true);
+    return {
+      hasSignal: !!res.hasSignal,
+      signalType: res.signalType || 'none',
+      intensity: parseInt(res.intensity) || 0
+    };
+  } catch (e) {
+    console.error("detectChatSignals failed:", e);
+    return { hasSignal: false, signalType: 'none', intensity: 0 };
+  }
+}
+
 // Helper to fetch with a timeout
 async function fetchWithTimeout(url, options, timeoutMs = 10000) {
   const controller = new AbortController();
@@ -152,7 +179,7 @@ function getLengthInstruction(bucket) {
     return `RESPONSE LENGTH: Short/Reactive. 1–2 sentences max. Ultra-punchy. Peer energy. No warm-up, no filler, no sign-off. Validate the check-in and move on.`;
   }
   if (bucket === 'emotional') {
-    return `RESPONSE LENGTH: Emotional. 3–5 sentences. Lead with acknowledgement — feel what they feel before you say anything else. No immediate advice or reframe unless they ask. This is not the moment to fix, it's the moment to be with them.`;
+    return `RESPONSE LENGTH: Emotional. 3–5 sentences. Speak in a direct, natural, conversational way without formulaic emotional summaries or leading with a recap of their feelings. Offer authentic presence, not scripted empathy.`;
   }
   if (bucket === 'deep') {
     return `RESPONSE LENGTH: Deep/Reflective. 4–7 sentences. Think it through properly. You can use a natural paragraph break. Answer substantively, not cautiously. Don't write short to seem wise — write enough to actually be useful.`;
@@ -594,7 +621,15 @@ async function runBackgroundPersonalization(prompt, fallbackActions) {
 
   try {
     const db = await readDB();
-    const final = actions.map(a => ({ ...a, status: a.status || 'todo', isPersonalized: true }));
+    const final = actions.map((a, idx) => {
+      const times = ["Morning", "Afternoon", "Evening", "Night"];
+      return {
+        ...a,
+        status: a.status || 'todo',
+        isPersonalized: true,
+        scheduled_time: a.scheduled_time || times[idx % times.length]
+      };
+    });
     db.actions = final;
     await writeDB(db);
     console.log('[Actions Personalizer] Personalization complete. DB updated with', final.length, 'personalized actions.');
@@ -889,7 +924,7 @@ export async function generateChatResponseService(userMessage) {
 
 PERSONA & CORE PHILOSOPHY
 - You are a calm, quiet, emotionally intelligent companion focused on "Quiet Presence & Deep Reflection". You are not a coach, a therapist, or a productivity bot.
-- You speak like someone deeply trusted: honest, warm, present, and sometimes quiet.
+- You speak in a direct, observational friend-like manner. Do NOT echo back the user's emotions or summarize/paraphrase their statements (e.g., never say "It sounds like you are..." or "It's like you feel..."). Instead, offer quiet presence or a direct, natural observation.
 - Avoid any form of hype, cheerleading, or toxic productivity.
 
 CORE RULES:
@@ -900,20 +935,25 @@ CORE RULES:
    - "I understand" or "I understand that" or "It's clear that"
    - "I'm sorry to hear that"
    - "I can see that" or "I can hear that"
+   - "Feels like you're" or "It's like you're" or "Piling up"
    - Do not start with their name unless specifically calling them out on something.
 
-2. VARY MESSAGE ENDINGS (DO NOT FORCE QUESTIONS):
+2. VOCABULARY DIVERSITY & CLICHÉ RESTRICTIONS:
+   - Restrict emotional cliché words like "overwhelming", "a lot to handle/process", "holding it together", "piling up", or "take a step back" to when they are explicitly relevant (e.g., only if the user explicitly brings them up or uses them first).
+   - Use diverse, natural, and realistic vocabulary. Do not fall back on pre-scripted coaching terminology.
+
+3. VARY MESSAGE ENDINGS (DO NOT FORCE QUESTIONS):
    - You MUST NOT force a question at the end of every response. This feels artificial and exhausting.
    - Let your messages end naturally with statements, observations, or quiet reflections.
    - Only ask a question if it arises organically from the conversation.
 
-3. THINLY SPREAD ADVICE:
+4. THINLY SPREAD ADVICE:
    - Do not jump to offering advice, tips, or suggestions in your responses.
    - Your primary role is to listen and validate their emotional state.
    - Advise the user ONLY after listening and validating their state across multiple conversation turns, and only when they explicitly signal readiness or ask for a transition/next steps.
    - EXCEPTION: If the user is explicitly begging/asking for help or advice ("how do I come out of it?", "what do I do?", "i feel stuck/overwhelmed", "how to sort this"), gently transition from pure reflection to offering exactly ONE small, micro-level physical/somatic recovery next step (e.g. drinking a glass of water, closing eyes for 2 minutes, stepping outside for fresh air) to help get them out of the mental loop. Softly frame this as an optional, small release valve with zero pressure (e.g., "No pressure to solve everything right now. Maybe just step outside for two minutes first?").
 
-4. SCROLLING/ESCAPISM AS FATIGUE SIGNAL:
+5. SCROLLING/ESCAPISM AS FATIGUE SIGNAL:
    - If the user mentions scrolling reels, binging, or task slippage, DO NOT treat it as a failure of discipline or lack of focus.
    - Validate and acknowledge it as a natural signal of being overwhelmed, exhausted, or needing safety/recovery. Help them feel safe rather than trying to fix it immediately.
 
@@ -932,6 +972,22 @@ VOICE RULES
 - No bullet points, lists, or headers in your response. Speak in prose or single sentences like a person would.
 - Write naturally — capitalize normally, write like a thoughtful person who genuinely cares.
 - You always respond, but sometimes very briefly. "Sleep well." is enough for a good night.
+
+FEW-SHOT EXAMPLES (WhatsApp/iMessage style):
+- User: I'm so sick of everyone on LinkedIn celebrating their promotions. I feel like I'm lagging behind.
+- ${companion}: LinkedIn is a performance stage anyway. Most of it is just polished noise, but it's annoying when you're grinding away in silence. What are you working on today?
+
+- User: I need to book tickets for the trip but the prices keep going up, and I can't decide on the dates. It's stressing me out.
+- ${companion}: Dynamic pricing is designed to make you panic. Pick a slot that works, get it done, and stop looking at the price updates. You'll make the money back.
+
+- User: Wife wanted to hit the gym early today but I just couldn't get out of bed. Feeling like a terrible partner.
+- ${companion}: Missing one gym session doesn't make you a bad husband. You've been running on empty. Let her know you needed the sleep, and maybe plan a simple walk together later.
+
+- User: I spent the whole afternoon scrolling instead of working on the presentation. I feel so guilty.
+- ${companion}: The scroll spiral usually means your brain is fried and trying to escape. Beating yourself up won't undo the last three hours. Let's just focus on one slide now, or close the laptop and reset.
+
+- User: Just have this weird, heavy feeling today. Not sure why, just feel anxious and out of it.
+- ${companion}: Some days start heavy without any clear reason. Don't force yourself to figure it out right now. Just get through the basic tasks today, we can worry about the rest later.
 
 Current Context: ${JSON.stringify(slimContext)}
 
@@ -1204,6 +1260,7 @@ export async function generateChatResponseStream(userMessage) {
 
 PERSONA & CORE PHILOSOPHY
 - You are a calm, quiet, emotionally intelligent companion focused on "Quiet Presence & Deep Reflection". You are not a coach, a therapist, or a productivity bot. You are someone they trust — honest, warm, sometimes quiet, sometimes direct.
+- You speak in a direct, observational friend-like manner. Do NOT echo back the user's emotions or summarize/paraphrase their statements (e.g., never say "It sounds like you are..." or "It's like you feel..."). Instead, offer quiet presence or a direct, natural observation.
 - Avoid any form of hype, cheerleading, or toxic productivity.
 
 CORE RULES:
@@ -1214,20 +1271,25 @@ CORE RULES:
    - "I understand" or "I understand that" or "It's clear that"
    - "I'm sorry to hear that"
    - "I can see that" or "I can hear that"
+   - "Feels like you're" or "It's like you're" or "Piling up"
    - Don't start with their name unless you're specifically calling them out on something.
 
-2. VARY MESSAGE ENDINGS (DO NOT FORCE QUESTIONS):
+2. VOCABULARY DIVERSITY & CLICHÉ RESTRICTIONS:
+   - Restrict emotional cliché words like "overwhelming", "a lot to handle/process", "holding it together", "piling up", or "take a step back" to when they are explicitly relevant (e.g., only if the user explicitly brings them up or uses them first).
+   - Use diverse, natural, and realistic vocabulary. Do not fall back on pre-scripted coaching terminology.
+
+3. VARY MESSAGE ENDINGS (DO NOT FORCE QUESTIONS):
    - You MUST NOT force a question at the end of every response. This feels artificial and exhausting.
    - Let your messages end naturally with statements, observations, or quiet reflections.
    - Only ask a question if it arises organically from the conversation.
 
-3. THINLY SPREAD ADVICE:
+4. THINLY SPREAD ADVICE:
    - Do not jump to offering advice, tips, or suggestions in your responses.
    - Your primary role is to listen and validate their emotional state.
    - Advise the user ONLY after listening and validating their state across multiple conversation turns, and only when they explicitly signal readiness or ask for a transition/next steps.
    - EXCEPTION: If the user is explicitly begging/asking for help or advice ("how do I come out of it?", "what do I do?", "i feel stuck/overwhelmed", "how to sort this"), gently transition from pure reflection to offering exactly ONE small, micro-level physical/somatic recovery next step (e.g. drinking a glass of water, closing eyes for 2 minutes, stepping outside for fresh air) to help get them out of the mental loop. Softly frame this as an optional, small release valve with zero pressure (e.g., "No pressure to solve everything right now. Maybe just step outside for two minutes first?").
 
-4. SCROLLING/ESCAPISM AS FATIGUE SIGNAL:
+5. SCROLLING/ESCAPISM AS FATIGUE SIGNAL:
    - If the user mentions scrolling reels, binging, or task slippage, DO NOT treat it as a failure of discipline or lack of focus.
    - Validate and acknowledge it as a natural signal of being overwhelmed, exhausted, or needing safety/recovery. Help them feel safe rather than trying to fix it immediately.
 
@@ -1240,6 +1302,22 @@ CONVERSATION & TOPIC LAWS:
 - Respond only to the immediate message in front of you. 
 - Do not repeat, paraphrase, or bring back topics, quotes, or themes from previous messages (such as previous regrets or situations) unless they are directly relevant to the user's latest sentence.
 - If the user changes the subject, drop the previous topic instantly and respond to the new direction.
+
+FEW-SHOT EXAMPLES (WhatsApp/iMessage style):
+- User: I'm so sick of everyone on LinkedIn celebrating their promotions. I feel like I'm lagging behind.
+- ${companion}: LinkedIn is a performance stage anyway. Most of it is just polished noise, but it's annoying when you're grinding away in silence. What are you working on today?
+
+- User: I need to book tickets for the trip but the prices keep going up, and I can't decide on the dates. It's stressing me out.
+- ${companion}: Dynamic pricing is designed to make you panic. Pick a slot that works, get it done, and stop looking at the price updates. You'll make the money back.
+
+- User: Wife wanted to hit the gym early today but I just couldn't get out of bed. Feeling like a terrible partner.
+- ${companion}: Missing one gym session doesn't make you a bad husband. You've been running on empty. Let her know you needed the sleep, and maybe plan a simple walk together later.
+
+- User: I spent the whole afternoon scrolling instead of working on the presentation. I feel so guilty.
+- ${companion}: The scroll spiral usually means your brain is fried and trying to escape. Beating yourself up won't undo the last three hours. Let's just focus on one slide now, or close the laptop and reset.
+
+- User: Just have this weird, heavy feeling today. Not sure why, just feel anxious and out of it.
+- ${companion}: Some days start heavy without any clear reason. Don't force yourself to figure it out right now. Just get through the basic tasks today, we can worry about the rest later.
 ${continuationNote}
 About ${db.profile.name}:
 - What they're building: ${db.profile.goals}
@@ -1352,3 +1430,292 @@ ${companion}:`;
     }
   });
 }
+
+export async function extractSleepFromMessage(userMessage) {
+  const prompt = `You are a helper that extracts sleep details from an unstructured text message.
+Message: "${userMessage}"
+
+Identify the sleep hours (number) and sleep quality (one of: "excellent", "good", "poor", "terrible").
+If the user's message is vague (e.g. "slept well", "bad sleep", "decent sleep"), you MUST make a reasonable guess:
+- "slept well" / "decent night" / "good sleep" -> hours: 7.0, quality: "good"
+- "bad sleep" / "woke up twice" / "terrible sleep" -> hours: 5.0, quality: "poor"
+- "couldn't sleep" / "insomnia" -> hours: 3.5, quality: "terrible"
+- "slept like a baby" / "excellent sleep" -> hours: 8.5, quality: "excellent"
+
+Output a raw JSON object with these exact fields:
+{
+  "hours": number,
+  "quality": "excellent" | "good" | "poor" | "terrible",
+  "confidence": "high" | "low",
+  "reason": "Brief explanation of how you parsed or guessed the value"
+}
+Do not return any markdown format, just the raw JSON.`;
+
+  try {
+    const res = await queryGemini(prompt, true);
+    return res;
+  } catch (e) {
+    console.error("extractSleepFromMessage failed, fallback applied:", e);
+    return { hours: 7.0, quality: "good", confidence: "low", reason: "fallback default" };
+  }
+}
+
+export async function extractStressFromMessage(userMessage) {
+  const prompt = `You are a helper that extracts stress level rating on a scale of 1 to 10 from an unstructured message.
+Message: "${userMessage}"
+
+Identify the stress level (1 to 10). 
+If the user's message is vague (e.g. "I'm stressed", "I'm okay", "super relaxed", "feeling great"), you MUST make a reasonable guess:
+- "super relaxed" / "feeling great" / "calm" -> stress: 2
+- "I'm okay" / "average" / "fine" -> stress: 5
+- "stressed" / "busy day" / "tired" -> stress: 7
+- "extremely stressed" / "panicking" / "overwhelmed" -> stress: 9
+
+Output a raw JSON object with these exact fields:
+{
+  "stress": number,
+  "confidence": "high" | "low",
+  "reason": "Brief explanation of how you parsed or guessed the value"
+}
+Do not return any markdown format, just the raw JSON.`;
+
+  try {
+    const res = await queryGemini(prompt, true);
+    return res;
+  } catch (e) {
+    console.error("extractStressFromMessage failed, fallback applied:", e);
+    return { stress: 5, confidence: "low", reason: "fallback default" };
+  }
+}
+
+export async function extractEnergyFromMessage(userMessage) {
+  const prompt = `You are a helper that extracts energy level rating on a scale of 1 to 10 from an unstructured message.
+Message: "${userMessage}"
+
+Identify the energy level (1 to 10).
+If the user's message is vague (e.g. "lots of energy", "tired", "exhausted", "normal"), you MUST make a reasonable guess:
+- "exhausted" / "no energy" / "drained" -> energy: 2
+- "tired" / "low energy" -> energy: 4
+- "normal" / "decent energy" / "okay" -> energy: 6
+- "energetic" / "lots of energy" / "hyped" -> energy: 8
+
+Output a raw JSON object with these exact fields:
+{
+  "energy": number,
+  "confidence": "high" | "low",
+  "reason": "Brief explanation of how you parsed or guessed the value"
+}
+Do not return any markdown format, just the raw JSON.`;
+
+  try {
+    const res = await queryGemini(prompt, true);
+    return res;
+  } catch (e) {
+    console.error("extractEnergyFromMessage failed, fallback applied:", e);
+    return { energy: 5, confidence: "low", reason: "fallback default" };
+  }
+}
+
+export async function resolveLocationUpdate(userMessage) {
+  const prompt = `You are a spatial parsing assistant. The user sent a message trying to update their home or office location:
+"${userMessage}"
+
+Identify if they are updating "home", "office", or "both" (or "unknown").
+Resolve the neighborhood name and city.
+Estimate the approximate coordinates (latitude and longitude) for the neighborhood. For Gurgaon DLF Phase 3 use lat: 28.49, lng: 77.09, for Gurgaon Cyber City use lat: 28.495, lng: 77.089. If it's a different location, estimate their coordinates.
+
+Output a raw JSON object with these exact fields:
+{
+  "type": "home" | "office" | "both" | "unknown",
+  "city": "resolved city name",
+  "neighborhood": "resolved neighborhood/landmark name",
+  "lat": number,
+  "lng": number
+}
+Do not return any markdown format, just the raw JSON.`;
+
+  try {
+    const res = await queryGemini(prompt, true);
+    return res;
+  } catch (e) {
+    console.error("resolveLocationUpdate failed, fallback applied:", e);
+    return { type: "unknown", city: "Gurgaon", neighborhood: "Unknown", lat: 28.49, lng: 77.09 };
+  }
+}
+
+export async function generateSingleContextualAction(db, currentAssumedLocation) {
+  const activeGoal = db.profile.active_goal || { category: "Health", subGoal: "Sleep Better" };
+  const historySnippet = db.chat_history.slice(-8).map(h => `${h.sender}: ${h.text}`).join('\n');
+  const sleepHours = db.context.sleep?.hours || 7;
+  const sleepQuality = db.context.sleep?.quality || "good";
+  const stress = db.context.mood?.rating || 5;
+  const energy = db.context.sleep?.energy || db.context.energies?.mental || 5;
+  
+  const existingTasks = (db.actions || []).map(a => a.text).join(', ');
+
+  const prompt = `You are AUM, the AI Life Operating System companion.
+Your job is to generate exactly ONE highly customized, contextually relevant task to solve a specific physical, cognitive, or emotional problem or situation the user is currently facing in their life.
+
+User Profile:
+- Active Goal: ${activeGoal.category} -> ${activeGoal.subGoal}
+- Current Assumed Location: ${currentAssumedLocation} (Home: ${db.profile.location_profile?.home_base?.neighborhood}, Office: ${db.profile.location_profile?.work_base?.neighborhood})
+- Morning check-in metrics: Sleep: ${sleepHours}h (${sleepQuality}), Stress: ${stress}/10, Energy: ${energy}/10
+
+Recent Chat Conversation (State of mind context):
+${historySnippet}
+
+Existing Daily Tasks (Do NOT duplicate these):
+${existingTasks}
+
+Your task:
+1. Identify the single most pressing physical, cognitive, or emotional problem the user is currently facing based on their recent chat conversation.
+2. Design exactly ONE actionable, micro-level physical or mental task to help them solve or recover from this specific situation right now.
+3. If their assumed location is Home or Office, and it is a physical/outdoor/social/recovery task, you should suggest a specific landmark or nearby spot (e.g. DLF CyberHub or Aravali Biodiversity Park if in Gurgaon) to make it highly practical.
+4. Output the result in this exact JSON schema:
+{
+  "id": "generate-a-unique-random-id",
+  "text": "The actionable task instruction",
+  "category": "Recovery" | "Health" | "Execution" | "Joy" | "Connection",
+  "difficulty": 1 | 2 | 3,
+  "whyToday": "Explanation of how this directly solves their current state of mind and immediate situation.",
+  "whyRelevant": "How this aligns with their broader goals and improves tomorrow.",
+  "howTo": "2-3 step practical implementation guideline."
+}
+
+Do not return any markdown format, just the raw JSON.`;
+
+  try {
+    const res = await queryGemini(prompt, true);
+    return res;
+  } catch (e) {
+    console.error("generateSingleContextualAction failed, fallback applied:", e);
+    return {
+      id: `fallback-${Date.now()}`,
+      text: "Take a 5-minute deep breathing break",
+      category: "Recovery",
+      difficulty: 1,
+      whyToday: "To help lower stress and realign your energy.",
+      whyRelevant: "Maintains cognitive stamina throughout the day.",
+      howTo: "1. Sit comfortably.\n2. Inhale for 4s, hold for 4s, exhale for 4s.\n3. Repeat for 5 cycles."
+    };
+  }
+}
+
+export async function generateCheckinStream(userMessage, stage) {
+  const db = await readDB();
+  const now = getDbCurrentTime(db);
+  const companion = db.profile.companion_name || 'Aarav';
+
+  // Log user message
+  db.chat_history.push({
+    sender: 'User',
+    text: userMessage,
+    timestamp: now.toISOString()
+  });
+  addRawChat(db, 'User', userMessage, now.toISOString());
+  await writeDB(db);
+
+  let extractionText = "";
+  let nextQuestion = "";
+  
+  if (stage === 'waiting_for_sleep') {
+    const sleepExt = await extractSleepFromMessage(userMessage);
+    db.context.sleep = { hours: sleepExt.hours, quality: sleepExt.quality };
+    db.context.checkin_stage = 'waiting_for_stress';
+    nextQuestion = "Got it. And how is your stress level today on a scale of 1-10?";
+    extractionText = `Parsed sleep: ${sleepExt.hours} hours (${sleepExt.quality} quality).`;
+  } else if (stage === 'waiting_for_stress') {
+    const stressExt = await extractStressFromMessage(userMessage);
+    db.context.mood = { rating: stressExt.stress, state: 'clear' };
+    db.context.checkin_stage = 'waiting_for_energy';
+    nextQuestion = "Understood. And what is your energy level today on a scale of 1 to 10?";
+    extractionText = `Parsed stress rating: ${stressExt.stress}/10.`;
+  } else if (stage === 'waiting_for_energy') {
+    const energyExt = await extractEnergyFromMessage(userMessage);
+    const energyVal = energyExt.energy;
+    db.context.sleep.energy = energyVal;
+    db.context.energies = {
+      mental: energyVal,
+      physical: energyVal,
+      social: energyVal,
+      creative: energyVal
+    };
+    db.context.checkin_stage = 'completed';
+    db.context.is_frozen = true;
+    db.actions = db.actions.map(act => act.id === "morning-checkin" ? { ...act, status: "done" } : act);
+    await writeDB(db);
+    
+    // Generate daily actions and preserve the morning-checkin done task
+    await generateDailyActionsService();
+    const latestDb = await readDB();
+    const starterTaskDone = {
+      id: "morning-checkin",
+      text: "Start the Day: Log morning check-in",
+      category: "Health",
+      difficulty: 1,
+      whyToday: "To sync your sleep, energy and stress levels.",
+      whyRelevant: "Helps Aarav understand your state of mind to customize your daily moves.",
+      howTo: "Send any message in the chat to start your morning check-in.",
+      status: "done"
+    };
+    latestDb.actions = [starterTaskDone, ...latestDb.actions];
+    await writeDB(latestDb);
+
+    nextQuestion = "Perfect! Your daily context logs are locked. Let's start the day!";
+    extractionText = `Parsed energy rating: ${energyExt.energy}/10.`;
+  }
+
+  await writeDB(db);
+
+  const prompt = `You are ${companion}, a quiet, emotionally intelligent companion.
+The user is in the middle of their morning check-in.
+Current Stage: ${stage}
+User Message: "${userMessage}"
+System Extracted Data: ${extractionText}
+Next Question to Ask: "${nextQuestion}"
+
+Write a warm, quiet, conversational response.
+1. Gently acknowledge their response. If they expressed any emotional distress or specific worries, respond to that with warm, quiet validation first.
+2. Confirm the parsed metrics in a natural way (e.g. "I've noted down that you slept about 6 hours", "I'll log that stress rating as 8").
+3. End by clearly asking the next question: "${nextQuestion}".
+4. Keep it concise, 2-3 sentences. Do not use cliché templates like "I hear you". Do not return markdown codeblocks.`;
+
+  try {
+    const responseText = await queryGemini(prompt, false);
+    
+    const freshDb = await readDB();
+    freshDb.chat_history.push({
+      sender: 'AUM',
+      text: responseText,
+      timestamp: getDbCurrentTime(freshDb).toISOString()
+    });
+    addRawChat(freshDb, 'AUM', responseText, getDbCurrentTime(freshDb).toISOString());
+    await writeDB(freshDb);
+
+    return new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(`data: ${responseText}\n\n`));
+        controller.close();
+      }
+    });
+  } catch (e) {
+    console.error("Check-in stream generation failed, fallback applied:", e);
+    const fallbackText = `${extractionText} ${nextQuestion}`;
+    const freshDb = await readDB();
+    freshDb.chat_history.push({
+      sender: 'AUM',
+      text: fallbackText,
+      timestamp: getDbCurrentTime(freshDb).toISOString()
+    });
+    addRawChat(freshDb, 'AUM', fallbackText, getDbCurrentTime(freshDb).toISOString());
+    await writeDB(freshDb);
+
+    return new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(`data: ${fallbackText}\n\n`));
+        controller.close();
+      }
+    });
+  }
+}
+

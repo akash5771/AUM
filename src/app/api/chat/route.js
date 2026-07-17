@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
 import { readDB, writeDB, getDbCurrentTime, getMomentumDayString } from '@/services/db';
-import { generateChatResponseService, generateChatResponseStream } from '@/services/groq';
+import { 
+  generateChatResponseStream,
+  extractSleepFromMessage,
+  extractStressFromMessage,
+  extractEnergyFromMessage,
+  resolveLocationUpdate,
+  generateSingleContextualAction,
+  generateCheckinStream,
+  detectChatSignals
+} from '@/services/groq';
+import { PERIODS, getCurrentTimeOfDay, isPeriodUnlocked } from '@/services/recommendations';
 
 const QUICK_INTERCEPTS = {
   "good night": "Good night, Akash. Rest well.",
@@ -14,6 +24,35 @@ const QUICK_INTERCEPTS = {
   "bye": "Talk soon. Take care."
 };
 
+function updateChatHistoryWithAnnouncement(latestDb, combinedText) {
+  if (latestDb.chat_history.length > 0) {
+    const lastEntry = latestDb.chat_history[latestDb.chat_history.length - 1];
+    if (lastEntry.sender === 'AUM') {
+      lastEntry.text = combinedText;
+    } else {
+      latestDb.chat_history.push({ sender: 'AUM', text: combinedText, timestamp: getDbCurrentTime(latestDb).toISOString() });
+    }
+  } else {
+    latestDb.chat_history.push({ sender: 'AUM', text: combinedText, timestamp: getDbCurrentTime(latestDb).toISOString() });
+  }
+}
+
+function getCurrentAssumedLocation(db) {
+  const now = getDbCurrentTime(db);
+  const day = now.getDay(); // 0 is Sunday, 6 is Saturday
+  const hour = now.getHours();
+  
+  if (day === 0) {
+    return "Home";
+  } else {
+    if (hour >= 10 && hour < 20) { // 10:00 AM to 8:00 PM
+      return "Office";
+    } else {
+      return "Home";
+    }
+  }
+}
+
 // Helper to check and inject morning greetings and contextual nudges
 async function injectContextualMessages(db) {
   const profile = db.profile || {};
@@ -24,15 +63,16 @@ async function injectContextualMessages(db) {
   let dbChanged = false;
   profile.sent_nudges = profile.sent_nudges || [];
 
-  // 1. Morning Greeting Check
+  // 1. Morning Greeting Check (Adaptive Window: 4:00 AM to 11:59 AM, fallback to day check)
   const currentHours = now.getHours();
-  // Morning is 5 AM to 11 AM
-  if (currentHours >= 5 && currentHours < 11 && profile.last_greeting_date !== todayStr) {
-    const sleepHours = context.sleep?.hours || 7.0;
-    const isBusy = now.getDay() >= 1 && now.getDay() <= 5; // Weekdays
-    const name = profile.name || "Akash";
+  if (profile.last_greeting_date !== todayStr) {
+    let greetingText = `Good morning! How did you sleep last night? How many hours did you get?`;
+    if (currentHours < 4 || currentHours >= 12) {
+      greetingText = `Good day! Since it's your first time opening AUM today, let's log your daily context. How did you sleep last night? How many hours did you get?`;
+    }
     
-    const greetingText = `Morning. You got ${sleepHours} hours. ${isBusy ? 'Busy day ahead.' : 'Lighter day today.'} What do you want to protect?`;
+    context.checkin_stage = 'waiting_for_sleep';
+    context.is_frozen = false;
     
     db.chat_history.push({
       sender: "AUM",
@@ -126,7 +166,6 @@ export async function GET() {
   try {
     const db = await readDB();
     await injectContextualMessages(db);
-    // Fetch fresh db after inject
     const freshDb = await readDB();
     return NextResponse.json(freshDb.chat_history || []);
   } catch (error) {
@@ -167,8 +206,65 @@ export async function POST(request) {
       return NextResponse.json({ response: responseText });
     }
 
-
     const cleanMsg = message.toLowerCase().trim();
+
+    // 1. Check for location update requests (e.g. "my new home is...")
+    if (cleanMsg.includes("new home is") || cleanMsg.includes("new office is") || cleanMsg.includes("my new home ") || cleanMsg.includes("my new office ")) {
+      const locUpdate = await resolveLocationUpdate(message);
+      if (locUpdate.type === 'home' || locUpdate.type === 'both') {
+        db.profile.location_profile.home_base = {
+          city: locUpdate.city,
+          neighborhood: locUpdate.neighborhood,
+          lat: locUpdate.lat,
+          lng: locUpdate.lng
+        };
+      }
+      if (locUpdate.type === 'office' || locUpdate.type === 'both') {
+        db.profile.location_profile.work_base = {
+          city: locUpdate.city,
+          neighborhood: locUpdate.neighborhood,
+          lat: locUpdate.lat,
+          lng: locUpdate.lng
+        };
+      }
+      await writeDB(db);
+      
+      const responseText = `Location updated successfully! I've set your ${locUpdate.type === 'both' ? 'home and office locations' : locUpdate.type + ' location'} to ${locUpdate.neighborhood}, ${locUpdate.city} (${locUpdate.lat}, ${locUpdate.lng}).`;
+      
+      db.chat_history.push({ sender: 'User', text: message, timestamp: now.toISOString() });
+      db.chat_history.push({ sender: 'AUM', text: responseText, timestamp: now.toISOString(), type: 'text' });
+      await writeDB(db);
+      
+      const sseStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(`data: ${responseText}\n\n`));
+          controller.close();
+        }
+      });
+      return new Response(sseStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Content-Encoding': 'none'
+        }
+      });
+    }
+
+    // 2. Check morning check-in state machine
+    const checkinStage = db.context.checkin_stage || 'completed';
+    if (checkinStage !== 'completed') {
+      const stream = await generateCheckinStream(message, checkinStage);
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Content-Encoding': 'none'
+        }
+      });
+    }
+
     if (QUICK_INTERCEPTS[cleanMsg]) {
       const responseText = QUICK_INTERCEPTS[cleanMsg];
       
@@ -202,8 +298,152 @@ export async function POST(request) {
       });
     }
 
-    const stream = await generateChatResponseStream(message);
-    return new Response(stream, {
+    // 3. Normal Chat Stream wrapped with dynamic contextual task generation
+    const originalStream = await generateChatResponseStream(message);
+    const reader = originalStream.getReader();
+    let accumulatedText = "";
+    
+    const sseStream = new ReadableStream({
+      async start(controller) {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            controller.enqueue(value);
+            
+            const chunk = new TextDecoder().decode(value);
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (trimmed.startsWith('data: ')) {
+                accumulatedText += trimmed.slice(6);
+              }
+            }
+          }
+          
+          const freshDb = await readDB();
+          if (freshDb.context.checkin_stage === 'completed') {
+            const now = getDbCurrentTime(freshDb);
+            const currentTimeOfDay = getCurrentTimeOfDay(now);
+            
+            // Analyze message for emotional and activity signals
+            const signals = await detectChatSignals(message);
+            
+            if (signals.hasSignal) {
+              const locationType = getCurrentAssumedLocation(freshDb);
+              const locationName = locationType === "Office"
+                ? freshDb.profile.location_profile?.work_base?.neighborhood
+                : freshDb.profile.location_profile?.home_base?.neighborhood;
+              const currentAssumedLocation = `${locationType} (${locationName})`;
+              
+              const latestDb = await readDB();
+              
+              // Find the first todo task that is locked
+              const lockedTaskIndex = latestDb.actions.findIndex(a => 
+                a.status === 'todo' && 
+                a.scheduled_time && 
+                !isPeriodUnlocked(a.scheduled_time, currentTimeOfDay)
+              );
+              
+              if (lockedTaskIndex !== -1) {
+                // We have a locked task! Generate a new dynamic task matching the signal,
+                // and use it to replace/unlock the locked task.
+                const newAction = await generateSingleContextualAction(latestDb, currentAssumedLocation);
+                const targetTask = latestDb.actions[lockedTaskIndex];
+                
+                latestDb.actions[lockedTaskIndex] = {
+                  ...targetTask,
+                  text: newAction.text,
+                  category: newAction.category,
+                  difficulty: newAction.difficulty,
+                  whyToday: `Contextual Unlock: ${newAction.whyToday} (Triggered by your emotional/activity signal: "${signals.reason}")`,
+                  whyRelevant: newAction.whyRelevant,
+                  howTo: newAction.howTo,
+                  scheduled_time: currentTimeOfDay, // Unlock it immediately by moving to the current period!
+                  locked: false
+                };
+                
+                const announcement = `\n\n🔓 *Contextual Task Unlocked:* "${newAction.text}"\n*Why:* ${newAction.whyToday}`;
+                const combinedText = accumulatedText + announcement;
+                
+                updateChatHistoryWithAnnouncement(latestDb, combinedText);
+                
+                const { addRawChat } = await import('@/services/memory_engine/memory_db');
+                addRawChat(latestDb, 'AUM', combinedText, getDbCurrentTime(latestDb).toISOString());
+                
+                await writeDB(latestDb);
+                controller.enqueue(new TextEncoder().encode(`data: ${announcement}\n\n`));
+              } else if (latestDb.actions.length < 5) {
+                // If they have less than 5 tasks and no locked tasks (e.g. testing/onboarding), push a new task
+                const newAction = await generateSingleContextualAction(latestDb, currentAssumedLocation);
+                const uniqueId = `task-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+                
+                latestDb.actions.push({
+                  ...newAction,
+                  id: uniqueId,
+                  status: 'todo',
+                  scheduled_time: currentTimeOfDay,
+                  locked: false
+                });
+                latestDb.profile.total_actions_generated = (latestDb.profile.total_actions_generated || 0) + 1;
+                
+                const announcement = `\n\n🔓 *New task unlocked: ${newAction.text}*\n*Why: ${newAction.whyToday}*`;
+                const combinedText = accumulatedText + announcement;
+                
+                updateChatHistoryWithAnnouncement(latestDb, combinedText);
+                
+                const { addRawChat } = await import('@/services/memory_engine/memory_db');
+                addRawChat(latestDb, 'AUM', combinedText, getDbCurrentTime(latestDb).toISOString());
+                
+                await writeDB(latestDb);
+                controller.enqueue(new TextEncoder().encode(`data: ${announcement}\n\n`));
+              } else {
+                // Check if all 5 main tasks are completed
+                const allCompleted = latestDb.actions.every(a => a.status === 'done' || a.status === 'skipped');
+                const hasBonus = latestDb.actions.some(a => a.category === 'Bonus' || a.text.toLowerCase().includes('bonus'));
+                
+                // Trigger bonus task only if they are ready/wanting more, and all completed
+                const isReadyForMore = signals.signalType === 'joy' || signals.signalType === 'excitement' || signals.signalType === 'focus' || message.toLowerCase().includes('more') || message.toLowerCase().includes('bonus');
+                
+                if (allCompleted && !hasBonus && isReadyForMore) {
+                  const newAction = await generateSingleContextualAction(latestDb, currentAssumedLocation);
+                  const uniqueId = `bonus-${Date.now()}`;
+                  
+                  const bonusTask = {
+                    ...newAction,
+                    id: uniqueId,
+                    category: 'Bonus',
+                    scheduled_time: currentTimeOfDay,
+                    status: 'todo',
+                    whyToday: `Bonus Challenge: ${newAction.whyToday}`
+                  };
+                  
+                  latestDb.actions.push(bonusTask);
+                  latestDb.profile.total_actions_generated = (latestDb.profile.total_actions_generated || 0) + 1;
+                  
+                  const announcement = `\n\n🌟 *Bonus Task Unlocked:* "${newAction.text}"\n*Why:* ${newAction.whyToday}`;
+                  const combinedText = accumulatedText + announcement;
+                  
+                  updateChatHistoryWithAnnouncement(latestDb, combinedText);
+                  
+                  const { addRawChat } = await import('@/services/memory_engine/memory_db');
+                  addRawChat(latestDb, 'AUM', combinedText, getDbCurrentTime(latestDb).toISOString());
+                  
+                  await writeDB(latestDb);
+                  controller.enqueue(new TextEncoder().encode(`data: ${announcement}\n\n`));
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Stream wrapper error:", e);
+        } finally {
+          controller.close();
+        }
+      }
+    });
+
+    return new Response(sseStream, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',

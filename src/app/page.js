@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
   const router = useRouter();
-  
+
   // Core Data States
   const [profile, setProfile] = useState(null);
   const [context, setContext] = useState(null);
@@ -13,43 +13,37 @@ export default function Dashboard() {
   const [chatHistory, setChatHistory] = useState([]);
   const [virtualTime, setVirtualTime] = useState(null);
   const [currentTimeDisplay, setCurrentTimeDisplay] = useState('');
-  
-  // Interaction/UI States
+
+  // UI States
   const [expandedActionId, setExpandedActionId] = useState(null);
-  const [showMoves, setShowMoves] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
-  const [isUpdatingContext, setIsUpdatingContext] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [timeSelectorOpen, setTimeSelectorOpen] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  
-  // Daily Context Logging States
-  const [sleepHours, setSleepHours] = useState(7.0);
-  const [sleepQuality, setSleepQuality] = useState('good');
-  const [mentalEnergy, setMentalEnergy] = useState(7);
-  const [physicalEnergy, setPhysicalEnergy] = useState(7);
-  const [socialEnergy, setSocialEnergy] = useState(7);
-  const [creativeEnergy, setCreativeEnergy] = useState(7);
-  const [creationStory, setCreationStory] = useState('');
-  const [consumptionStory, setConsumptionStory] = useState('');
-  const [weatherOutlook, setWeatherOutlook] = useState('Clear');
+
+  // New UI feature states
+  const [isNotepadCollapsed, setIsNotepadCollapsed] = useState(false);
+  const [showNotepadGlow, setShowNotepadGlow] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   // Refs
   const chatScrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const canvasRef = useRef(null);
   const confettiSystemRef = useRef(null);
+  const prevActionsLengthRef = useRef(0);
+  const recognitionRef = useRef(null);
 
-  // Quick Chat Nudges (Momentum Moments)
+  // Reflection chips
   const reflectionChips = [
     "Today's been horrible.",
     "Walk for three minutes.",
     "Acknowledge a small win!",
-    "Ignored: Read a 3-minute article"
+    "I'm ready for more."
   ];
 
-  // Fetch all initial data
+  // Load all data
   useEffect(() => {
     fetchAllData();
   }, []);
@@ -74,31 +68,49 @@ export default function Dashboard() {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
-  }, [chatHistory, isSendingChat, actions]);
+  }, [chatHistory, isSendingChat]);
 
-  // Poll for personalized actions after initial load
+  // Play synthetic audio chime using Web Audio API (Zero external file dependencies)
+  const playChime = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      
+      // Dual-tone chime for a warm, clean notification sound
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1); // A5
+      
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.8);
+      
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.8);
+    } catch (e) {
+      console.warn("Web Audio chime failed:", e);
+    }
+  };
+
+  // Watch for newly unlocked tasks to trigger animations and chime
   useEffect(() => {
-    if (!actions || actions.length === 0) return;
-    if (actions.every(a => a.isPersonalized)) return; // already personalized
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch('/api/actions');
-        if (!res.ok) return;
-        const fresh = await res.json();
-        if (Array.isArray(fresh) && fresh.some(a => a.isPersonalized)) {
-          setActions(fresh);
-          clearInterval(interval);
-        }
-      } catch (e) {
-        // silently ignore poll errors
+    if (actions.length > 0 && prevActionsLengthRef.current > 0) {
+      if (actions.length > prevActionsLengthRef.current) {
+        setShowNotepadGlow(true);
+        playChime();
+        const timer = setTimeout(() => setShowNotepadGlow(false), 2500);
+        return () => clearTimeout(timer);
       }
-    }, 5000);
-
-    return () => clearInterval(interval);
+    }
+    if (actions.length > 0) {
+      prevActionsLengthRef.current = actions.length;
+    }
   }, [actions]);
 
-  // Route to onboarding if not completed
+  // Redirect to onboarding if not completed
   useEffect(() => {
     if (profile && !profile.onboarding_completed) {
       router.push('/onboarding');
@@ -108,33 +120,27 @@ export default function Dashboard() {
   const fetchAllData = async () => {
     setIsLoading(true);
     try {
-      // 1. Profile
       const pRes = await fetch('/api/profile');
       const pData = await pRes.json();
       setProfile(pData);
 
       if (pData && pData.name && pData.onboarding_completed) {
-        // 2. Time Travel Info
         const tRes = await fetch('/api/time-travel');
         const tData = await tRes.json();
         setVirtualTime(tData.virtual_time);
         formatTimeDisplay(tData.current_time);
 
-        // 3. Context Logs
         const cRes = await fetch('/api/context');
         const cData = await cRes.json();
         setContext(cData);
-        syncContextForm(cData);
 
-        // 4. Actions
         const aRes = await fetch('/api/actions');
         const aData = await aRes.json();
         setActions(aData);
         
-        // 5. Chat History Logs (Life Feed)
-        const fullDbRes = await fetch('/api/chat');
-        const chatData = await fullDbRes.json();
-        setChatHistory(chatData);
+        const chRes = await fetch('/api/chat');
+        const chData = await chRes.json();
+        setChatHistory(chData);
       }
     } catch (e) {
       console.error("Failed to load dashboard data:", e);
@@ -149,68 +155,12 @@ export default function Dashboard() {
     setCurrentTimeDisplay(d.toLocaleDateString('en-US', options));
   };
 
-  const syncContextForm = (cData) => {
-    setSleepHours(cData.sleep?.hours || 7.0);
-    setSleepQuality(cData.sleep?.quality || 'good');
-    setMentalEnergy(cData.energies?.mental || 7);
-    setPhysicalEnergy(cData.energies?.physical || 7);
-    setSocialEnergy(cData.energies?.social || 7);
-    setCreativeEnergy(cData.energies?.creative || 7);
-    setCreationStory(cData.creation_story || '');
-    setConsumptionStory(cData.consumption_story || '');
-    setWeatherOutlook(cData.environmental?.weather || 'Clear');
-  };
-
-  const handleSaveContext = async (e) => {
-    e.preventDefault();
-    setIsUpdatingContext(true);
-    try {
-      const res = await fetch('/api/context', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sleep: { hours: parseFloat(sleepHours), quality: sleepQuality },
-          mood: { rating: 5, state: 'clear' },
-          energies: {
-            mental: parseInt(mentalEnergy),
-            physical: parseInt(physicalEnergy),
-            social: parseInt(socialEnergy),
-            creative: parseInt(creativeEnergy)
-          },
-          creation_story: creationStory,
-          consumption_story: consumptionStory,
-          environmental: { weather: weatherOutlook }
-        })
-      });
-
-      const updatedContext = await res.json();
-      setContext(updatedContext);
-
-      // Refresh actions and chats
-      const actRes = await fetch('/api/actions');
-      const actData = await actRes.json();
-      setActions(actData);
-
-      const chRes = await fetch('/api/chat');
-      const chData = await chRes.json();
-      setChatHistory(chData);
-      
-      // Update profile
-      const pRes = await fetch('/api/profile');
-      const pData = await pRes.json();
-      setProfile(pData);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsUpdatingContext(false);
-    }
-  };
-
   const handleToggleAction = async (actionId, currentStatus) => {
     let nextStatus = 'todo';
     if (currentStatus === 'todo') {
       nextStatus = 'done';
       triggerConfettiBlast(50);
+      playChime();
     } else if (currentStatus === 'done') {
       nextStatus = 'skipped';
     }
@@ -226,7 +176,6 @@ export default function Dashboard() {
       setProfile(data.profile || profile);
       setChatHistory(data.chat_history || chatHistory);
 
-      // Check for clean sweep
       if (data.actions && data.actions.every(a => a.status === 'done')) {
         triggerConfettiBlast(200);
       }
@@ -257,7 +206,7 @@ export default function Dashboard() {
     setIsSendingChat(true);
     if (!textOverride) setChatInput('');
 
-    // Optimistically update frontend history to show user's message immediately
+    // Optimistically update chat history
     setChatHistory(prev => [
       ...prev,
       {
@@ -276,7 +225,7 @@ export default function Dashboard() {
       
       if (!res.ok) throw new Error("API call failed");
 
-      // Append an empty companion bubble that we will stream text into
+      // Set up companion message bubble to stream into
       setChatHistory(prev => [...prev, { sender: 'AUM', text: '', timestamp: new Date().toISOString() }]);
 
       const reader = res.body.getReader();
@@ -307,14 +256,84 @@ export default function Dashboard() {
         }
       }
 
-      // Sync profile/actions
+      // Re-sync actions and profile states
+      const actRes = await fetch('/api/actions');
+      const actData = await actRes.json();
+      setActions(actData);
+
       const pRes = await fetch('/api/profile');
       const pData = await pRes.json();
       setProfile(pData);
+
+      const cRes = await fetch('/api/context');
+      const cData = await cRes.json();
+      setContext(cData);
     } catch (e) {
       console.error(e);
     } finally {
       setIsSendingChat(false);
+    }
+  };
+
+  const handleWaterClick = async () => {
+    if (!profile) return;
+    const currentCups = profile.water_cups || 0;
+    const nextCups = currentCups >= 8 ? 0 : currentCups + 1;
+    
+    // Optimistic UI update
+    setProfile(prev => ({
+      ...prev,
+      water_cups: nextCups
+    }));
+
+    if (nextCups === 8) {
+      triggerConfettiBlast(120);
+      playChime();
+    }
+
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ water_cups: nextCups })
+      });
+      const data = await res.json();
+      setProfile(data);
+    } catch (e) {
+      console.error("Failed to sync water:", e);
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Speech recognition is not supported in this browser. Please use Google Chrome or Safari.");
+        return;
+      }
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'en-US';
+      rec.onstart = () => {
+        setIsRecording(true);
+      };
+      rec.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        setChatInput(prev => prev + (prev ? " " : "") + transcript);
+      };
+      rec.onerror = (e) => {
+        console.error(e);
+        setIsRecording(false);
+      };
+      rec.onend = () => {
+        setIsRecording(false);
+      };
+      rec.start();
+      recognitionRef.current = rec;
     }
   };
 
@@ -335,7 +354,6 @@ export default function Dashboard() {
       const mediaUrl = uploadData.urls?.[0];
 
       if (mediaUrl) {
-        // Send photo post message
         await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -346,7 +364,6 @@ export default function Dashboard() {
           })
         });
 
-        // Refresh chat history
         const chRes = await fetch('/api/chat');
         const chData = await chRes.json();
         setChatHistory(chData);
@@ -370,23 +387,15 @@ export default function Dashboard() {
       formatTimeDisplay(data.current_time);
 
       if (data.dayTransitionCrossed) {
-        alert("⏰ 6 AM day boundary crossed! Transition summary generated. Uncompleted tasks expired.");
+        alert("⏰ Next day started! Context logs reset, uncompleted tasks cleared.");
         fetchAllData();
       } else {
         const cRes = await fetch('/api/context');
         const cData = await cRes.json();
         setContext(cData);
-        syncContextForm(cData);
       }
     } catch (e) {
       console.error(e);
-    }
-  };
-
-  const handleFullReset = async () => {
-    if (confirm("🚨 WARNING: Wipe entire session? This deletes all data.")) {
-      const res = await fetch('/api/profile/reset', { method: 'POST' });
-      if (res.ok) window.location.reload();
     }
   };
 
@@ -396,18 +405,6 @@ export default function Dashboard() {
     }
   };
 
-
-  // Loading Screen
-  if (isLoading || !profile || !context) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)' }}>Synchronizing Life Momentum Matrix...</p>
-      </div>
-    );
-  }
-
-  // Calculate month dividers helper
   const renderChatHistoryWithMonthDividers = () => {
     const list = [];
     let lastMonthYear = "";
@@ -427,7 +424,6 @@ export default function Dashboard() {
         }
       }
 
-      // Render system vs chat vs photo logs
       if (bubble.type === 'activity_completion') {
         list.push(
           <div key={`sys-${idx}`} style={styles.systemLogMessage}>
@@ -465,7 +461,7 @@ export default function Dashboard() {
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em'
               }}>
-                {isUser ? 'YOU' : (profile.companion_name || 'AUM').toUpperCase()}
+                {isUser ? 'YOU' : (profile.companion_name || 'Aarav').toUpperCase()}
               </div>
 
               {bubble.type === 'photo' && bubble.mediaUrl ? (
@@ -482,37 +478,17 @@ export default function Dashboard() {
       }
     });
 
-    // Append typing indicator bubble at the end of history if currently sending/generating chat
     if (isSendingChat) {
       list.push(
-        <div 
-          key="typing-indicator-bubble" 
-          style={{
-            ...styles.bubbleWrapper,
-            justifyContent: 'flex-start'
-          }}
-        >
-          <div style={{
-            ...styles.bubble,
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderBottomRightRadius: '0.85rem',
-            borderBottomLeftRadius: '0.15rem',
-          }}>
-            <div style={{ 
-              fontSize: '0.65rem', 
-              fontWeight: '700', 
-              marginBottom: '0.2rem', 
-              color: '#a855f7',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
-            }}>
-              {(profile.companion_name || 'AUM').toUpperCase()}
+        <div key="typing" style={{ ...styles.bubbleWrapper, justifyContent: 'flex-start' }}>
+          <div style={{ ...styles.bubble, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: '700', color: '#a855f7', marginBottom: '0.2rem' }}>
+              {(profile?.companion_name || 'Aarav').toUpperCase()}
             </div>
-            <div className="typing-indicator" style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '16px', padding: '4px 2px' }}>
-              <span></span>
-              <span></span>
-              <span></span>
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center', height: '16px', padding: '4px 2px' }}>
+              <span style={styles.typingDot}></span>
+              <span style={styles.typingDot}></span>
+              <span style={styles.typingDot}></span>
             </div>
           </div>
         </div>
@@ -522,17 +498,94 @@ export default function Dashboard() {
     return list;
   };
 
-  const activeStage = profile.momentum_stage || "Stage 1: Activation";
+  // Loading Screen
+  if (isLoading || !profile || !context) {
+    return (
+      <div style={styles.loadingContainer}>
+        <div style={styles.spinner}></div>
+        <p style={{ marginTop: '1.5rem', color: 'var(--text-secondary)' }}>Synchronizing Life Momentum Matrix...</p>
+      </div>
+    );
+  }
+
+  // Get nice display text for context check-in stage
+  const getStageDisplayText = () => {
+    const stage = context.checkin_stage || 'completed';
+    if (stage === 'waiting_for_sleep') return '📋 Check-in: Sleep';
+    if (stage === 'waiting_for_stress') return '📋 Check-in: Stress';
+    if (stage === 'waiting_for_energy') return '📋 Check-in: Energy';
+    return '⚡ Daily Logs Locked';
+  };
 
   return (
     <div style={styles.dashboardContainer}>
       <canvas ref={canvasRef} style={styles.confettiCanvas}></canvas>
 
-      {/* Time Travel Simulated Clock */}
-      <div style={styles.timeTravelBar}>
-        <button onClick={() => setTimeSelectorOpen(!timeSelectorOpen)} style={styles.timeButton}>
-          📅 Virtual Clock: {currentTimeDisplay} {virtualTime ? " (Simulated)" : " (Live)"}
-        </button>
+      {/* STICKY HEADER */}
+      <header style={styles.header}>
+        {/* Left Section: Momentum circle progress & Checkin State */}
+        <div style={styles.headerLeft}>
+          <div style={styles.headerMomentumContainer}>
+            <svg width="45" height="45" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="48" fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
+              <circle 
+                cx="60" cy="60" r="48" 
+                fill="transparent" 
+                stroke="url(#headerMomentumGradient)" 
+                strokeWidth="10" 
+                strokeDasharray="301"
+                strokeDashoffset={301 - (301 * (profile.momentum_score || 50)) / 100}
+                strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 0.8s ease-in-out' }}
+              />
+              <defs>
+                <linearGradient id="headerMomentumGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#128c7e" />
+                  <stop offset="100%" stopColor="#25d366" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div style={styles.headerMomentumText}>{profile.momentum_score || 50}</div>
+          </div>
+          <div style={styles.headerContextLabel}>
+            <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{getStageDisplayText()}</span>
+            <span style={{ fontSize: '0.65rem', color: '#9ca3af', textTransform: 'uppercase' }}>🔥 {profile.streak || 0}d Streak</span>
+          </div>
+        </div>
+
+        {/* Right Section: Navigation Links & Interactive Water widget */}
+        <div style={styles.headerRight}>
+          <button 
+            onClick={handleWaterClick} 
+            style={{
+              ...styles.waterWidget,
+              background: (profile.water_cups || 0) >= 8 ? 'rgba(37, 211, 102, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+              borderColor: (profile.water_cups || 0) >= 8 ? '#25d366' : 'rgba(255, 255, 255, 0.08)',
+              color: (profile.water_cups || 0) >= 8 ? '#25d366' : '#9ca3af'
+            }}
+          >
+            💧 {profile.water_cups || 0}/8 Cups {(profile.water_cups || 0) >= 8 && '🎉'}
+          </button>
+          
+          <button onClick={() => setTimeSelectorOpen(!timeSelectorOpen)} style={styles.navBtn}>
+            📅 {currentTimeDisplay}
+          </button>
+          
+          <button onClick={() => router.push('/identity')} style={styles.navBtn}>Profile</button>
+          
+          <button 
+            onClick={() => {
+              if(confirm("🚨 Wipe entire session? This deletes all data.")) {
+                fetch('/api/profile/reset', { method: 'POST' }).then(() => window.location.reload());
+              }
+            }} 
+            style={styles.navBtnReset}
+          >
+            Reset
+          </button>
+        </div>
+
+        {/* Time Travel Dropdown */}
         {timeSelectorOpen && (
           <div style={styles.timeDropdown}>
             <button onClick={() => handleTimeTravel('advance', 1)} style={styles.simBtn}>+1 Hour</button>
@@ -556,383 +609,237 @@ export default function Dashboard() {
             )}
           </div>
         )}
-      </div>
+      </header>
 
-      {/* Main 2-Column Grid */}
-      <div style={styles.layoutGrid}>
-        
-        {/* COLUMN 1: LIFE MOMENTUM & CONTEXT LOGS (Left) */}
-        <div style={styles.columnLeft}>
-          
-          {/* Life Momentum Score Panel */}
-          <div style={styles.panel}>
-            <h3 style={styles.panelTitle}>Life Momentum Status</h3>
-            <div style={styles.meterContainer}>
-              <svg width="120" height="120" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="48" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="6" />
-                <circle 
-                  cx="60" cy="60" r="48" 
-                  fill="transparent" 
-                  stroke="url(#momentumGradient)" 
-                  strokeWidth="6" 
-                  strokeDasharray="301"
-                  strokeDashoffset={301 - (301 * (profile.momentum_score || 50)) / 100}
-                  strokeLinecap="round"
-                  style={{ transition: 'stroke-dashoffset 0.8s ease-in-out' }}
-                />
-                <defs>
-                  <linearGradient id="momentumGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#128c7e" />
-                    <stop offset="100%" stopColor="#25d366" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div style={styles.meterText}>
-                <span style={styles.meterVal}>{profile.momentum_score || 50}</span>
-                <span style={styles.meterLabel}>Momentum</span>
-              </div>
-            </div>
-
-            <div style={styles.readinessSection}>
-              <div className="flex justify-between align-center" style={{ width: '100%', marginBottom: '0.25rem' }}>
-                <span style={styles.readinessLabel}>Today's Readiness Score:</span>
-                <span style={styles.readinessValue}>{profile.readiness_score || 5}/10</span>
-              </div>
-              <div style={styles.progressBarBg}>
-                <div style={{ ...styles.progressBarFill, width: `${(profile.readiness_score || 5) * 10}%` }}></div>
-              </div>
-            </div>
-
-            <div style={styles.archetypeBox}>
-              <span style={styles.badgeSuccess}>{activeStage}</span>
-              <span style={styles.archetypeLabel}>Momentum Stage</span>
-            </div>
-
-            <div style={styles.metaStats}>
-              <div style={styles.metaStatItem}>
-                <span style={styles.metaStatVal}>🔥 {profile.streak || 0}d</span>
-                <span style={styles.metaStatLabel}>Streak</span>
-              </div>
-              <div style={styles.metaDivider}></div>
-              <div style={styles.metaStatItem}>
-                <span style={styles.metaStatVal}>{profile.archetype || "Mindful Rookie"}</span>
-                <span style={styles.metaStatLabel}>Identity Archetype</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Daily Context Form Panel */}
-          <div style={styles.panel}>
-            <h3 style={styles.panelTitle}>
-              Daily Context Logs: <span style={{ color: context.is_frozen ? '#10b981' : '#f59e0b' }}>
-                {context.is_frozen ? "Locked" : "Awaiting logs"}
-              </span>
-            </h3>
-            
-            {!context.is_frozen ? (
-              <form onSubmit={handleSaveContext} style={styles.contextForm}>
-                <div style={styles.inputRow}>
-                  <label style={styles.formLabel}>Sleep Hours: {sleepHours}h</label>
-                  <input 
-                    type="range" min="4" max="10" step="0.1" 
-                    value={sleepHours} 
-                    onChange={(e) => setSleepHours(e.target.value)} 
-                    style={styles.slider}
-                  />
-                </div>
-
-                <div style={styles.inputRow}>
-                  <label style={styles.formLabel}>Sleep Quality</label>
-                  <select value={sleepQuality} onChange={(e) => setSleepQuality(e.target.value)} className="glass-select">
-                    <option value="excellent">Excellent</option>
-                    <option value="good">Good / Rested</option>
-                    <option value="poor">Poor / Interrupted</option>
-                    <option value="terrible">Insomnia</option>
-                  </select>
-                </div>
-
-                <div style={styles.energiesGrid}>
-                  <div style={styles.energyInput}>
-                    <label style={styles.formLabel}>Mental: {mentalEnergy}</label>
-                    <input type="range" min="1" max="10" value={mentalEnergy} onChange={(e) => setMentalEnergy(e.target.value)} style={styles.slider} />
-                  </div>
-                  <div style={styles.energyInput}>
-                    <label style={styles.formLabel}>Physical: {physicalEnergy}</label>
-                    <input type="range" min="1" max="10" value={physicalEnergy} onChange={(e) => setPhysicalEnergy(e.target.value)} style={styles.slider} />
-                  </div>
-                </div>
-
-                <button type="submit" disabled={isUpdatingContext} style={styles.submitBtn}>
-                  {isUpdatingContext ? "Locking logs..." : "Lock Context Logs"}
-                </button>
-              </form>
-            ) : (
-              <div style={styles.frozenStats}>
-                <div style={styles.frozenItem}>
-                  <span style={styles.frozenLabel}>💤 Sleep Analysis</span>
-                  <span style={styles.frozenVal}>{context.sleep?.hours} hrs ({context.sleep?.quality})</span>
-                </div>
-                <div style={styles.frozenItem}>
-                  <span style={styles.frozenLabel}>⚡ Energies</span>
-                  <span style={styles.frozenVal}>
-                    Mental: {context.energies?.mental} | Physical: {context.energies?.physical}
-                  </span>
-                </div>
-                <button onClick={() => setContext(prev => ({ ...prev, is_frozen: false }))} style={styles.unfreezeBtn}>
-                  ✏️ Edit Context Logs
+      {/* FLOATING GLASSMORPHISM NOTEPAD (TOP-RIGHT) */}
+      <div 
+        style={{
+          ...styles.notepadContainer,
+          width: isNotepadCollapsed ? '70px' : '360px',
+          height: isNotepadCollapsed ? '70px' : 'auto',
+          maxHeight: isNotepadCollapsed ? '70px' : 'calc(100vh - 120px)',
+          borderRadius: isNotepadCollapsed ? '50%' : '1.25rem',
+          padding: isNotepadCollapsed ? '0' : '1.25rem',
+          boxShadow: showNotepadGlow 
+            ? '0 0 25px rgba(37, 211, 102, 0.4), 0 8px 32px rgba(0, 0, 0, 0.4)' 
+            : '0 8px 32px rgba(0, 0, 0, 0.3)'
+        }}
+      >
+        {isNotepadCollapsed ? (
+          <button 
+            style={styles.notepadCollapsedBadge}
+            onClick={() => setIsNotepadCollapsed(false)}
+            title="Open Notepad"
+          >
+            📋
+            <span style={styles.notepadCollapsedCount}>
+              {actions.filter(a => a.status === 'done').length}/{actions.length}
+            </span>
+          </button>
+        ) : (
+          <>
+            <div style={styles.notepadHeader}>
+              <h3 style={styles.notepadTitle}>Today's Moves</h3>
+              <div className="flex align-center gap-2">
+                <span style={styles.movesCountBadge}>
+                  {actions.filter(a => a.status === 'done').length} / {actions.length} Done
+                </span>
+                <button 
+                  onClick={() => setIsNotepadCollapsed(true)} 
+                  style={styles.notepadCloseBtn}
+                >
+                  ✕
                 </button>
               </div>
-            )}
-          </div>
-
-          {/* World Engine layer */}
-          <div style={styles.panel}>
-            <h3 style={styles.panelTitle}>World Engine (Live Environment)</h3>
-            <div style={styles.worldRow}>
-              <span style={styles.worldLabel}>Location:</span>
-              <span style={styles.worldVal}>{profile.city || "Gurgaon"}</span>
             </div>
-            <div style={styles.worldRow}>
-              <span style={styles.worldLabel}>Local AQI Level:</span>
-              <span style={{ 
-                ...styles.worldVal, 
-                color: (profile.city === 'Gurgaon') ? '#ef4444' : '#10b981' 
-              }}>
-                {(profile.city === 'Gurgaon') ? "250 (Critical / Hazardous)" : "65 (Moderate)"}
-              </span>
-            </div>
-            <div style={styles.worldRow}>
-              <span style={styles.worldLabel}>Seasonal Trigger:</span>
-              <span style={styles.worldVal}>Salary Week</span>
-            </div>
-            <div style={styles.worldRow}>
-              <span style={styles.worldLabel}>Weather Outlook:</span>
-              <span style={styles.worldVal}>{context.environmental?.weather || "Clear"}</span>
-            </div>
-          </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={() => router.push('/onboarding')} style={{ ...styles.actionBtn, flex: 1 }}>⚙️ Onboarding Settings</button>
-            <button onClick={handleFullReset} style={{ ...styles.actionBtn, color: '#ef4444', borderColor: '#ef4444', flex: 1 }}>⚠️ Wipe OS Session</button>
-          </div>
-        </div>
+            <div style={styles.notepadList}>
+              {actions.length === 0 ? (
+                <p style={styles.emptyTasksText}>No tasks unlocked yet. Start check-in to get going.</p>
+              ) : (
+                actions.map((act) => {
+                  const isExpanded = expandedActionId === act.id;
+                  const isDone = act.status === 'done';
+                  const isSkipped = act.status === 'skipped';
+                  const isBonus = act.category === 'Bonus' || act.text.toLowerCase().includes('bonus');
+                  const isLocked = act.locked;
 
-        {/* COLUMN 2: THE WHATSAPP LIFE FEED (Right) */}
-        <div style={styles.columnRight}>
-          
-          <div style={styles.feedHeaderPanel}>
-            {/* Header WhatsApp Meta info */}
-            <div className="flex align-center justify-between" style={{ width: '100%' }}>
-              <div className="flex align-center gap-3">
-                <div style={styles.avatar}>🕉️</div>
-                <div>
-                  <h2 style={{ fontSize: '1.15rem', fontFamily: 'var(--font-display)', color: '#fff' }}>
-                    {profile.companion_name || 'Aarav'}
-                  </h2>
-                  <div className="flex align-center gap-1" style={{ marginTop: '0.15rem' }}>
-                    <span style={styles.onlineDot}></span>
-                    <span style={{ fontSize: '0.75rem', color: '#128c7e' }}>Listening & Journaling</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Active Memory Layers indicators */}
-              <div style={{ textAlign: 'right' }}>
-                <span style={styles.memoryStatusTitle}>🧠 Active Journal Nodes</span>
-                <div className="flex gap-1" style={{ marginTop: '0.25rem' }}>
-                  <span className="badge badge-primary" style={{ fontSize: '0.6rem', padding: '0.15rem 0.4rem' }}>Friction Log</span>
-                  <span className="badge badge-success" style={{ fontSize: '0.6rem', padding: '0.15rem 0.4rem' }}>EV Scoring</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Checklist (Today's Moves) pinned at the top */}
-          {actions.length > 0 && (
-            <div style={styles.pinnedMovesContainer}>
-              <div 
-                style={{ ...styles.movesCardHeader, cursor: 'pointer', userSelect: 'none' }} 
-                onClick={() => setShowMoves(!showMoves)}
-              >
-                <div className="flex align-center gap-2">
-                  <h3 style={styles.movesCardTitle}>Today's Moves</h3>
-                  <span style={styles.movesCountBadge}>{actions.filter(a => a.status === 'done').length} / {actions.length} Completed</span>
-                </div>
-                <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>{showMoves ? '▲ Collapse' : '▼ Expand'}</span>
-              </div>
-
-              {showMoves && (
-                <div style={styles.movesList}>
-                  {actions.map((act) => {
-                    const isExpanded = expandedActionId === act.id;
-                    const isDone = act.status === 'done';
-                    const isSkipped = act.status === 'skipped';
-
-                    return (
-                      <div 
-                        key={act.id} 
-                        style={{
-                          ...styles.moveItemRow,
-                          border: isDone ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.06)',
-                          background: isDone ? 'rgba(16, 185, 129, 0.02)' : 'rgba(255,255,255,0.01)'
-                        }}
-                        onClick={() => setExpandedActionId(isExpanded ? null : act.id)}
-                      >
-                        <div style={styles.moveItemHeader}>
-                          <div style={{ flex: 1 }}>
-                            <div className="flex align-center gap-2">
-                              <span style={styles.moveCatBadge}>{act.category}</span>
-                              {act.success_probability && (
-                                <span style={styles.probIndicator}>{act.success_probability}% Likelihood</span>
-                              )}
-                            </div>
-                            <h4 style={{
-                              ...styles.moveTextTitle,
-                              textDecoration: isDone ? 'line-through' : 'none',
-                              color: isDone ? '#9ca3af' : '#fff'
-                            }}>{act.text}</h4>
-                            
-                            {/* The Explanation Engine output displayed directly */}
-                            {act.whyToday && (
-                              <p style={styles.moveExplanationWhy}>
-                                ➔ {act.whyToday}
-                              </p>
+                  return (
+                    <div 
+                      key={act.id} 
+                      style={{
+                        ...styles.moveItemRow,
+                        border: isDone ? '1px solid rgba(16, 185, 129, 0.2)' : isLocked ? '1px dashed rgba(255,255,255,0.08)' : '1px solid rgba(255,255,255,0.06)',
+                        background: isDone ? 'rgba(16, 185, 129, 0.02)' : 'rgba(255,255,255,0.01)',
+                        opacity: isLocked ? 0.6 : 1,
+                        cursor: isLocked ? 'not-allowed' : 'pointer'
+                      }}
+                      onClick={() => {
+                        if (!isLocked) setExpandedActionId(isExpanded ? null : act.id);
+                      }}
+                    >
+                      <div style={styles.moveItemHeader}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span 
+                              style={{
+                                ...styles.moveCatBadge,
+                                background: isBonus ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.04)',
+                                color: isBonus ? '#fbbf24' : '#9ca3af'
+                              }}
+                            >
+                              {isBonus ? '🌟 BONUS' : act.category}
+                            </span>
+                            {isLocked && (
+                              <span style={{ fontSize: '0.75rem', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '2px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                                🔒 Locked until {act.scheduled_time}
+                              </span>
                             )}
                           </div>
-
-                          <div style={styles.moveControls} onClick={(e) => e.stopPropagation()}>
-                            {isDone ? (
-                              <div style={styles.starRow}>
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <button 
-                                    key={star} 
-                                    onClick={() => handleRateAction(act.id, star)}
-                                    style={{
-                                      ...styles.starBtn,
-                                      color: (act.rating || 4) >= star ? '#fbbf24' : 'rgba(255,255,255,0.2)'
-                                    }}
-                                  >
-                                    ★
-                                  </button>
-                                ))}
-                                <button onClick={() => handleToggleAction(act.id, 'done')} style={styles.resetTaskBtn}>✕</button>
-                              </div>
-                            ) : isSkipped ? (
-                              <div style={styles.skippedState}>
-                                <span style={styles.skippedText}>Ignored</span>
-                                <button onClick={() => handleToggleAction(act.id, 'skipped')} style={styles.resetTaskBtn}>↺ Reset</button>
-                              </div>
-                            ) : (
-                              <div style={styles.todoControls}>
-                                <button onClick={() => handleToggleAction(act.id, 'todo')} style={styles.doneBtn}>✓ Complete</button>
-                                <button onClick={() => handleToggleAction(act.id, 'skipped')} style={styles.skipBtn}>✕ Ignore</button>
-                              </div>
-                            )}
-                          </div>
+                          <h4 style={{
+                            ...styles.moveTextTitle,
+                            textDecoration: isDone ? 'line-through' : 'none',
+                            color: isDone ? '#9ca3af' : isLocked ? '#6b7280' : '#fff'
+                          }}>{act.text}</h4>
                         </div>
 
-                        {isExpanded && (
-                          <div style={styles.moveExpandedContent}>
-                            <div style={styles.moveExplainBlock}>
-                              <span style={styles.moveExplainLabel}>Why This Move Matters</span>
-                              <p style={styles.moveExplainText}>{act.whyRelevant || "Customized to align with your personal context log variables."}</p>
+                        {/* Quick controls */}
+                        <div style={styles.moveControls} onClick={(e) => e.stopPropagation()}>
+                          {isLocked ? (
+                            <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>🔒 Locked</span>
+                          ) : isDone ? (
+                            <div style={styles.starRow}>
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <button 
+                                  key={star} 
+                                  onClick={() => handleRateAction(act.id, star)}
+                                  style={{
+                                    ...styles.starBtn,
+                                    color: (act.rating || 4) >= star ? '#fbbf24' : 'rgba(255,255,255,0.2)'
+                                  }}
+                                >
+                                  ★
+                                </button>
+                              ))}
+                              <button onClick={() => handleToggleAction(act.id, 'done')} style={styles.resetTaskBtn}>✕</button>
                             </div>
-                            {act.howTo && (
-                              <div style={styles.moveExplainBlock}>
-                                <span style={styles.moveExplainLabel}>How to Complete</span>
-                                <p style={styles.moveExplainText}>{act.howTo}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          ) : isSkipped ? (
+                            <div style={styles.skippedState}>
+                              <span style={styles.skippedText}>Ignored</span>
+                              <button onClick={() => handleToggleAction(act.id, 'skipped')} style={styles.resetTaskBtn}>↺</button>
+                            </div>
+                          ) : (
+                            <div style={styles.todoControls}>
+                              <button onClick={() => handleToggleAction(act.id, 'todo')} style={styles.doneBtn} title="Complete">✓</button>
+                              <button onClick={() => handleToggleAction(act.id, 'skipped')} style={styles.skipBtn} title="Ignore">✕</button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
+
+                      {isExpanded && (
+                        <div style={styles.moveExpandedContent}>
+                          <div style={styles.moveExplainBlock}>
+                            <span style={styles.moveExplainLabel}>Why This Matters</span>
+                            <p style={styles.moveExplainText}>{act.whyToday || act.whyRelevant}</p>
+                          </div>
+                          {act.howTo && (
+                            <div style={styles.moveExplainBlock}>
+                              <span style={styles.moveExplainLabel}>How to Complete</span>
+                              <p style={styles.moveExplainText}>{act.howTo}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
               )}
             </div>
-          )}
+          </>
+        )}
+      </div>
 
-          {/* Scrolling Feed Container */}
-          <div style={styles.feedViewport} ref={chatScrollRef}>
-            
-            {/* Pinned Current Mission Card */}
-            {profile.pinned_mission && (
-              <div style={styles.pinnedMissionBanner}>
-                <span style={styles.pinIcon}>📌</span>
-                <span style={styles.pinText}>
-                  <strong>Current Mission</strong>: {profile.pinned_mission.title} • Day 38
-                </span>
-              </div>
-            )}
-
-            <div style={styles.feedScrollArea}>
-              
-              {/* Chronological events loop */}
-              {renderChatHistoryWithMonthDividers()}
-
-            </div>
+      {/* CHAT VIEWPORT */}
+      <div style={styles.chatViewport}>
+        <div style={styles.chatMessagesArea} ref={chatScrollRef}>
+          <div style={styles.chatWelcomeMessage}>
+            <h2>{profile.companion_name || 'Aarav'}</h2>
+            <p>Your reflective space & daily momentum coach. Talk freely, speak or write what is on your mind.</p>
           </div>
-
-          {/* Feed Text Input & Media Attachment Controls */}
-          <div style={styles.feedInputPanel}>
-            {/* Quick response chips (Momentum Moments) */}
-            <div style={styles.chipRow}>
-              {reflectionChips.map((chip, idx) => (
-                <button 
-                  key={idx} 
-                  onClick={() => handleSendChatMessage(chip)} 
-                  disabled={isSendingChat}
-                  style={styles.reflectionChip}
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex gap-2" style={{ width: '100%', alignItems: 'center' }}>
-              {/* Photo Upload Attachment Icon */}
-              <button 
-                onClick={() => fileInputRef.current?.click()} 
-                style={styles.attachBtn}
-                title="Attach photo memory to life feed"
-                disabled={isUploadingPhoto}
-              >
-                {isUploadingPhoto ? "..." : "📷"}
-              </button>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handlePhotoUpload} 
-                accept="image/*" 
-                style={{ display: 'none' }} 
-              />
-
-              <textarea 
-                placeholder={`Message ${profile.companion_name || 'Aarav'}...`} 
-                value={chatInput} 
-                onChange={(e) => setChatInput(e.target.value)} 
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendChatMessage();
-                  }
-                }}
-                style={styles.feedTextarea}
-                disabled={isSendingChat}
-              />
-              <button 
-                onClick={() => handleSendChatMessage()} 
-                style={styles.feedSendBtn} 
-                disabled={isSendingChat || !chatInput.trim()}
-              >
-                {isSendingChat ? "..." : "Send"}
-              </button>
-            </div>
-          </div>
-
+          {renderChatHistoryWithMonthDividers()}
         </div>
 
+        {/* INPUT BOX */}
+        <div style={styles.inputAreaWrapper}>
+          <div style={styles.chipRow}>
+            {reflectionChips.map((chip, idx) => (
+              <button 
+                key={idx} 
+                onClick={() => handleSendChatMessage(chip)} 
+                disabled={isSendingChat}
+                style={styles.reflectionChip}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+
+          <div style={styles.inputBar}>
+            {/* Photo Attachment Icon */}
+            <button 
+              onClick={() => fileInputRef.current?.click()} 
+              style={styles.attachBtn}
+              title="Attach photo"
+              disabled={isUploadingPhoto}
+            >
+              {isUploadingPhoto ? "..." : "📷"}
+            </button>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handlePhotoUpload} 
+              accept="image/*" 
+              style={{ display: 'none' }} 
+            />
+
+            <textarea 
+              placeholder={`Message ${profile.companion_name || 'Aarav'}...`} 
+              value={chatInput} 
+              onChange={(e) => setChatInput(e.target.value)} 
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendChatMessage();
+                }
+              }}
+              style={styles.feedTextarea}
+              disabled={isSendingChat}
+            />
+
+            {/* Voice microphone button */}
+            <button 
+              onClick={toggleRecording} 
+              style={{
+                ...styles.micBtn,
+                background: isRecording ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
+                borderColor: isRecording ? '#ef4444' : 'rgba(255, 255, 255, 0.08)',
+                color: isRecording ? '#ef4444' : '#9ca3af'
+              }}
+              title="Talk (Speech to Text)"
+            >
+              {isRecording ? <span style={styles.recordingPulse}></span> : '🎤'}
+            </button>
+
+            <button 
+              onClick={() => handleSendChatMessage()} 
+              style={styles.feedSendBtn} 
+              disabled={isSendingChat || !chatInput.trim()}
+            >
+              {isSendingChat ? "..." : "Send"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1003,14 +910,18 @@ class ConfettiEffect {
   }
 }
 
-// Inline CSS styled custom elements
+// Inline CSS Styles for absolute glassmorphic minimalist visual layout
 const styles = {
   dashboardContainer: {
     color: '#fff',
-    minHeight: '100vh',
-    padding: '1.5rem',
-    background: '#040508',
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    height: '100vh',
+    width: '100vw',
+    display: 'flex',
+    flexDirection: 'column',
+    background: 'radial-gradient(ellipse at bottom, #0f1319 0%, #040508 100%)',
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    overflow: 'hidden',
+    position: 'relative'
   },
   confettiCanvas: {
     position: 'fixed',
@@ -1021,54 +932,116 @@ const styles = {
     pointerEvents: 'none',
     zIndex: 9999,
   },
-  timeTravelBar: {
+  header: {
+    height: '70px',
+    background: 'rgba(10, 12, 18, 0.45)',
+    backdropFilter: 'blur(30px)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
     display: 'flex',
-    justifyContent: 'flex-end',
-    marginBottom: '1rem',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '0 2rem',
+    zIndex: 100,
     position: 'relative'
   },
-  timeButton: {
-    background: 'rgba(255, 255, 255, 0.04)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    color: '#25d366',
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem'
+  },
+  headerMomentumContainer: {
+    position: 'relative',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '45px',
+    height: '45px'
+  },
+  headerMomentumText: {
+    position: 'absolute',
+    fontSize: '0.85rem',
+    fontWeight: '800',
+    color: '#25d366'
+  },
+  headerContextLabel: {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center'
+  },
+  headerRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem'
+  },
+  waterWidget: {
+    border: '1px solid',
     padding: '0.5rem 1rem',
-    borderRadius: '0.75rem',
+    borderRadius: '1rem',
     cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '0.85rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.25rem',
+    transition: 'all 0.2s ease'
+  },
+  navBtn: {
+    background: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    color: '#e5e7eb',
+    padding: '0.5rem 1rem',
+    borderRadius: '1rem',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
     fontWeight: '500',
-    fontSize: '0.85rem'
+    transition: 'all 0.2s ease'
+  },
+  navBtnReset: {
+    background: 'rgba(239, 68, 68, 0.05)',
+    border: '1px solid rgba(239, 68, 68, 0.15)',
+    color: '#f87171',
+    padding: '0.5rem 1rem',
+    borderRadius: '1rem',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: '500',
+    transition: 'all 0.2s ease'
   },
   timeDropdown: {
     position: 'absolute',
-    top: '110%',
-    right: 0,
+    top: '75px',
+    right: '2rem',
     background: 'rgba(15, 15, 25, 0.98)',
     border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '1rem',
-    padding: '0.75rem',
+    borderRadius: '1.25rem',
+    padding: '1rem',
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.5rem',
-    zIndex: 100,
-    width: '240px'
+    gap: '0.65rem',
+    zIndex: 200,
+    width: '240px',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
   },
   simBtn: {
     background: 'rgba(255, 255, 255, 0.04)',
     border: '1px solid rgba(255,255,255,0.08)',
     color: '#fff',
-    padding: '0.4rem',
-    borderRadius: '0.5rem',
+    padding: '0.5rem',
+    borderRadius: '0.75rem',
     cursor: 'pointer',
     fontSize: '0.8rem',
+    transition: 'all 0.15s ease'
   },
   simBtnPrimary: {
     background: '#128c7e',
     border: 'none',
     color: '#fff',
-    padding: '0.5rem',
-    borderRadius: '0.5rem',
+    padding: '0.6rem',
+    borderRadius: '0.75rem',
     cursor: 'pointer',
     fontSize: '0.8rem',
-    fontWeight: '500'
+    fontWeight: '600',
+    transition: 'all 0.15s ease'
   },
   resetClockBtn: {
     background: 'transparent',
@@ -1078,320 +1051,235 @@ const styles = {
     fontSize: '0.8rem',
     marginTop: '0.25rem'
   },
-  layoutGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1.2fr 3fr',
-    gap: '1.5rem',
-  },
-  columnLeft: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.25rem'
-  },
-  columnRight: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '1150px',
-    minHeight: '620px',
-    background: 'rgba(10, 12, 18, 0.6)',
+  notepadContainer: {
+    position: 'fixed',
+    top: '90px',
+    right: '2rem',
+    background: 'rgba(15, 18, 25, 0.7)',
     backdropFilter: 'blur(25px)',
-    border: '1px solid rgba(255, 255, 255, 0.06)',
-    borderRadius: '1.5rem',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    zIndex: 90,
+    display: 'flex',
+    flexDirection: 'column',
     overflow: 'hidden',
-    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.35)'
+    transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)'
   },
-  pinnedMovesContainer: {
-    background: 'rgba(20, 24, 35, 0.6)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-    padding: '0.85rem 1.25rem',
-    maxHeight: '320px',
-    overflowY: 'auto'
-  },
-  panel: {
-    background: 'rgba(15, 15, 25, 0.7)',
-    backdropFilter: 'blur(20px)',
-    border: '1px solid rgba(255, 255, 255, 0.06)',
-    borderRadius: '1.25rem',
-    padding: '1.25rem',
-    display: 'flex',
-    flexDirection: 'column',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
-  },
-  panelTitle: {
-    fontSize: '0.95rem',
-    fontWeight: '600',
-    marginBottom: '1rem',
-    color: '#fff',
-    borderBottom: '1px solid rgba(255,255,255,0.05)',
-    paddingBottom: '0.5rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em'
-  },
-  meterContainer: {
-    position: 'relative',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: '0.25rem 0'
-  },
-  meterText: {
-    position: 'absolute',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center'
-  },
-  meterVal: {
-    fontSize: '2rem',
-    fontWeight: '800',
-    background: 'linear-gradient(135deg, #ffffff 0%, #25d366 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-  },
-  meterLabel: {
-    fontSize: '0.6rem',
-    color: '#9ca3af',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em'
-  },
-  readinessSection: {
-    marginTop: '0.75rem',
-    padding: '0.5rem 0.75rem',
-    background: 'rgba(255,255,255,0.02)',
-    border: '1px solid rgba(255,255,255,0.04)',
-    borderRadius: '0.75rem'
-  },
-  readinessLabel: {
-    fontSize: '0.75rem',
-    color: '#9ca3af'
-  },
-  readinessValue: {
-    fontSize: '0.85rem',
-    fontWeight: '700',
-    color: '#25d366'
-  },
-  progressBarBg: {
+  notepadCollapsedBadge: {
     width: '100%',
-    height: '6px',
-    background: 'rgba(255,255,255,0.05)',
-    borderRadius: '3px',
-    overflow: 'hidden'
-  },
-  progressBarFill: {
     height: '100%',
-    background: '#128c7e',
-    borderRadius: '3px',
-    transition: 'width 0.5s ease-in-out'
-  },
-  archetypeBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    marginTop: '0.75rem',
-    padding: '0.5rem',
-    background: 'rgba(18, 140, 126, 0.05)',
-    border: '1px solid rgba(18, 140, 126, 0.15)',
-    borderRadius: '0.75rem'
-  },
-  badgeSuccess: {
-    color: '#25d366',
-    fontSize: '0.8rem',
-    fontWeight: '600'
-  },
-  archetypeLabel: {
-    fontSize: '0.6rem',
-    color: '#9ca3af',
-    marginTop: '0.15rem',
-    textTransform: 'uppercase'
-  },
-  metaStats: {
-    display: 'flex',
-    justifyContent: 'space-around',
-    marginTop: '0.75rem',
-    background: 'rgba(255, 255, 255, 0.01)',
-    borderRadius: '0.5rem',
-    padding: '0.5rem 0.25rem',
-    border: '1px solid rgba(255,255,255,0.03)'
-  },
-  metaStatItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center'
-  },
-  metaStatVal: {
-    fontSize: '0.9rem',
-    fontWeight: '700',
-    color: '#fff',
-    textAlign: 'center'
-  },
-  metaStatLabel: {
-    fontSize: '0.6rem',
-    color: '#9ca3af',
-    marginTop: '0.15rem'
-  },
-  metaDivider: {
-    borderLeft: '1px solid rgba(255,255,255,0.08)',
-    height: '20px',
-    alignSelf: 'center'
-  },
-  contextForm: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.85rem'
-  },
-  inputRow: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem'
-  },
-  formLabel: {
-    fontSize: '0.75rem',
-    color: '#9ca3af'
-  },
-  slider: {
-    width: '100%',
-    accentColor: '#128c7e',
-    cursor: 'pointer'
-  },
-  energiesGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '0.5rem'
-  },
-  energyInput: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.2rem'
-  },
-  submitBtn: {
-    background: '#128c7e',
-    color: '#fff',
+    background: 'transparent',
     border: 'none',
-    padding: '0.55rem',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '0.8rem',
-    marginTop: '0.25rem'
-  },
-  frozenStats: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem'
-  },
-  frozenItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '0.4rem',
-    background: 'rgba(255,255,255,0.01)',
-    borderRadius: '0.5rem',
-    border: '1px solid rgba(255,255,255,0.03)'
-  },
-  frozenLabel: {
-    fontSize: '0.6rem',
-    color: '#9ca3af',
-    fontWeight: 'bold',
-    textTransform: 'uppercase'
-  },
-  frozenVal: {
-    fontSize: '0.8rem',
     color: '#fff',
-    marginTop: '0.1rem'
-  },
-  unfreezeBtn: {
-    background: 'transparent',
-    border: '1px solid rgba(255,255,255,0.08)',
-    color: '#9ca3af',
-    padding: '0.45rem',
-    borderRadius: '0.5rem',
+    fontSize: '1.5rem',
     cursor: 'pointer',
-    fontSize: '0.75rem',
-    marginTop: '0.25rem'
-  },
-  worldRow: {
     display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '0.75rem',
-    padding: '0.35rem 0',
-    borderBottom: '1px solid rgba(255,255,255,0.03)'
-  },
-  worldLabel: {
-    color: '#9ca3af'
-  },
-  worldVal: {
-    fontWeight: '500'
-  },
-  actionBtn: {
-    background: 'transparent',
-    border: '1px solid rgba(255,255,255,0.08)',
-    color: '#9ca3af',
-    padding: '0.4rem',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontSize: '0.75rem',
-    textAlign: 'center'
-  },
-  feedHeaderPanel: {
-    background: 'rgba(20, 24, 35, 0.8)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-    padding: '0.85rem 1.25rem',
-  },
-  avatar: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    background: 'rgba(18, 140, 126, 0.15)',
-    border: '1px solid rgba(18, 140, 126, 0.3)',
-    display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '1.25rem'
-  },
-  onlineDot: {
-    width: '7px',
-    height: '7px',
-    borderRadius: '50%',
-    backgroundColor: '#25d366',
-    boxShadow: '0 0 6px #25d366',
-    display: 'inline-block'
-  },
-  memoryStatusTitle: {
-    fontSize: '0.65rem',
-    color: '#9ca3af',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    fontWeight: '600'
-  },
-  feedViewport: {
-    flex: 1,
-    padding: '1rem',
-    overflowY: 'auto',
     position: 'relative'
   },
-  pinnedMissionBanner: {
-    position: 'sticky',
-    top: '0',
-    background: 'rgba(18, 140, 126, 0.9)',
-    border: '1px solid rgba(37, 211, 102, 0.3)',
-    borderRadius: '0.75rem',
-    padding: '0.5rem 0.75rem',
+  notepadCollapsedCount: {
+    fontSize: '0.65rem',
+    color: '#25d366',
+    fontWeight: '700',
+    marginTop: '2px',
+    background: 'rgba(37, 211, 102, 0.12)',
+    padding: '1px 5px',
+    borderRadius: '4px'
+  },
+  notepadHeader: {
     display: 'flex',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: '0.5rem',
-    zIndex: 10,
-    marginBottom: '1rem',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+    paddingBottom: '0.75rem',
+    marginBottom: '0.75rem'
   },
-  pinIcon: {
-    fontSize: '0.95rem'
+  notepadTitle: {
+    fontSize: '0.95rem',
+    fontWeight: '700',
+    color: '#e5e7eb',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
   },
-  pinText: {
+  notepadCloseBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#9ca3af',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    padding: '0.25rem'
+  },
+  movesCountBadge: {
     fontSize: '0.75rem',
-    color: '#fff'
+    background: 'rgba(37, 211, 102, 0.1)',
+    color: '#25d366',
+    padding: '0.2rem 0.5rem',
+    borderRadius: '0.5rem',
+    fontWeight: '600'
   },
-  feedScrollArea: {
+  notepadList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '1rem'
+    gap: '0.75rem',
+    overflowY: 'auto',
+    flexGrow: 1
+  },
+  emptyTasksText: {
+    fontSize: '0.85rem',
+    color: '#9ca3af',
+    textAlign: 'center',
+    padding: '2rem 1rem',
+    lineHeight: '1.4'
+  },
+  moveItemRow: {
+    borderRadius: '0.75rem',
+    padding: '0.75rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  moveItemHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '0.75rem'
+  },
+  moveCatBadge: {
+    alignSelf: 'flex-start',
+    fontSize: '0.6rem',
+    padding: '0.15rem 0.4rem',
+    borderRadius: '0.4rem',
+    fontWeight: '700',
+    letterSpacing: '0.05em'
+  },
+  moveTextTitle: {
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    marginTop: '0.35rem',
+    lineHeight: '1.4'
+  },
+  moveControls: {
+    display: 'flex',
+    alignItems: 'center'
+  },
+  todoControls: {
+    display: 'flex',
+    gap: '0.35rem'
+  },
+  doneBtn: {
+    background: 'rgba(37, 211, 102, 0.12)',
+    border: '1px solid rgba(37, 211, 102, 0.25)',
+    color: '#25d366',
+    width: '28px',
+    height: '28px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: '700',
+    fontSize: '0.85rem'
+  },
+  skipBtn: {
+    background: 'rgba(239, 68, 68, 0.08)',
+    border: '1px solid rgba(239, 68, 68, 0.2)',
+    color: '#f87171',
+    width: '28px',
+    height: '28px',
+    borderRadius: '50%',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '0.75rem'
+  },
+  skippedState: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.35rem'
+  },
+  skippedText: {
+    fontSize: '0.75rem',
+    color: '#f59e0b',
+    fontWeight: '600'
+  },
+  resetTaskBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#9ca3af',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    marginLeft: '0.35rem'
+  },
+  starRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.1rem'
+  },
+  starBtn: {
+    background: 'transparent',
+    border: 'none',
+    fontSize: '0.9rem',
+    cursor: 'pointer',
+    padding: '1px'
+  },
+  moveExpandedContent: {
+    marginTop: '0.75rem',
+    borderTop: '1px solid rgba(255,255,255,0.06)',
+    paddingTop: '0.75rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem',
+    cursor: 'default'
+  },
+  moveExplainBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.15rem'
+  },
+  moveExplainLabel: {
+    fontSize: '0.65rem',
+    color: '#128c7e',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
+  },
+  moveExplainText: {
+    fontSize: '0.78rem',
+    color: '#d1d5db',
+    lineHeight: '1.45'
+  },
+  chatViewport: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    width: '100%',
+    maxWidth: '800px',
+    margin: '0 auto',
+    padding: '1.5rem 1rem',
+    boxSizing: 'border-box',
+    height: 'calc(100vh - 70px)',
+    position: 'relative'
+  },
+  chatMessagesArea: {
+    flex: 1,
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.25rem',
+    paddingRight: '0.5rem',
+    paddingBottom: '2rem',
+    scrollbarWidth: 'thin'
+  },
+  chatWelcomeMessage: {
+    textAlign: 'center',
+    padding: '4rem 1rem 2rem 1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '0.5rem'
   },
   monthHeader: {
     display: 'flex',
@@ -1431,13 +1319,13 @@ const styles = {
     padding: '0.75rem 1rem',
     borderRadius: '0.85rem',
     lineHeight: '1.45',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
     display: 'flex',
     flexDirection: 'column',
     position: 'relative'
   },
   bubbleText: {
-    fontSize: '0.9rem',
+    fontSize: '0.92rem',
     color: '#fff',
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word'
@@ -1454,201 +1342,13 @@ const styles = {
     objectFit: 'cover',
     borderRadius: '0.4rem'
   },
-  mediaCard: {
-    background: 'rgba(0,0,0,0.2)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '0.75rem',
-    padding: '0.75rem',
-    marginTop: '0.6rem',
-    width: '100%',
-    minWidth: '240px'
-  },
-  cardItemTitle: {
-    fontSize: '0.8rem',
-    fontWeight: 'bold',
-    color: '#fff'
-  },
-  cardItemSubtitle: {
-    fontSize: '0.7rem',
-    color: '#9ca3af',
-    marginTop: '0.1rem'
-  },
-  cardPlayBtn: {
-    background: '#128c7e',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '0.4rem',
-    padding: '0.3rem 0.6rem',
-    fontSize: '0.7rem',
-    cursor: 'pointer',
-    fontWeight: '600'
-  },
-  feedMovesCard: {
-    background: 'rgba(25, 28, 38, 0.7)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '1rem',
-    padding: '1rem',
-    margin: '1.25rem 0',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-  },
-  movesCardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '0.75rem',
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
-    paddingBottom: '0.5rem'
-  },
-  movesCardTitle: {
-    fontSize: '0.9rem',
-    fontWeight: 'bold',
-    color: '#25d366',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em'
-  },
-  movesCountBadge: {
-    fontSize: '0.7rem',
-    background: 'rgba(37, 211, 102, 0.1)',
-    color: '#25d366',
-    padding: '0.15rem 0.4rem',
-    borderRadius: '0.5rem',
-    fontWeight: '600'
-  },
-  movesList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.6rem'
-  },
-  moveItemRow: {
-    border: '1px solid',
-    borderRadius: '0.75rem',
-    padding: '0.75rem',
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-    display: 'flex',
-    flexDirection: 'column'
-  },
-  moveItemHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: '1rem'
-  },
-  moveCatBadge: {
-    alignSelf: 'flex-start',
-    fontSize: '0.6rem',
-    padding: '0.1rem 0.4rem',
-    borderRadius: '0.4rem',
-    background: 'rgba(255,255,255,0.04)',
-    color: '#9ca3af',
-    fontWeight: '600'
-  },
-  probIndicator: {
-    fontSize: '0.6rem',
-    color: '#818cf8',
-    fontWeight: 'bold'
-  },
-  moveTextTitle: {
-    fontSize: '0.85rem',
-    fontWeight: '500',
-    marginTop: '0.2rem',
-    lineHeight: '1.3'
-  },
-  moveExplanationWhy: {
-    fontSize: '0.72rem',
-    color: '#a855f7',
-    marginTop: '0.2rem',
-    fontWeight: '500'
-  },
-  moveControls: {
-    display: 'flex',
-    alignItems: 'center'
-  },
-  todoControls: {
-    display: 'flex',
-    gap: '0.35rem'
-  },
-  doneBtn: {
-    background: 'rgba(37, 211, 102, 0.1)',
-    border: '1px solid rgba(37, 211, 102, 0.25)',
-    color: '#25d366',
-    padding: '0.25rem 0.5rem',
-    borderRadius: '0.4rem',
-    cursor: 'pointer',
-    fontSize: '0.75rem',
-    fontWeight: '600'
-  },
-  skipBtn: {
-    background: 'rgba(239, 68, 68, 0.04)',
-    border: '1px solid rgba(239, 68, 68, 0.15)',
-    color: '#ef4444',
-    padding: '0.25rem 0.4rem',
-    borderRadius: '0.4rem',
-    cursor: 'pointer',
-    fontSize: '0.75rem'
-  },
-  skippedState: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.35rem'
-  },
-  skippedText: {
-    fontSize: '0.75rem',
-    color: '#f59e0b',
-    fontWeight: '500'
-  },
-  resetTaskBtn: {
-    background: 'transparent',
-    border: 'none',
-    color: '#9ca3af',
-    cursor: 'pointer',
-    fontSize: '0.75rem',
-    padding: '0.15rem'
-  },
-  starRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.15rem'
-  },
-  starBtn: {
-    background: 'transparent',
-    border: 'none',
-    fontSize: '1rem',
-    cursor: 'pointer',
-    padding: 0
-  },
-  moveExpandedContent: {
-    marginTop: '0.5rem',
-    borderTop: '1px solid rgba(255,255,255,0.05)',
-    paddingTop: '0.5rem',
+  inputAreaWrapper: {
     display: 'flex',
     flexDirection: 'column',
     gap: '0.5rem',
-    cursor: 'default'
-  },
-  moveExplainBlock: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.1rem'
-  },
-  moveExplainLabel: {
-    fontSize: '0.65rem',
-    color: '#128c7e',
-    fontWeight: 'bold',
-    textTransform: 'uppercase'
-  },
-  moveExplainText: {
-    fontSize: '0.78rem',
-    color: '#d1d5db',
-    lineHeight: '1.4'
-  },
-  feedInputPanel: {
-    background: 'rgba(20, 24, 35, 0.8)',
-    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-    padding: '0.75rem 1.25rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem'
+    marginTop: 'auto',
+    background: 'transparent',
+    padding: '0.5rem 0'
   },
   chipRow: {
     display: 'flex',
@@ -1661,36 +1361,68 @@ const styles = {
     background: 'rgba(255,255,255,0.03)',
     border: '1px solid rgba(255,255,255,0.06)',
     color: '#9ca3af',
-    padding: '0.25rem 0.5rem',
-    borderRadius: '0.5rem',
+    padding: '0.25rem 0.65rem',
+    borderRadius: '0.75rem',
     fontSize: '0.75rem',
     whiteSpace: 'nowrap',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    transition: 'all 0.15s ease'
+  },
+  inputBar: {
+    background: 'rgba(255, 255, 255, 0.02)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '1.5rem',
+    padding: '0.5rem 0.75rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+    backdropFilter: 'blur(10px)'
   },
   attachBtn: {
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '0.5rem',
+    background: 'transparent',
+    border: 'none',
     color: '#9ca3af',
-    width: '40px',
-    height: '40px',
-    fontSize: '1.1rem',
+    width: '36px',
+    height: '36px',
+    fontSize: '1.2rem',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    borderRadius: '50%',
+    transition: 'all 0.15s ease'
+  },
+  micBtn: {
+    border: '1px solid',
+    width: '36px',
+    height: '36px',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '50%',
+    transition: 'all 0.15s ease',
+    position: 'relative'
+  },
+  recordingPulse: {
+    width: '8px',
+    height: '8px',
+    borderRadius: '50%',
+    background: '#ef4444',
+    display: 'block',
+    animation: 'pulse 1.2s infinite ease-in-out'
   },
   feedTextarea: {
     flex: 1,
-    background: 'rgba(255,255,255,0.02)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '0.5rem',
-    padding: '0.65rem 0.75rem',
+    background: 'transparent',
+    border: 'none',
     color: '#fff',
-    fontSize: '0.85rem',
+    fontSize: '0.9rem',
     outline: 'none',
     resize: 'none',
-    height: '40px',
+    height: '24px',
     lineHeight: '1.4',
     fontFamily: 'inherit'
   },
@@ -1699,18 +1431,19 @@ const styles = {
     color: '#fff',
     border: 'none',
     padding: '0 1rem',
-    borderRadius: '0.5rem',
+    borderRadius: '1rem',
     cursor: 'pointer',
     fontWeight: '600',
     fontSize: '0.85rem',
-    height: '40px'
+    height: '32px',
+    transition: 'all 0.15s ease'
   },
   loadingContainer: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: '80vh',
+    minHeight: '100vh',
     background: '#040508',
     color: '#fff'
   },
@@ -1721,5 +1454,13 @@ const styles = {
     borderTopColor: '#25d366',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite'
+  },
+  typingDot: {
+    width: '6px',
+    height: '6px',
+    background: '#a855f7',
+    borderRadius: '50%',
+    display: 'inline-block',
+    animation: 'bounce 1.4s infinite ease-in-out both'
   }
 };

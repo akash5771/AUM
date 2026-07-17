@@ -446,6 +446,23 @@ export function injectLocalPlaceNames(actions, city) {
   });
 }
 
+export const PERIODS = ["Morning", "Afternoon", "Evening", "Night"];
+
+export function getCurrentTimeOfDay(date) {
+  const hours = date.getHours();
+  if (hours >= 12 && hours < 17) return "Afternoon";
+  if (hours >= 17 && hours < 21) return "Evening";
+  if (hours >= 21 || hours < 5) return "Night";
+  return "Morning";
+}
+
+export function isPeriodUnlocked(scheduledPeriod, currentPeriod) {
+  const sIdx = PERIODS.indexOf(scheduledPeriod);
+  const cIdx = PERIODS.indexOf(currentPeriod);
+  if (sIdx === -1) return true;
+  return cIdx >= sIdx;
+}
+
 // --- 11. Main Recommended Action Fetcher ---
 export function getRecommendedInterventions(profile, context, history, db) {
   // 1. Calculate Readiness and Stage
@@ -504,7 +521,7 @@ export function getRecommendedInterventions(profile, context, history, db) {
   let finalizedActions = injectLocalPlaceNames(result.selected, city);
 
   // 8. Inject structured explanation why (Explanation Engine)
-  finalizedActions = finalizedActions.map(act => {
+  finalizedActions = finalizedActions.map((act, index) => {
     const matchingKb = INTERVENTIONS_KB.find(k => k.id === act.id);
     const explanation = matchingKb ? generateExplanationTag(matchingKb, context, db) : "Selected to support momentum.";
     
@@ -512,10 +529,13 @@ export function getRecommendedInterventions(profile, context, history, db) {
     const matchingScored = scored.find(s => s.task.id === act.id);
     const successProb = matchingScored ? Math.round(matchingScored.probability * 100) : 80;
 
+    const scheduled_time = PERIODS[index % PERIODS.length];
+
     return {
       ...act,
       whyToday: explanation,
-      success_probability: successProb
+      success_probability: successProb,
+      scheduled_time
     };
   });
 

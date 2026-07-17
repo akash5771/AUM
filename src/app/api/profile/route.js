@@ -101,3 +101,13 @@ export async function POST(request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
+
+export async function PATCH(request) {
+  try {
+    const body = await request.json();
+    const updated = await updateProfile(body);
+    return NextResponse.json(updated);
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

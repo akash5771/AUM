@@ -25,32 +25,51 @@ function loadEnv() {
 
 loadEnv();
 
-// Helper to query Groq
-async function queryGroq(prompt, model = "llama-3.3-70b-versatile") {
-  const apiKey = process.env.GROQ_API_KEY;
+// Helper to query LLM (Groq or NVIDIA)
+async function queryLLM(prompt, provider = "groq", model = null, forceJson = false) {
+  let apiKey, baseUrl;
+  if (provider === "nvidia") {
+    apiKey = process.env.NVIDIA_API_KEY;
+    baseUrl = "https://integrate.api.nvidia.com/v1/chat/completions";
+    if (!model) model = "meta/llama-3.3-70b-instruct";
+  } else {
+    apiKey = process.env.GROQ_API_KEY;
+    baseUrl = "https://api.groq.com/openai/v1/chat/completions";
+    if (!model) model = "llama-3.3-70b-versatile";
+  }
+
   if (!apiKey) {
-    throw new Error("GROQ_API_KEY is not set. Please check your .env.local file.");
+    throw new Error(`${provider.toUpperCase()}_API_KEY is not set. Please check your .env.local file.`);
   }
 
   let attempt = 0;
   const maxAttempts = 5;
-  let delay = 15000; // start with 15s delay
+  let delay = 5000; // start with 5s delay
 
   while (attempt < maxAttempts) {
     try {
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const payload = {
+        model: model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.3
+      };
+      if (forceJson) {
+        payload.response_format = { type: "json_object" };
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+      const response = await fetch(baseUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${apiKey}`
         },
-        body: JSON.stringify({
-          model: model,
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0.3,
-          response_format: { type: "json_object" }
-        })
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (response.status === 429) {
         attempt++;
@@ -62,12 +81,12 @@ async function queryGroq(prompt, model = "llama-3.3-70b-versatile") {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Groq API returned status ${response.status}: ${errorText}`);
+        throw new Error(`LLM API returned status ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
       const textOutput = result.choices[0].message.content;
-      return JSON.parse(textOutput);
+      return forceJson ? JSON.parse(textOutput) : textOutput;
     } catch (err) {
       if (attempt >= maxAttempts - 1) {
         throw err;
@@ -78,7 +97,115 @@ async function queryGroq(prompt, model = "llama-3.3-70b-versatile") {
       delay *= 2;
     }
   }
-  throw new Error("Max retries exceeded for Groq query.");
+  throw new Error("Max retries exceeded for LLM query.");
+}
+
+// Helper to get Embedding from NVIDIA
+async function getEmbedding(text, inputType = "passage") {
+  const apiKey = process.env.NVIDIA_API_KEY;
+  if (!apiKey) {
+    throw new Error("NVIDIA_API_KEY is not set. Please check your .env.local file.");
+  }
+
+  const cleanedText = (text || '').trim();
+  if (cleanedText.length === 0) {
+    return null;
+  }
+
+  // Remove non-ASCII characters to prevent token inflation on non-Latin text (e.g. Devanagari)
+  const asciiText = cleanedText.replace(/[^\x00-\x7F]/g, " ");
+  // nv-embedqa-e5-v5 has a 512-token limit. Truncate to 800 characters to be safe.
+  const safeText = asciiText.length > 800 ? asciiText.substring(0, 800) : asciiText;
+
+  let attempt = 0;
+  const maxAttempts = 5;
+  let delay = 2000;
+
+  while (attempt < maxAttempts) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const response = await fetch("https://integrate.api.nvidia.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "nvidia/nv-embedqa-e5-v5",
+          input: [safeText],
+          input_type: inputType
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (response.status === 429) {
+        attempt++;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
+        continue;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`NVIDIA Embeddings API returned status ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      return result.data[0].embedding;
+    } catch (err) {
+      if (attempt >= maxAttempts - 1) {
+        throw err;
+      }
+      attempt++;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
+  }
+  throw new Error("Max retries exceeded for embeddings query.");
+}
+
+// Concurrency helper for embeddings
+async function getEmbeddingsForPages(pages, concurrency = 15) {
+  const results = new Array(pages.length);
+  let index = 0;
+
+  async function worker() {
+    while (index < pages.length) {
+      const currentIdx = index++;
+      const pageText = pages[currentIdx].text;
+      try {
+        results[currentIdx] = await getEmbedding(pageText, "passage");
+      } catch (err) {
+        console.error(`Error embedding page ${pages[currentIdx].num}: ${err.message}`);
+        results[currentIdx] = null;
+      }
+    }
+  }
+
+  const workers = [];
+  for (let i = 0; i < Math.min(concurrency, pages.length); i++) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+  return results;
+}
+
+// Local Cosine Similarity helper
+function cosineSimilarity(vecA, vecB) {
+  if (!vecA || !vecB) return 0;
+  let dotProduct = 0.0;
+  let normA = 0.0;
+  let normB = 0.0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
 // Generate a safe unique ID based on category and existing IDs
@@ -103,12 +230,16 @@ async function main() {
   const author = getArgValue(args, '--author') || 'Unknown';
   const pdfPath = getArgValue(args, '--pdf');
   const dryRun = args.includes('--dry-run');
-  const model = getArgValue(args, '--model') || 'qwen/qwen3-32b'; // default to Qwen
-  const limitChunksVal = getArgValue(args, '--limit-chunks');
-  const limitChunks = limitChunksVal ? parseInt(limitChunksVal, 10) : null;
+  const provider = getArgValue(args, '--provider') || 'groq';
+  
+  let defaultModel = provider === 'nvidia' ? 'meta/llama-3.3-70b-instruct' : 'llama-3.1-8b-instant';
+  const model = getArgValue(args, '--model') || defaultModel;
+  
+  const thresholdVal = getArgValue(args, '--threshold');
+  const threshold = thresholdVal ? parseFloat(thresholdVal) : 0.35;
 
   if (!book || !pdfPath) {
-    console.error("Usage: node scripts/extract_book_tasks.js --book \"Book Name\" --pdf \"/path/to/book.pdf\" [--author \"Author\"] [--dry-run] [--model \"model-name\"] [--limit-chunks <num>]");
+    console.error("Usage: node scripts/extract_book_tasks.js --book \"Book Name\" --pdf \"/path/to/book.pdf\" [--author \"Author\"] [--provider nvidia|groq] [--model \"model-name\"] [--threshold <number>] [--dry-run] [--yes]");
     process.exit(1);
   }
 
@@ -120,11 +251,10 @@ async function main() {
 
   console.log(`Starting extraction for book: "${book}" by ${author}`);
   console.log(`PDF Path: ${absolutePdfPath}`);
-  console.log(`Dry-run mode: ${dryRun ? 'ON' : 'OFF'}`);
+  console.log(`Provider: ${provider}`);
   console.log(`Model: ${model}`);
-  if (limitChunks) {
-    console.log(`Chunk Limit: ${limitChunks}`);
-  }
+  console.log(`Threshold: ${threshold}`);
+  console.log(`Dry-run mode: ${dryRun ? 'ON' : 'OFF'}`);
 
   // Dynamic import of pdf-parse
   let PDFParse;
@@ -141,25 +271,94 @@ async function main() {
   const parser = new PDFParse({ data: dataBuffer });
   const result = await parser.getText();
   await parser.destroy();
-  const rawText = result.text;
-  console.log(`PDF Parsed successfully. Total character length: ${rawText.length}`);
-
-  // Chunk text: ~8000 characters per chunk, 1000 character overlap
-  const chunkSize = 8000;
-  const overlap = 1000;
-  let chunks = [];
-  let index = 0;
-  while (index < rawText.length) {
-    chunks.push(rawText.substring(index, index + chunkSize));
-    index += chunkSize - overlap;
+  
+  if (!result || !Array.isArray(result.pages)) {
+    console.error("Error: Failed to parse PDF pages array.");
+    process.exit(1);
   }
 
-  if (limitChunks && limitChunks < chunks.length) {
-    console.log(`Limiting chunks from ${chunks.length} to the first ${limitChunks}.`);
-    chunks = chunks.slice(0, limitChunks);
+  const totalPages = result.pages.length;
+  console.log(`PDF Parsed successfully. Total pages: ${totalPages}`);
+
+  // Pass 1: Compute indexPagesLimit or parse manual keywords
+  const indexPagesLimit = Math.max(5, Math.ceil(totalPages * 0.05));
+  let keywords = getArgValue(args, '--keywords');
+
+  if (keywords) {
+    console.log(`Bypassing Pass 1 Table of Contents scan. Using manually provided keywords: "${keywords}"`);
+  } else {
+    console.log(`Pass 1: Reading index pages (1 to ${indexPagesLimit}) for technique keywords...`);
+    let indexPagesText = result.pages.slice(0, indexPagesLimit).map(p => p.text).join('\n');
+    if (indexPagesText.length > 12000) {
+      console.log(`Index text is too large (${indexPagesText.length} chars). Truncating to 12000 characters to stay under rate/token limits.`);
+      indexPagesText = indexPagesText.substring(0, 12000);
+    }
+    const keywordPrompt = `You are a specialized behavioral science and wellness assistant. Analyze the following Table of Contents / Index / Intro text from the book "${book}" by "${author}":
+
+---
+${indexPagesText}
+---
+
+Extract a comma-separated list of 10-15 core technique keywords, Sanskrit terminology, or exercise types that are central to this book (e.g. Asana, Pranayama, Mudra, Bandha, Shatkarma, Kundalini). Return ONLY the comma-separated list of terms. Do not include any markdown formatting, explanations, numbering, or intro text.`;
+
+    const keywordsOutput = await queryLLM(keywordPrompt, provider, model, false);
+    keywords = keywordsOutput.trim();
+    console.log(`Extracted Keywords: ${keywords}`);
   }
 
-  console.log(`Split text into ${chunks.length} chunks. Sending to Groq...`);
+  // Build target query
+  const targetQuery = `instructions on how to perform ${keywords}, step-by-step yogic exercises, physical execution steps`;
+  console.log(`Target Query: "${targetQuery}"`);
+
+  // Pass 2: Generate embedding for target query
+  console.log("Generating embedding for target query...");
+  const queryEmbedding = await getEmbedding(targetQuery, "query");
+
+  const remainingPages = result.pages.slice(indexPagesLimit);
+  console.log(`Generating embeddings for ${remainingPages.length} remaining pages...`);
+  
+  const pageEmbeddings = await getEmbeddingsForPages(remainingPages, 15);
+  
+  console.log("Computing similarity scores...");
+  const matchedPages = [];
+  for (let i = 0; i < remainingPages.length; i++) {
+    const page = remainingPages[i];
+    const embedding = pageEmbeddings[i];
+    if (!embedding) continue;
+    const similarity = cosineSimilarity(queryEmbedding, embedding);
+    if (similarity >= threshold) {
+      matchedPages.push({
+        page,
+        similarity
+      });
+    }
+  }
+
+  console.log(`\n--- Semantic Filtering Statistics ---`);
+  console.log(`Total PDF Pages: ${totalPages}`);
+  console.log(`Index Pages: ${indexPagesLimit}`);
+  console.log(`Remaining Pages Filtered: ${remainingPages.length}`);
+  console.log(`Threshold applied: ${threshold}`);
+  console.log(`Matched Pages: ${matchedPages.length}`);
+
+  if (matchedPages.length === 0) {
+    console.log("No pages matched the similarity threshold. Exiting.");
+    process.exit(0);
+  }
+
+  if (dryRun) {
+    console.log("\nDry-run mode: Matching pages preview:");
+    matchedPages.slice(0, 10).forEach(m => {
+      console.log(`- Page ${m.page.num} (Similarity: ${m.similarity.toFixed(4)}): "${m.page.text.substring(0, 100).replace(/\n/g, ' ')}..."`);
+    });
+    if (matchedPages.length > 10) {
+      console.log(`... and ${matchedPages.length - 10} more pages.`);
+    }
+    console.log("\nDry-run mode complete. No files were modified.");
+    process.exit(0);
+  }
+
+  console.log(`\nStarting generation phase on ${matchedPages.length} matched pages...`);
 
   const libraryPath = path.join(__dirname, '..', 'data', 'tasks_library.json');
   let existingTasks = [];
@@ -172,18 +371,20 @@ async function main() {
   }
 
   const extractedTasks = [];
+  const delayMs = provider === 'nvidia' ? 1600 : 6500; // paced delay (1.6s for Nvidia, 6.5s for Groq to stay under TPM limits)
 
-  for (let i = 0; i < chunks.length; i++) {
-    // Add a 2-second sleep between requests to play nice with rate limits
+  for (let i = 0; i < matchedPages.length; i++) {
     if (i > 0) {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, delayMs));
     }
-    console.log(`Processing chunk ${i + 1}/${chunks.length}...`);
+    const { page, similarity } = matchedPages[i];
+    console.log(`[${i + 1}/${matchedPages.length}] Extracting tasks from page ${page.num} (Similarity: ${similarity.toFixed(4)})...`);
+
     const prompt = `You are an expert wellness coach and behavioral scientist building a task library for AUM.
 BOOK: ${book} by ${author}
-SOURCE TEXT:
+SOURCE TEXT (PAGE ${page.num}):
 ---
-${chunks[i]}
+${page.text}
 ---
 
 Extract every SPECIFIC, named technique or exercise from the source text.
@@ -191,7 +392,7 @@ Sticking strict to the rules:
 1. MAX 10 minutes to complete if difficulty <= 3
 2. Must be doable at a desk/office if difficulty is 1 or 2
 3. Use the book's EXACT technique name
-4. If this chunk has no specific doable technique, output: {"tasks": []}
+4. If this page has no specific doable technique, output: {"tasks": []}
 5. Do not invent techniques not in the text
 
 Output a JSON object matching this schema. Note: Do NOT copy the description string values literally. You must generate the actual custom texts based on the SOURCE TEXT above!
@@ -220,15 +421,15 @@ Output a JSON object matching this schema. Note: Do NOT copy the description str
 Return ONLY raw JSON matching this format. No markdown fences, no extra notes.`;
 
     try {
-      const responseObj = await queryGroq(prompt, model);
+      const responseObj = await queryLLM(prompt, provider, model, true);
       if (responseObj && Array.isArray(responseObj.tasks)) {
-        console.log(`Extracted ${responseObj.tasks.length} tasks from chunk ${i + 1}.`);
+        console.log(`Extracted ${responseObj.tasks.length} tasks from page ${page.num}.`);
         responseObj.tasks.forEach(t => {
           extractedTasks.push(t);
         });
       }
     } catch (e) {
-      console.error(`Error processing chunk ${i + 1}: ${e.message}`);
+      console.error(`Error processing page ${page.num}: ${e.message}`);
     }
   }
 
@@ -240,11 +441,13 @@ Return ONLY raw JSON matching this format. No markdown fences, no extra notes.`;
   }
 
   // Assign IDs and format
-  const validatedTasks = extractedTasks.map(t => {
-    // Basic verification and fallback values
+  const validatedTasks = [];
+  const tempAllTasks = [...existingTasks];
+
+  extractedTasks.forEach(t => {
     const cat = t.category || 'Mindset';
-    return {
-      id: generateTaskId(cat, existingTasks.concat(extractedTasks)),
+    const validated = {
+      id: generateTaskId(cat, tempAllTasks),
       text: t.text || 'Perform technique.',
       category: cat,
       difficulty: Number(t.difficulty) || 2,
@@ -260,9 +463,11 @@ Return ONLY raw JSON matching this format. No markdown fences, no extra notes.`;
       novelty_score: Number(t.novelty_score) || 5,
       momentum_multiplier: Number(t.momentum_multiplier) || 1.0
     };
+    validatedTasks.push(validated);
+    tempAllTasks.push(validated);
   });
 
-  // Display dry-run preview
+  // Display dry-run/preview
   console.log("\n--- Preview of Extracted Tasks ---");
   validatedTasks.slice(0, 5).forEach((t, idx) => {
     console.log(`[Preview ${idx + 1}] ID: ${t.id} | Category: ${t.category} | Diff: ${t.difficulty}`);
@@ -272,11 +477,6 @@ Return ONLY raw JSON matching this format. No markdown fences, no extra notes.`;
   });
   if (validatedTasks.length > 5) {
     console.log(`... and ${validatedTasks.length - 5} more tasks.`);
-  }
-
-  if (dryRun) {
-    console.log("\nDry-run mode complete. No files were modified.");
-    process.exit(0);
   }
 
   const autoConfirm = args.includes('--yes');

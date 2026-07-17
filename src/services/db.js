@@ -58,7 +58,8 @@ const DEFAULT_DB = {
     intentional_days_rate: 0,
     last_recommended_timestamps: {},
     companion_name: "Aarav",
-    onboarding_completed: false
+    onboarding_completed: false,
+    water_cups: 0
   },
   context: {
     sleep: { hours: 7.0, quality: "good", energy: 7 },
@@ -69,7 +70,8 @@ const DEFAULT_DB = {
     creation_minutes: 0,
     consumption_minutes: 0,
     is_frozen: false,
-    last_logged: ""
+    last_logged: "",
+    checkin_stage: "completed"
   },
   actions: [],
   backups: [],
