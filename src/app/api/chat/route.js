@@ -8,9 +8,13 @@ import {
   resolveLocationUpdate,
   generateSingleContextualAction,
   generateCheckinStream,
-  detectChatSignals
+  detectChatSignals,
+  planMultiShotResponse
 } from '@/services/groq';
 import { PERIODS, getCurrentTimeOfDay, isPeriodUnlocked } from '@/services/recommendations';
+import { evaluateSignalTrigger } from '@/services/signal_trigger';
+import { broadcastSignalEvent } from '@/services/signal_emitter';
+
 
 const QUICK_INTERCEPTS = {
   "good night": "Good night, Akash. Rest well.",
@@ -39,8 +43,9 @@ function updateChatHistoryWithAnnouncement(latestDb, combinedText) {
 
 function getCurrentAssumedLocation(db) {
   const now = getDbCurrentTime(db);
-  const day = now.getDay(); // 0 is Sunday, 6 is Saturday
-  const hour = now.getHours();
+  const d = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+  const day = d.getDay(); // 0 is Sunday, 6 is Saturday
+  const hour = d.getHours();
   
   if (day === 0) {
     return "Home";
@@ -58,13 +63,14 @@ async function injectContextualMessages(db) {
   const profile = db.profile || {};
   const context = db.context || {};
   const now = getDbCurrentTime(db);
+  const d = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
   const todayStr = getMomentumDayString(now);
   
   let dbChanged = false;
   profile.sent_nudges = profile.sent_nudges || [];
 
   // 1. Morning Greeting Check (Adaptive Window: 4:00 AM to 11:59 AM, fallback to day check)
-  const currentHours = now.getHours();
+  const currentHours = d.getHours();
   if (profile.last_greeting_date !== todayStr) {
     let greetingText = `Good morning! How did you sleep last night? How many hours did you get?`;
     if (currentHours < 4 || currentHours >= 12) {
@@ -87,11 +93,11 @@ async function injectContextualMessages(db) {
 
   // 2. Contextual Nudges Check
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const dayName = dayNames[now.getDay()];
+  const dayName = dayNames[d.getDay()];
   
   // Birthday Nudge (matches "MM-DD")
   const birthStr = profile.birthday || "07-12";
-  const currentMonthDay = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const currentMonthDay = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const birthdayNudgeId = `birthday_${todayStr}`;
   if (currentMonthDay === birthStr && !profile.sent_nudges.includes(birthdayNudgeId)) {
     const name = profile.name || "Akash";
@@ -141,19 +147,6 @@ async function injectContextualMessages(db) {
       type: "text"
     });
     profile.sent_nudges.push(sundayNudgeId);
-    dbChanged = true;
-  }
-
-  // Rainy Evening Nudge (Any day 5 PM to 9 PM, weather is Rainy)
-  const rainyNudgeId = `rainy_evening_${todayStr}`;
-  if (context.environmental?.weather === "Rainy" && currentHours >= 17 && currentHours < 21 && !profile.sent_nudges.includes(rainyNudgeId)) {
-    db.chat_history.push({
-      sender: "AUM",
-      text: "Perfect weather for a slow walk or a good book.",
-      timestamp: now.toISOString(),
-      type: "text"
-    });
-    profile.sent_nudges.push(rainyNudgeId);
     dbChanged = true;
   }
 
@@ -299,6 +292,131 @@ export async function POST(request) {
     }
 
     // 3. Normal Chat Stream wrapped with dynamic contextual task generation
+    // ── Multi-Shot planning: attempt before falling back to single stream ──
+    const freshDbForPlanner = await readDB();
+    const nowForPlanner = getDbCurrentTime(freshDbForPlanner);
+    const kNowPlanner = new Date(nowForPlanner.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const slimCtx = {
+      hour: kNowPlanner.getHours()
+    };
+    const multiShotPlan = await planMultiShotResponse(message, freshDbForPlanner, slimCtx).catch(() => null);
+
+    // ── MULTI-SHOT PATH ───────────────────────────────────────────────────────
+    if (multiShotPlan && Array.isArray(multiShotPlan.shots) && multiShotPlan.shots.length >= 2) {
+      console.log(`[MultiShot] Entering multi-shot path with ${multiShotPlan.shots.length} shots.`);
+
+      // Save user message to DB first
+      const dbForMsg = await readDB();
+      dbForMsg.chat_history.push({
+        sender: 'User',
+        text: message,
+        timestamp: getDbCurrentTime(dbForMsg).toISOString()
+      });
+      const { addRawChat: addRawChatMs } = await import('@/services/memory_engine/memory_db');
+      addRawChatMs(dbForMsg, 'User', message, getDbCurrentTime(dbForMsg).toISOString());
+      await writeDB(dbForMsg);
+
+      const encoder = new TextEncoder();
+      const shots = multiShotPlan.shots;
+
+      const multiShotStream = new ReadableStream({
+        async start(controller) {
+          try {
+            let allShotsText = '';
+
+            for (let i = 0; i < shots.length; i++) {
+              const shotText = shots[i];
+
+              // signal shot start
+              controller.enqueue(encoder.encode(`event: shot_start\ndata: ${i}\n\n`));
+
+              // send the shot text as a single data chunk
+              controller.enqueue(encoder.encode(`data: ${shotText}\n\n`));
+
+              // compute delay: ~25ms per char, clamped 300–3000ms
+              const delay = Math.min(3000, Math.max(300, shotText.length * 25));
+
+              // save each shot as its own DB row
+              const dbShot = await readDB();
+              const shotTimestamp = getDbCurrentTime(dbShot).toISOString();
+              dbShot.chat_history.push({ sender: 'AUM', text: shotText, timestamp: shotTimestamp });
+              const { addRawChat: addRawChatShot } = await import('@/services/memory_engine/memory_db');
+              addRawChatShot(dbShot, 'AUM', shotText, shotTimestamp);
+              await writeDB(dbShot);
+
+              allShotsText += (allShotsText ? ' ' : '') + shotText;
+
+              // signal shot end with delay
+              controller.enqueue(encoder.encode(`event: shot_end\ndata: ${delay}\n\n`));
+            }
+
+            // Task generation + background analysis fire once after ALL shots
+            const freshDb = await readDB();
+            const now = getDbCurrentTime(freshDb);
+            const todayStr = getMomentumDayString(now);
+            const currentTimeOfDay = getCurrentTimeOfDay(now);
+
+            if (freshDb.context.checkin_stage === 'completed') {
+              const signal = await detectChatSignals(message);
+              const { shouldFire, signalType } = evaluateSignalTrigger(freshDb, signal, now, todayStr);
+
+              if (shouldFire) {
+                const newAction = await generateSingleContextualAction(freshDb, signalType);
+                const uniqueId = `task-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+                freshDb.actions.push({
+                  ...newAction,
+                  id: uniqueId,
+                  status: 'todo',
+                  scheduled_time: currentTimeOfDay,
+                  locked: false
+                });
+                freshDb.profile.total_actions_generated = (freshDb.profile.total_actions_generated || 0) + 1;
+                
+                if (!freshDb.signal_state.pending_tasks) {
+                  freshDb.signal_state.pending_tasks = {};
+                }
+                freshDb.signal_state.pending_tasks[uniqueId] = signalType;
+
+                broadcastSignalEvent({
+                  signalType,
+                  intensity: signal.intensity || 0,
+                  reason: `task_generated: ${newAction.text}`,
+                  counters: { ...freshDb.signal_state.counters },
+                  last_triggered_at: freshDb.signal_state.last_triggered_at,
+                  fired: true
+                });
+                const announcement = `\n\n🔓 *New task unlocked:* "${newAction.text}"\n*Why:* ${newAction.whyToday}`;
+                controller.enqueue(encoder.encode(`data: ${announcement}\n\n`));
+              }
+              await writeDB(freshDb);
+            }
+
+            // Background analysis on concat of all shots
+            if (allShotsText.trim().length > 0) {
+              const { triggerBackgroundAnalysisAndConsolidation } = await import('@/services/groq');
+              triggerBackgroundAnalysisAndConsolidation(message, allShotsText).catch(err => {
+                console.error('[MultiShot] Background analysis error:', err);
+              });
+            }
+          } catch (e) {
+            console.error('[MultiShot] Stream error:', e);
+          } finally {
+            controller.close();
+          }
+        }
+      });
+
+      return new Response(multiShotStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Content-Encoding': 'none'
+        }
+      });
+    }
+
+    // ── SINGLE-SHOT FALLBACK PATH (unchanged) ────────────────────────────────
     const originalStream = await generateChatResponseStream(message);
     const reader = originalStream.getReader();
     let accumulatedText = "";
@@ -322,118 +440,65 @@ export async function POST(request) {
           }
           
           const freshDb = await readDB();
+          const now = getDbCurrentTime(freshDb);
+          const todayStr = getMomentumDayString(now);
+          const currentTimeOfDay = getCurrentTimeOfDay(now);
+          
+          let combinedText = accumulatedText;
+          
           if (freshDb.context.checkin_stage === 'completed') {
-            const now = getDbCurrentTime(freshDb);
-            const currentTimeOfDay = getCurrentTimeOfDay(now);
+            // Analyze message for signals
+            const signal = await detectChatSignals(message);
+            const { shouldFire, signalType } = evaluateSignalTrigger(freshDb, signal, now, todayStr);
             
-            // Analyze message for emotional and activity signals
-            const signals = await detectChatSignals(message);
-            
-            if (signals.hasSignal) {
-              const locationType = getCurrentAssumedLocation(freshDb);
-              const locationName = locationType === "Office"
-                ? freshDb.profile.location_profile?.work_base?.neighborhood
-                : freshDb.profile.location_profile?.home_base?.neighborhood;
-              const currentAssumedLocation = `${locationType} (${locationName})`;
+            if (shouldFire) {
+              const newAction = await generateSingleContextualAction(freshDb, signalType);
+              const uniqueId = `task-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
               
-              const latestDb = await readDB();
+              freshDb.actions.push({
+                ...newAction,
+                id: uniqueId,
+                status: 'todo',
+                scheduled_time: currentTimeOfDay,
+                locked: false
+              });
+              freshDb.profile.total_actions_generated = (freshDb.profile.total_actions_generated || 0) + 1;
               
-              // Find the first todo task that is locked
-              const lockedTaskIndex = latestDb.actions.findIndex(a => 
-                a.status === 'todo' && 
-                a.scheduled_time && 
-                !isPeriodUnlocked(a.scheduled_time, currentTimeOfDay)
-              );
-              
-              if (lockedTaskIndex !== -1) {
-                // We have a locked task! Generate a new dynamic task matching the signal,
-                // and use it to replace/unlock the locked task.
-                const newAction = await generateSingleContextualAction(latestDb, currentAssumedLocation);
-                const targetTask = latestDb.actions[lockedTaskIndex];
-                
-                latestDb.actions[lockedTaskIndex] = {
-                  ...targetTask,
-                  text: newAction.text,
-                  category: newAction.category,
-                  difficulty: newAction.difficulty,
-                  whyToday: `Contextual Unlock: ${newAction.whyToday} (Triggered by your emotional/activity signal: "${signals.reason}")`,
-                  whyRelevant: newAction.whyRelevant,
-                  howTo: newAction.howTo,
-                  scheduled_time: currentTimeOfDay, // Unlock it immediately by moving to the current period!
-                  locked: false
-                };
-                
-                const announcement = `\n\n🔓 *Contextual Task Unlocked:* "${newAction.text}"\n*Why:* ${newAction.whyToday}`;
-                const combinedText = accumulatedText + announcement;
-                
-                updateChatHistoryWithAnnouncement(latestDb, combinedText);
-                
-                const { addRawChat } = await import('@/services/memory_engine/memory_db');
-                addRawChat(latestDb, 'AUM', combinedText, getDbCurrentTime(latestDb).toISOString());
-                
-                await writeDB(latestDb);
-                controller.enqueue(new TextEncoder().encode(`data: ${announcement}\n\n`));
-              } else if (latestDb.actions.length < 5) {
-                // If they have less than 5 tasks and no locked tasks (e.g. testing/onboarding), push a new task
-                const newAction = await generateSingleContextualAction(latestDb, currentAssumedLocation);
-                const uniqueId = `task-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-                
-                latestDb.actions.push({
-                  ...newAction,
-                  id: uniqueId,
-                  status: 'todo',
-                  scheduled_time: currentTimeOfDay,
-                  locked: false
-                });
-                latestDb.profile.total_actions_generated = (latestDb.profile.total_actions_generated || 0) + 1;
-                
-                const announcement = `\n\n🔓 *New task unlocked: ${newAction.text}*\n*Why: ${newAction.whyToday}*`;
-                const combinedText = accumulatedText + announcement;
-                
-                updateChatHistoryWithAnnouncement(latestDb, combinedText);
-                
-                const { addRawChat } = await import('@/services/memory_engine/memory_db');
-                addRawChat(latestDb, 'AUM', combinedText, getDbCurrentTime(latestDb).toISOString());
-                
-                await writeDB(latestDb);
-                controller.enqueue(new TextEncoder().encode(`data: ${announcement}\n\n`));
-              } else {
-                // Check if all 5 main tasks are completed
-                const allCompleted = latestDb.actions.every(a => a.status === 'done' || a.status === 'skipped');
-                const hasBonus = latestDb.actions.some(a => a.category === 'Bonus' || a.text.toLowerCase().includes('bonus'));
-                
-                // Trigger bonus task only if they are ready/wanting more, and all completed
-                const isReadyForMore = signals.signalType === 'joy' || signals.signalType === 'excitement' || signals.signalType === 'focus' || message.toLowerCase().includes('more') || message.toLowerCase().includes('bonus');
-                
-                if (allCompleted && !hasBonus && isReadyForMore) {
-                  const newAction = await generateSingleContextualAction(latestDb, currentAssumedLocation);
-                  const uniqueId = `bonus-${Date.now()}`;
-                  
-                  const bonusTask = {
-                    ...newAction,
-                    id: uniqueId,
-                    category: 'Bonus',
-                    scheduled_time: currentTimeOfDay,
-                    status: 'todo',
-                    whyToday: `Bonus Challenge: ${newAction.whyToday}`
-                  };
-                  
-                  latestDb.actions.push(bonusTask);
-                  latestDb.profile.total_actions_generated = (latestDb.profile.total_actions_generated || 0) + 1;
-                  
-                  const announcement = `\n\n🌟 *Bonus Task Unlocked:* "${newAction.text}"\n*Why:* ${newAction.whyToday}`;
-                  const combinedText = accumulatedText + announcement;
-                  
-                  updateChatHistoryWithAnnouncement(latestDb, combinedText);
-                  
-                  const { addRawChat } = await import('@/services/memory_engine/memory_db');
-                  addRawChat(latestDb, 'AUM', combinedText, getDbCurrentTime(latestDb).toISOString());
-                  
-                  await writeDB(latestDb);
-                  controller.enqueue(new TextEncoder().encode(`data: ${announcement}\n\n`));
-                }
+              if (!freshDb.signal_state.pending_tasks) {
+                freshDb.signal_state.pending_tasks = {};
               }
+              freshDb.signal_state.pending_tasks[uniqueId] = signalType;
+
+              broadcastSignalEvent({
+                signalType,
+                intensity: signal.intensity || 0,
+                reason: `task_generated: ${newAction.text}`,
+                counters: { ...freshDb.signal_state.counters },
+                last_triggered_at: freshDb.signal_state.last_triggered_at,
+                fired: true
+              });
+
+              const announcement = `\n\n🔓 *New task unlocked:* "${newAction.text}"\n*Why:* ${newAction.whyToday}`;
+              combinedText = accumulatedText + announcement;
+              
+              controller.enqueue(new TextEncoder().encode(`data: ${announcement}\n\n`));
             }
+          }
+          
+          // Always save the companion's response to the database
+          if (combinedText.trim().length > 0) {
+            updateChatHistoryWithAnnouncement(freshDb, combinedText);
+            const { addRawChat } = await import('@/services/memory_engine/memory_db');
+            addRawChat(freshDb, 'AUM', combinedText, getDbCurrentTime(freshDb).toISOString());
+          }
+          await writeDB(freshDb);
+          
+          // Trigger background consolidation & turn analysis asynchronously
+          if (combinedText.trim().length > 0) {
+            const { triggerBackgroundAnalysisAndConsolidation } = await import('@/services/groq');
+            triggerBackgroundAnalysisAndConsolidation(message, combinedText).catch(err => {
+              console.error("Error in background post-stream processing:", err);
+            });
           }
         } catch (e) {
           console.error("Stream wrapper error:", e);

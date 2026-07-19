@@ -1,7 +1,280 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
+import statements from '@/data/statements.json';
+
+// Safely resolve imported statements with robust fallback array
+const getActiveStatements = () => {
+  const fallback = [
+    "The world doesn't have a fitness or productivity problem; it has a consistency problem.",
+    "Small disruptions compound into major life drift. Interrupt the cycle before it becomes permanent.",
+    "AUM helps you recover your momentum before you drift too far from the life you want to build.",
+    "The goal of AUM is not maximum productivity; it is sustained momentum.",
+    "Progress is not measured by perfection. It is measured by the ability to return.",
+    "Momentum is life's most valuable asset. It is easier to lose than motivation, but compounds faster than discipline.",
+    "Momentum creates identity. Evolve your identity through small, daily, consistent choices.",
+    "You do not fail because you lack discipline; you fail because life becomes too complex to execute good decisions.",
+    "During burnout, we protect momentum. During consistency, we expand it. During high performance, we challenge it.",
+    "We track not only actions, but identity evolution. Evolve from surviving life to intentionally shaping it.",
+    "Return after a missed workout, after emotional eating, after burnout. Learn to return, always."
+  ];
+
+  if (!statements) return fallback;
+
+  if (Array.isArray(statements)) {
+    return statements.length > 0 ? statements : fallback;
+  }
+
+  // Handle case where statements is imported as module with default export
+  if (statements.default && Array.isArray(statements.default)) {
+    return statements.default.length > 0 ? statements.default : fallback;
+  }
+
+  return fallback;
+};
+
+// Static style injected once — keeps it out of the render cycle
+const BANNER_STYLE_TAG = `
+  @keyframes bannerPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.97) rotate(-0.5deg); }
+    100% { transform: scale(1); }
+  }
+  .banner-click-animate {
+    animation: bannerPulse 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+`;
+
+if (typeof document !== 'undefined') {
+  const existingTag = document.getElementById('aum-banner-style');
+  if (!existingTag) {
+    const tag = document.createElement('style');
+    tag.id = 'aum-banner-style';
+    tag.textContent = BANNER_STYLE_TAG;
+    document.head.appendChild(tag);
+  }
+}
+
+const InspirationBanner = memo(() => {
+  const [statement, setStatement] = useState('');
+  const [isFading, setIsFading] = useState(false);
+  const [isClicking, setIsClicking] = useState(false);
+
+  const rotateStatement = useCallback(() => {
+    setIsFading(true);
+    setTimeout(() => {
+      setStatement(prev => {
+        const activeList = getActiveStatements();
+        const filtered = activeList.filter(s => s !== prev);
+        if (filtered.length === 0) return prev;
+        return filtered[Math.floor(Math.random() * filtered.length)];
+      });
+      setIsFading(false);
+    }, 400); // Wait for fade out
+  }, []);
+
+  // Initialize statement on mount
+  useEffect(() => {
+    try {
+      const activeList = getActiveStatements();
+      if (activeList.length > 0) {
+        const initial = activeList[Math.floor(Math.random() * activeList.length)];
+        setStatement(initial);
+      }
+    } catch (err) {
+      console.error('Error initializing InspirationBanner statement:', err);
+    }
+  }, []);
+
+  // Rotate every 4 minutes (240000ms)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      rotateStatement();
+    }, 240000);
+    return () => clearInterval(interval);
+  }, [rotateStatement]);
+
+  const handleClick = () => {
+    if (isClicking) return;
+    setIsClicking(true);
+    rotateStatement();
+    setTimeout(() => {
+      setIsClicking(false);
+    }, 600); // Click animation duration
+  };
+
+  if (!statement) return null;
+
+  return (
+    <div 
+      onClick={handleClick}
+      className={isClicking ? 'banner-click-animate' : ''}
+      style={{
+        ...styles.bannerContainer,
+        opacity: isFading ? 0.3 : 1,
+        transition: 'opacity 0.4s ease-in-out'
+      }}
+    >
+      <div style={styles.bannerGlow}></div>
+      <div style={styles.bannerContent}>
+        <span style={styles.bannerIcon}>✨</span>
+        <p style={styles.bannerText}>"{statement}"</p>
+      </div>
+    </div>
+  );
+});
+InspirationBanner.displayName = 'InspirationBanner';
+
+const DashboardChatInput = memo(({ companionName, onSendMessage, isSendingChat }) => {
+  const [inputValue, setInputValue] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  
+  const fileInputRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+    }
+  }, [inputValue]);
+
+
+  const handleSend = () => {
+    if (!inputValue.trim() || isSendingChat) return;
+    onSendMessage(inputValue);
+    setInputValue('');
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploadingPhoto(true);
+    const formData = new FormData();
+    formData.append('files', files[0]);
+
+    try {
+      const uploadRes = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const uploadData = await uploadRes.json();
+      const mediaUrl = uploadData.urls?.[0];
+
+      if (mediaUrl) {
+        await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: "Shared a photo",
+            type: "photo",
+            mediaUrl: mediaUrl
+          })
+        });
+        onSendMessage('', true);
+      }
+    } catch (err) {
+      console.error("Failed to upload photo:", err);
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Speech recognition is not supported in this browser. Please use Google Chrome or Safari.");
+        return;
+      }
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'en-US';
+      rec.onstart = () => {
+        setIsRecording(true);
+      };
+      rec.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        setInputValue(prev => prev + (prev ? " " : "") + transcript);
+      };
+      rec.onerror = (e) => {
+        console.error(e);
+        setIsRecording(false);
+      };
+      rec.onend = () => {
+        setIsRecording(false);
+      };
+      rec.start();
+      recognitionRef.current = rec;
+    }
+  };
+
+  return (
+    <div style={styles.inputBar}>
+      <button 
+        onClick={() => fileInputRef.current?.click()} 
+        style={styles.attachBtn}
+        title="Attach photo"
+        disabled={isUploadingPhoto}
+      >
+        {isUploadingPhoto ? "..." : "📷"}
+      </button>
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handlePhotoUpload} 
+        accept="image/*" 
+        style={{ display: 'none' }} 
+      />
+
+      <textarea 
+        ref={textareaRef}
+        rows={1}
+        placeholder={`Message ${companionName}...`} 
+        value={inputValue} 
+        onChange={(e) => setInputValue(e.target.value)} 
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+          }
+        }}
+        style={styles.feedTextarea}
+        disabled={isSendingChat}
+      />
+
+      <button 
+        onClick={toggleRecording} 
+        style={{
+          ...styles.micBtn,
+          background: isRecording ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
+          borderColor: isRecording ? '#ef4444' : 'rgba(255, 255, 255, 0.08)',
+          color: isRecording ? '#ef4444' : '#9ca3af'
+        }}
+        title="Talk (Speech to Text)"
+      >
+        {isRecording ? <span style={styles.recordingPulse}></span> : '🎤'}
+      </button>
+
+      <button 
+        onClick={handleSend} 
+        style={styles.feedSendBtn} 
+        disabled={isSendingChat || !inputValue.trim()}
+      >
+        Send
+      </button>
+    </div>
+  );
+});
+DashboardChatInput.displayName = 'DashboardChatInput';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -17,23 +290,62 @@ export default function Dashboard() {
   // UI States
   const [expandedActionId, setExpandedActionId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [chatInput, setChatInput] = useState('');
   const [isSendingChat, setIsSendingChat] = useState(false);
   const [timeSelectorOpen, setTimeSelectorOpen] = useState(false);
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   // New UI feature states
   const [isNotepadCollapsed, setIsNotepadCollapsed] = useState(false);
   const [showNotepadGlow, setShowNotepadGlow] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+
+  const [ratingTarget, setRatingTarget] = useState(null); // { taskId: string } | null
+  const [hoverRating, setHoverRating] = useState(0);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [selectedChips, setSelectedChips] = useState([]);
 
   // Refs
   const chatScrollRef = useRef(null);
-  const fileInputRef = useRef(null);
   const canvasRef = useRef(null);
   const confettiSystemRef = useRef(null);
   const prevActionsLengthRef = useRef(0);
-  const recognitionRef = useRef(null);
+  const lastKnownDayRef = useRef(null);
+
+  const formatTimeDisplay = useCallback((isoStr) => {
+    const d = new Date(isoStr);
+    const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    setCurrentTimeDisplay(d.toLocaleDateString('en-US', options));
+  }, []);
+
+  const fetchAllData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const pRes = await fetch('/api/profile');
+      const pData = await pRes.json();
+      setProfile(pData);
+
+      if (pData && pData.name && pData.onboarding_completed) {
+        const tRes = await fetch('/api/time-travel');
+        const tData = await tRes.json();
+        setVirtualTime(tData.virtual_time);
+        formatTimeDisplay(new Date().toISOString());
+
+        const cRes = await fetch('/api/context');
+        const cData = await cRes.json();
+        setContext(cData);
+
+        const aRes = await fetch('/api/actions');
+        const aData = await aRes.json();
+        setActions(aData);
+        
+        const chRes = await fetch('/api/chat');
+        const chData = await chRes.json();
+        setChatHistory(chData);
+      }
+    } catch (e) {
+      console.error("Failed to load dashboard data:", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [formatTimeDisplay]);
 
   // Reflection chips
   const reflectionChips = [
@@ -43,10 +355,77 @@ export default function Dashboard() {
     "I'm ready for more."
   ];
 
+  const POSITIVE_CHIPS = ["Felt energizing", "Perfect timing", "Good difficulty", "Very relevant", "Built momentum"];
+  const NEGATIVE_CHIPS = ["Too hard", "Bad timing", "Not relevant", "Too boring", "Too easy", "Felt forced"];
+
+  const submitRating = async () => {
+    if (!ratingTarget || selectedRating === 0) return;
+    try {
+      await fetch('/api/actions/rate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionId: ratingTarget.taskId,
+          rating: selectedRating,
+          chips: selectedChips
+        })
+      });
+    } catch (e) {
+      console.error('Rating submit failed', e);
+    } finally {
+      setRatingTarget(null);
+      setHoverRating(0);
+      setSelectedRating(0);
+      setSelectedChips([]);
+    }
+  };
+
   // Load all data
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [fetchAllData]);
+
+  // Seed the lastKnownDayRef after first data load
+  useEffect(() => {
+    if (profile?.last_generated_day) {
+      if (!lastKnownDayRef.current) {
+        lastKnownDayRef.current = profile.last_generated_day;
+      }
+    }
+  }, [profile]);
+
+  // Live clock ticker + smart 6 AM day-transition detector
+  useEffect(() => {
+    const clockInterval = setInterval(() => {
+      // 1. Update the displayed clock with real current time
+      const now = new Date();
+      formatTimeDisplay(now.toISOString());
+
+      // 2. Compute today's momentum day string (Kolkata time, same logic as server)
+      const kolkataStr = now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+      const kolkataNow = new Date(kolkataStr);
+      const h = kolkataNow.getHours();
+
+      // If before 6 AM, the 'day' is still yesterday
+      let dayDate = new Date(kolkataNow);
+      if (h < 6) {
+        dayDate.setDate(dayDate.getDate() - 1);
+      }
+      const y = dayDate.getFullYear();
+      const mo = String(dayDate.getMonth() + 1).padStart(2, '0');
+      const d = String(dayDate.getDate()).padStart(2, '0');
+      const todayStr = `${y}-${mo}-${d}`;
+
+      // 3. If the day changed, fire a full refresh (handles 6:24 AM, 6:00 AM, any time)
+      if (lastKnownDayRef.current && lastKnownDayRef.current !== todayStr) {
+        console.log('[AUM] Day transition detected at', kolkataStr, '— refreshing dashboard...');
+        lastKnownDayRef.current = todayStr;
+        fetchAllData();
+      }
+    }, 60000); // Tick every 60 seconds
+
+    return () => clearInterval(clockInterval);
+  }, [fetchAllData]);
 
   // Sync Confetti Particle System
   useEffect(() => {
@@ -117,43 +496,7 @@ export default function Dashboard() {
     }
   }, [profile, router]);
 
-  const fetchAllData = async () => {
-    setIsLoading(true);
-    try {
-      const pRes = await fetch('/api/profile');
-      const pData = await pRes.json();
-      setProfile(pData);
 
-      if (pData && pData.name && pData.onboarding_completed) {
-        const tRes = await fetch('/api/time-travel');
-        const tData = await tRes.json();
-        setVirtualTime(tData.virtual_time);
-        formatTimeDisplay(tData.current_time);
-
-        const cRes = await fetch('/api/context');
-        const cData = await cRes.json();
-        setContext(cData);
-
-        const aRes = await fetch('/api/actions');
-        const aData = await aRes.json();
-        setActions(aData);
-        
-        const chRes = await fetch('/api/chat');
-        const chData = await chRes.json();
-        setChatHistory(chData);
-      }
-    } catch (e) {
-      console.error("Failed to load dashboard data:", e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const formatTimeDisplay = (isoStr) => {
-    const d = new Date(isoStr);
-    const options = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    setCurrentTimeDisplay(d.toLocaleDateString('en-US', options));
-  };
 
   const handleToggleAction = async (actionId, currentStatus) => {
     let nextStatus = 'todo';
@@ -161,6 +504,7 @@ export default function Dashboard() {
       nextStatus = 'done';
       triggerConfettiBlast(50);
       playChime();
+      setRatingTarget({ taskId: actionId });
     } else if (currentStatus === 'done') {
       nextStatus = 'skipped';
     }
@@ -199,12 +543,21 @@ export default function Dashboard() {
     }
   };
 
-  const handleSendChatMessage = async (textOverride) => {
-    const text = textOverride || chatInput;
-    if (!text.trim() || isSendingChat) return;
+  const handleSendChatMessage = async (text, refreshOnly = false) => {
+    if (refreshOnly) {
+      try {
+        const chRes = await fetch('/api/chat');
+        const chData = await chRes.json();
+        setChatHistory(chData);
+      } catch (err) {
+        console.error("Failed to refresh chat after upload:", err);
+      }
+      return;
+    }
+
+    if (!text || !text.trim() || isSendingChat) return;
 
     setIsSendingChat(true);
-    if (!textOverride) setChatInput('');
 
     // Optimistically update chat history
     setChatHistory(prev => [
@@ -230,30 +583,91 @@ export default function Dashboard() {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let currentEventType = null;
+      let currentData = '';
+      let isMultiShot = false;
+      let buffer = '';
       let accumulated = "";
+
+      const processEvent = async (eventType, data) => {
+        if (eventType === 'shot_start') {
+          isMultiShot = true;
+          accumulated = '';
+          if (data !== '0') {
+            setChatHistory(prev => [...prev, { sender: 'AUM', text: '', timestamp: new Date().toISOString() }]);
+          }
+        } else if (eventType === 'shot_end') {
+          const delayMs = parseInt(data, 10);
+          if (delayMs > 0) {
+            await new Promise(r => setTimeout(r, delayMs));
+          }
+        }
+      };
+
+      // 32ms stream throttle
+      let pendingUpdate = false;
+      const flushAccumulatedStream = () => {
+        if (pendingUpdate) return;
+        pendingUpdate = true;
+        setTimeout(() => {
+          setChatHistory(prev => {
+            const updated = [...prev];
+            if (updated.length > 0) {
+              updated[updated.length - 1] = {
+                ...updated[updated.length - 1],
+                text: accumulated
+              };
+            }
+            return updated;
+          });
+          pendingUpdate = false;
+        }, 32);
+      };
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+
         for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith('data: ')) {
-            const token = trimmed.slice(6);
-            accumulated += token;
-            setChatHistory(prev => {
-              const updated = [...prev];
-              if (updated.length > 0) {
-                updated[updated.length - 1] = {
-                  ...updated[updated.length - 1],
-                  text: accumulated
-                };
-              }
-              return updated;
-            });
+          if (line.trim() === '') {
+            if (currentEventType !== null) {
+              await processEvent(currentEventType, currentData.trim());
+              currentEventType = null;
+              currentData = '';
+            }
+          } else if (line.startsWith('event: ')) {
+            if (currentEventType !== null) {
+              await processEvent(currentEventType, currentData.trim());
+            }
+            currentEventType = line.slice(7).trim();
+            currentData = '';
+          } else if (line.startsWith('data: ')) {
+            const token = line.slice(6);
+            if (currentEventType === 'shot_start' || currentEventType === 'shot_end') {
+              currentData += token;
+            } else if (currentEventType === null) {
+              accumulated += token;
+              flushAccumulatedStream();
+            }
           }
         }
+      }
+
+      // Final synchronous flush
+      if (accumulated) {
+        setChatHistory(prev => {
+          const updated = [...prev];
+          if (updated.length > 0) {
+            updated[updated.length - 1] = {
+              ...updated[updated.length - 1],
+              text: accumulated
+            };
+          }
+          return updated;
+        });
       }
 
       // Re-sync actions and profile states
@@ -301,77 +715,6 @@ export default function Dashboard() {
       setProfile(data);
     } catch (e) {
       console.error("Failed to sync water:", e);
-    }
-  };
-
-  const toggleRecording = () => {
-    if (isRecording) {
-      recognitionRef.current?.stop();
-      setIsRecording(false);
-    } else {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        alert("Speech recognition is not supported in this browser. Please use Google Chrome or Safari.");
-        return;
-      }
-      const rec = new SpeechRecognition();
-      rec.continuous = false;
-      rec.interimResults = false;
-      rec.lang = 'en-US';
-      rec.onstart = () => {
-        setIsRecording(true);
-      };
-      rec.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        setChatInput(prev => prev + (prev ? " " : "") + transcript);
-      };
-      rec.onerror = (e) => {
-        console.error(e);
-        setIsRecording(false);
-      };
-      rec.onend = () => {
-        setIsRecording(false);
-      };
-      rec.start();
-      recognitionRef.current = rec;
-    }
-  };
-
-  const handlePhotoUpload = async (e) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsUploadingPhoto(true);
-    const formData = new FormData();
-    formData.append('files', files[0]);
-
-    try {
-      const uploadRes = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-      const uploadData = await uploadRes.json();
-      const mediaUrl = uploadData.urls?.[0];
-
-      if (mediaUrl) {
-        await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: "Shared a photo",
-            type: "photo",
-            mediaUrl: mediaUrl
-          })
-        });
-
-        const chRes = await fetch('/api/chat');
-        const chData = await chRes.json();
-        setChatHistory(chData);
-      }
-    } catch (err) {
-      console.error("Failed to upload photo:", err);
-    } finally {
-      setIsUploadingPhoto(false);
     }
   };
 
@@ -517,6 +860,12 @@ export default function Dashboard() {
     return '⚡ Daily Logs Locked';
   };
 
+  const checkin_stage = context?.checkin_stage || 'completed';
+  const visibleActions = checkin_stage !== 'completed'
+    ? actions.filter(a => a.id === 'morning-checkin')
+    : actions;
+  const nonStarterActions = actions.filter(a => a.id !== 'morning-checkin');
+
   return (
     <div style={styles.dashboardContainer}>
       <canvas ref={canvasRef} style={styles.confettiCanvas}></canvas>
@@ -633,7 +982,7 @@ export default function Dashboard() {
           >
             📋
             <span style={styles.notepadCollapsedCount}>
-              {actions.filter(a => a.status === 'done').length}/{actions.length}
+              {visibleActions.filter(a => a.status === 'done').length}/{visibleActions.length}
             </span>
           </button>
         ) : (
@@ -642,7 +991,7 @@ export default function Dashboard() {
               <h3 style={styles.notepadTitle}>Today's Moves</h3>
               <div className="flex align-center gap-2">
                 <span style={styles.movesCountBadge}>
-                  {actions.filter(a => a.status === 'done').length} / {actions.length} Done
+                  {visibleActions.filter(a => a.status === 'done').length} / {visibleActions.length} Done
                 </span>
                 <button 
                   onClick={() => setIsNotepadCollapsed(true)} 
@@ -654,14 +1003,15 @@ export default function Dashboard() {
             </div>
 
             <div style={styles.notepadList}>
-              {actions.length === 0 ? (
+              {visibleActions.length === 0 ? (
                 <p style={styles.emptyTasksText}>No tasks unlocked yet. Start check-in to get going.</p>
               ) : (
-                actions.map((act) => {
-                  const isExpanded = expandedActionId === act.id;
+                <>
+                  {visibleActions.map((act) => {
+                    const isExpanded = expandedActionId === act.id;
                   const isDone = act.status === 'done';
                   const isSkipped = act.status === 'skipped';
-                  const isBonus = act.category === 'Bonus' || act.text.toLowerCase().includes('bonus');
+                  const isBonus = act.category === 'Bonus' || act.text?.toLowerCase().includes('bonus');
                   const isLocked = act.locked;
 
                   return (
@@ -751,9 +1101,95 @@ export default function Dashboard() {
                           )}
                         </div>
                       )}
+
+                      {ratingTarget?.taskId === act.id && (
+                        <div style={{
+                          marginTop: '12px',
+                          padding: '12px',
+                          background: 'rgba(255,255,255,0.05)',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(255,255,255,0.1)'
+                        }}>
+                          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', marginBottom: '8px' }}>
+                            How did this task feel?
+                          </p>
+                          {/* Stars */}
+                          <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                            {[1,2,3,4,5].map(star => (
+                              <span
+                                key={star}
+                                onClick={() => setSelectedRating(star)}
+                                onMouseEnter={() => setHoverRating(star)}
+                                onMouseLeave={() => setHoverRating(0)}
+                                style={{
+                                  fontSize: '24px',
+                                  cursor: 'pointer',
+                                  color: star <= (hoverRating || selectedRating) ? '#F59E0B' : 'rgba(255,255,255,0.2)',
+                                  transition: 'color 0.15s ease'
+                                }}
+                              >
+                                ★
+                              </span>
+                            ))}
+                          </div>
+                          {/* Chips */}
+                          {selectedRating > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
+                              {(selectedRating >= 4 ? POSITIVE_CHIPS : NEGATIVE_CHIPS).map(chip => (
+                                <span
+                                  key={chip}
+                                  onClick={() => setSelectedChips(prev =>
+                                    prev.includes(chip) ? prev.filter(c => c !== chip) : [...prev, chip]
+                                  )}
+                                  style={{
+                                    padding: '4px 10px',
+                                    borderRadius: '20px',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    border: selectedChips.includes(chip)
+                                      ? '1px solid #F59E0B'
+                                      : '1px solid rgba(255,255,255,0.2)',
+                                    background: selectedChips.includes(chip)
+                                      ? 'rgba(245,158,11,0.15)'
+                                      : 'transparent',
+                                    color: selectedChips.includes(chip)
+                                      ? '#F59E0B'
+                                      : 'rgba(255,255,255,0.6)',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  {chip}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Submit button */}
+                          {selectedRating > 0 && (
+                            <button
+                              onClick={submitRating}
+                              style={{
+                                padding: '6px 16px',
+                                borderRadius: '8px',
+                                background: '#F59E0B',
+                                color: '#000',
+                                fontWeight: '600',
+                                fontSize: '13px',
+                                border: 'none',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Submit
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
-                })
+                })}
+                {checkin_stage === 'completed' && nonStarterActions.length === 0 && (
+                  <p style={styles.emptyTasksText}>Your tasks will appear as we talk</p>
+                )}
+                </>
               )}
             </div>
           </>
@@ -762,6 +1198,7 @@ export default function Dashboard() {
 
       {/* CHAT VIEWPORT */}
       <div style={styles.chatViewport}>
+        <InspirationBanner />
         <div style={styles.chatMessagesArea} ref={chatScrollRef}>
           <div style={styles.chatWelcomeMessage}>
             <h2>{profile.companion_name || 'Aarav'}</h2>
@@ -785,60 +1222,11 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <div style={styles.inputBar}>
-            {/* Photo Attachment Icon */}
-            <button 
-              onClick={() => fileInputRef.current?.click()} 
-              style={styles.attachBtn}
-              title="Attach photo"
-              disabled={isUploadingPhoto}
-            >
-              {isUploadingPhoto ? "..." : "📷"}
-            </button>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handlePhotoUpload} 
-              accept="image/*" 
-              style={{ display: 'none' }} 
-            />
-
-            <textarea 
-              placeholder={`Message ${profile.companion_name || 'Aarav'}...`} 
-              value={chatInput} 
-              onChange={(e) => setChatInput(e.target.value)} 
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendChatMessage();
-                }
-              }}
-              style={styles.feedTextarea}
-              disabled={isSendingChat}
-            />
-
-            {/* Voice microphone button */}
-            <button 
-              onClick={toggleRecording} 
-              style={{
-                ...styles.micBtn,
-                background: isRecording ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
-                borderColor: isRecording ? '#ef4444' : 'rgba(255, 255, 255, 0.08)',
-                color: isRecording ? '#ef4444' : '#9ca3af'
-              }}
-              title="Talk (Speech to Text)"
-            >
-              {isRecording ? <span style={styles.recordingPulse}></span> : '🎤'}
-            </button>
-
-            <button 
-              onClick={() => handleSendChatMessage()} 
-              style={styles.feedSendBtn} 
-              disabled={isSendingChat || !chatInput.trim()}
-            >
-              {isSendingChat ? "..." : "Send"}
-            </button>
-          </div>
+          <DashboardChatInput
+            companionName={profile.companion_name || 'Aarav'}
+            onSendMessage={handleSendChatMessage}
+            isSendingChat={isSendingChat}
+          />
         </div>
       </div>
     </div>
@@ -1422,9 +1810,13 @@ const styles = {
     fontSize: '0.9rem',
     outline: 'none',
     resize: 'none',
-    height: '24px',
+    overflowY: 'auto',
+    height: 'auto',
+    minHeight: '24px',
+    maxHeight: '160px',
     lineHeight: '1.4',
-    fontFamily: 'inherit'
+    fontFamily: 'inherit',
+    padding: 0
   },
   feedSendBtn: {
     background: '#128c7e',
@@ -1462,5 +1854,58 @@ const styles = {
     borderRadius: '50%',
     display: 'inline-block',
     animation: 'bounce 1.4s infinite ease-in-out both'
+  },
+  bannerContainer: {
+    position: 'relative',
+    background: 'rgba(15, 18, 28, 0.92)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '1rem',
+    padding: '0.85rem 1.25rem',
+    cursor: 'pointer',
+    userSelect: 'none',
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 4px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+    willChange: 'opacity',
+    marginBottom: '1rem',
+  },
+  bannerGlow: {
+    position: 'absolute',
+    top: '-50%',
+    left: '50%',
+    transform: 'translateX(-55%)',
+    width: '80%',
+    height: '100%',
+    background: 'radial-gradient(ellipse at center, rgba(168, 85, 247, 0.15) 0%, rgba(168, 85, 247, 0) 70%)',
+    pointerEvents: 'none',
+    zIndex: 0,
+  },
+  bannerContent: {
+    position: 'relative',
+    zIndex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.75rem',
+    maxWidth: '100%',
+  },
+  bannerIcon: {
+    fontSize: '1rem',
+    color: '#a855f7',
+    textShadow: '0 0 8px rgba(168, 85, 247, 0.6)',
+    flexShrink: 0,
+  },
+  bannerText: {
+    fontSize: '0.85rem',
+    color: '#e2e8f0',
+    fontWeight: '400',
+    fontStyle: 'italic',
+    lineHeight: '1.4',
+    textAlign: 'center',
+    margin: 0,
+    letterSpacing: '0.015em',
+    textShadow: '0 2px 4px rgba(0,0,0,0.4)',
   }
 };

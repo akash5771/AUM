@@ -9,6 +9,7 @@ export default function Navigation() {
     { href: '/', label: 'Dashboard', icon: '⚡' },
     { href: '/identity', label: 'Identity Profile', icon: '🛡️' },
     { href: '/memory', label: 'Memory Vault', icon: '🧠' },
+    { href: '/dev', label: 'Dev Mode', icon: '🛠️' },
   ];
   return (
     <header style={styles.header}>

@@ -27,6 +27,7 @@ export async function GET() {
     if (isFirstTime || isNewDay || isEmptyActions) {
       if (!isFirstTime && isNewDay && !isEmptyActions) {
         await processDayTransition(db);
+        await writeDB(db);
       }
       
       const latestDb = await readDB();

@@ -46,7 +46,7 @@ export async function POST(request) {
       if (allCompleted) {
         db.chat_history.push({
           sender: "AUM",
-          text: `Akash, you did it! Complete clean sweep of today's moves. Small actions build momentum. Let's protect tomorrow now!`,
+          text: `Akash, you did it! Complete clean sweep of today's moves. Small actions build momentum. Let's protect your momentum now!`,
           timestamp: getDbCurrentTime(db).toISOString()
         });
         await writeDB(db);

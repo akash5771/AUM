@@ -317,6 +317,12 @@ export function scoreCandidates(candidates, context, profile, db, readiness) {
     // Compute Probability
     let finalProb = Math.min(0.98, Math.max(0.05, baseProb * preferenceScore * noveltyScore));
 
+    // Rating Adjustment (from past ratings of this task)
+    const ratingAdjustments = profile.rating_adjustments || {};
+    const ratingDelta = ratingAdjustments[task.id] || 0;
+    const ratingMultiplier = Math.max(0.2, Math.min(1.5, 1.0 + ratingDelta * 0.15));
+    finalProb = Math.min(0.98, Math.max(0.05, finalProb * ratingMultiplier));
+
     // 4. Expected Value (Impact * Probability * momentum_multiplier)
     const ev = task.impact * finalProb * (task.momentum_multiplier || 1.0);
 
@@ -449,7 +455,9 @@ export function injectLocalPlaceNames(actions, city) {
 export const PERIODS = ["Morning", "Afternoon", "Evening", "Night"];
 
 export function getCurrentTimeOfDay(date) {
-  const hours = date.getHours();
+  const str = new Date(date).toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+  const d = new Date(str);
+  const hours = d.getHours();
   if (hours >= 12 && hours < 17) return "Afternoon";
   if (hours >= 17 && hours < 21) return "Evening";
   if (hours >= 21 || hours < 5) return "Night";

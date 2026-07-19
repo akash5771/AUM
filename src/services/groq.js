@@ -21,31 +21,158 @@ function getApiKey() {
 }
 
 export async function detectChatSignals(userMessage) {
-  const prompt = `You are a sentiment and activity analyzer for a life operating system.
-Analyze the user's message for emotional signals (stress, anxiety, happiness, joy, focus, pride) and activity signals (e.g. working, sitting and writing, procrastinating).
+  const prompt = `You are a sentiment analyzer for a life operating system.
+Analyze the user's message for emotional signals (stress, anxiety, happiness, joy, focus, pride).
 
 Message: "${userMessage}"
 
-Identify if there is any strong signal (intensity >= 5 on a scale of 1-10).
+Identify if there is any strong signal (intensity >= 6 on a scale of 1-10).
 Output a raw JSON object with these exact fields:
 {
   "hasSignal": boolean,
-  "signalType": "stress" | "anxiety" | "joy" | "focus" | "pride" | "happiness" | "writing" | "working" | "procrastinating" | "none",
+  "signalType": "stress" | "anxiety" | "joy" | "focus" | "pride" | "happiness" | "none",
   "intensity": number (1 to 10)
 }
 Do not return any markdown format, just the raw JSON.`;
   try {
     const res = await queryGemini(prompt, true);
+    const intensity = parseInt(res.intensity) || 0;
+    const allowedSignals = ['stress', 'anxiety', 'joy', 'focus', 'pride', 'happiness'];
+    const isValidSignal = allowedSignals.includes(res.signalType);
     return {
-      hasSignal: !!res.hasSignal,
-      signalType: res.signalType || 'none',
-      intensity: parseInt(res.intensity) || 0
+      hasSignal: !!res.hasSignal && isValidSignal && intensity >= 6,
+      signalType: isValidSignal && intensity >= 6 ? res.signalType : 'none',
+      intensity: intensity >= 6 ? intensity : 0
     };
   } catch (e) {
     console.error("detectChatSignals failed:", e);
     return { hasSignal: false, signalType: 'none', intensity: 0 };
   }
 }
+
+// ─── Multi-Shot Planner ──────────────────────────────────────────────────────
+// Decides whether Aarav should reply with multiple short WhatsApp-style shots.
+// Trigger conditions: emotional intensity >= 7 OR >= 2 distinct emotional topics.
+// Returns { shots: string[] } or null (null → fall back to single-shot stream).
+export async function planMultiShotResponse(userMessage, db, slimContext) {
+  const groqKey = getGroqApiKey();
+  if (!groqKey) return null;
+
+  // ── Step 1: quick topic-count heuristic (zero LLM calls) ──────────────────
+  // Split on sentence boundaries and check how many carry distinct emotional signals
+  const emotionWords = [
+    'sad', 'tired', 'frustrated', 'overwhelmed', 'hurt', 'broken', 'miss',
+    'lost', 'scared', 'anxious', 'crying', 'stressed', 'empty', 'alone',
+    'low', 'depressed', 'hopeless', 'exhausted', 'drained', 'happy', 'excited',
+    'proud', 'joy', 'grateful', 'angry', 'annoyed', 'upset', 'worried', 'afraid',
+    'feel', 'feeling', 'felt', 'nervous', 'guilty', 'ashamed', 'relieved',
+    'confused', 'stuck', 'unmotivated', 'bored', 'lonely', 'embarrassed'
+  ];
+
+  // Sentence splitter: split on . ! ? followed by space or end-of-string
+  const sentences = userMessage
+    .split(/(?<=[.!?])\s+|(?<=[.!?])$/)
+    .map(s => s.trim().toLowerCase())
+    .filter(s => s.length > 4);
+
+  // Count sentences that contain at least one emotional keyword
+  const emotionalSentences = sentences.filter(s =>
+    emotionWords.some(w => s.includes(w))
+  );
+  const topicCount = emotionalSentences.length;
+
+  // ── Step 2: get intensity via detectChatSignals ────────────────────────────
+  let intensity = 0;
+  try {
+    const signals = await detectChatSignals(userMessage);
+    intensity = signals.intensity || 0;
+  } catch (e) {
+    // If signal detection fails, keep intensity 0 and rely on topicCount
+  }
+
+  // ── Step 3: trigger gate ───────────────────────────────────────────────────
+  if (intensity < 7 && topicCount < 2) return null;
+
+  // ── Step 4: build the planning prompt ─────────────────────────────────────
+  const maxShots = intensity >= 8 ? 5 : 3;
+  const minShots = 2;
+  const companion = db?.profile?.companion_name || 'Aarav';
+  const userName = db?.profile?.name || 'Akash';
+  const goals = db?.profile?.goals || '';
+  const archetype = db?.profile?.archetype || '';
+  const hour = slimContext?.hour ?? new Date().getHours();
+
+  const planningPrompt = `You are ${companion}, a calm, emotionally intelligent companion texting ${userName} on WhatsApp.
+
+PERSONA RULES (always follow):
+- Do NOT echo back feelings or summarize what they said.
+- Never use: "I hear you", "It sounds like", "I understand", "I'm sorry to hear that".
+- Speak like a real person texting — short, natural, caring.
+- No bullet points or lists. Prose/fragments only.
+- Time of day (hour ${hour}/24): adjust warmth accordingly — late night is quieter.
+- ${userName}'s context: ${goals}. Archetype: ${archetype}.
+
+TASK:
+The user sent this message:
+"${userMessage}"
+
+Their emotional intensity: ${intensity}/10
+Distinct emotional topics/feelings detected: ${topicCount}
+
+Plan exactly ${minShots} to ${maxShots} separate short text messages that ${companion} will send one by one.
+${intensity >= 8 ? 'Use up to 5 shots since intensity is very high.' : 'Use 2-3 shots.'}
+Each shot must:
+- Address ONE feeling or topic (not all at once)
+- Be 1-2 sentences MAX — like a real WhatsApp message
+- Sound like a genuine person, not a therapist or productivity bot
+- Flow naturally so together they read like a caring conversation
+
+Return ONLY valid JSON (no markdown, no explanation):
+{ "shots": ["message1", "message2", "message3"] }`;
+
+  // ── Step 5: call Groq JSON mode with 3 s timeout ──────────────────────────
+  try {
+    const url = 'https://api.groq.com/openai/v1/chat/completions';
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${groqKey}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: planningPrompt }],
+        temperature: 0.75,
+        max_tokens: 512,
+        response_format: { type: 'json_object' }
+      })
+    }, 3000); // 3 s hard timeout
+
+    if (!response.ok) {
+      console.warn('[MultiShot Planner] Groq returned non-OK status:', response.status);
+      return null;
+    }
+
+    const result = await response.json();
+    const raw = result.choices?.[0]?.message?.content;
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    const shots = parsed.shots;
+
+    if (!Array.isArray(shots) || shots.length < 2) {
+      console.warn('[MultiShot Planner] Invalid shots array:', shots);
+      return null;
+    }
+
+    // Clamp to max shots
+    return { shots: shots.slice(0, maxShots) };
+  } catch (e) {
+    console.warn('[MultiShot Planner] Failed or timed out:', e.message);
+    return null;
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Helper to fetch with a timeout
 async function fetchWithTimeout(url, options, timeoutMs = 10000) {
@@ -1186,20 +1313,6 @@ async function executeStreamRequest(url, headers, requestBody, timeoutMs, userMe
         console.error("Stream reading error:", err);
       } finally {
         controller.close();
-        // Asynchronously perform background consolidation and DB save
-        (async () => {
-          try {
-            if (accumulatedText.trim().length > 0) {
-              const freshDb = await readDB();
-              freshDb.chat_history.push({ sender: 'AUM', text: accumulatedText, timestamp: getDbCurrentTime(freshDb).toISOString() });
-              addRawChat(freshDb, 'AUM', accumulatedText, getDbCurrentTime(freshDb).toISOString());
-              await writeDB(freshDb);
-              await triggerBackgroundAnalysisAndConsolidation(userMessage, accumulatedText);
-            }
-          } catch (saveErr) {
-            console.error("Error in background post-stream processing:", saveErr);
-          }
-        })();
       }
     }
   });
@@ -1543,7 +1656,7 @@ Do not return any markdown format, just the raw JSON.`;
   }
 }
 
-export async function generateSingleContextualAction(db, currentAssumedLocation) {
+export async function generateSingleContextualAction(db, signalType) {
   const activeGoal = db.profile.active_goal || { category: "Health", subGoal: "Sleep Better" };
   const historySnippet = db.chat_history.slice(-8).map(h => `${h.sender}: ${h.text}`).join('\n');
   const sleepHours = db.context.sleep?.hours || 7;
@@ -1553,12 +1666,25 @@ export async function generateSingleContextualAction(db, currentAssumedLocation)
   
   const existingTasks = (db.actions || []).map(a => a.text).join(', ');
 
+  const steeringGuidelines = {
+    stress: "Ground/decompress: breathing, reframing, reduce cognitive load.",
+    anxiety: "Clarity/control: write down worries, break into steps, 5-min calming ritual.",
+    joy: "Extend/amplify: sustain the state, share it, build momentum.",
+    happiness: "Gratitude/celebration: mark the moment, call someone, do something meaningful.",
+    pride: "Reflect/document: capture the achievement, build on it, teach it.",
+    focus: "Deep work/flow: challenging cognitive or creative task."
+  };
+
+  const signalGuideline = steeringGuidelines[signalType] || "";
+
   const prompt = `You are AUM, the AI Life Operating System companion.
-Your job is to generate exactly ONE highly customized, contextually relevant task to solve a specific physical, cognitive, or emotional problem or situation the user is currently facing in their life.
+Your job is to generate exactly ONE highly customized, contextually relevant task to solve a specific physical, cognitive, or emotional problem or situation the user is currently facing in their life, guided by the emotional signal detected: "${signalType}".
+
+Signal Steering Guideline for "${signalType}":
+${signalGuideline}
 
 User Profile:
 - Active Goal: ${activeGoal.category} -> ${activeGoal.subGoal}
-- Current Assumed Location: ${currentAssumedLocation} (Home: ${db.profile.location_profile?.home_base?.neighborhood}, Office: ${db.profile.location_profile?.work_base?.neighborhood})
 - Morning check-in metrics: Sleep: ${sleepHours}h (${sleepQuality}), Stress: ${stress}/10, Energy: ${energy}/10
 
 Recent Chat Conversation (State of mind context):
@@ -1569,15 +1695,15 @@ ${existingTasks}
 
 Your task:
 1. Identify the single most pressing physical, cognitive, or emotional problem the user is currently facing based on their recent chat conversation.
-2. Design exactly ONE actionable, micro-level physical or mental task to help them solve or recover from this specific situation right now.
-3. If their assumed location is Home or Office, and it is a physical/outdoor/social/recovery task, you should suggest a specific landmark or nearby spot (e.g. DLF CyberHub or Aravali Biodiversity Park if in Gurgaon) to make it highly practical.
+2. Design exactly ONE actionable, micro-level physical or mental task to help them solve or recover from this specific situation right now, aligned with the steering guideline.
+3. CRITICAL RULE: In the "whyToday" field, explain how the task directly responds to what the user said in the chat history. Under NO circumstances should you mention weather, AQI, traffic, seasons, city, landmarks, or locations (e.g. Gurgaon, CyberHub, clear skies, rainy, moderate pollution). Rely solely on the chat history and the signal type.
 4. Output the result in this exact JSON schema:
 {
   "id": "generate-a-unique-random-id",
   "text": "The actionable task instruction",
   "category": "Recovery" | "Health" | "Execution" | "Joy" | "Connection",
   "difficulty": 1 | 2 | 3,
-  "whyToday": "Explanation of how this directly solves their current state of mind and immediate situation.",
+  "whyToday": "Explanation of how this directly solves their current state of mind and immediate situation based on their last 8 chat messages.",
   "whyRelevant": "How this aligns with their broader goals and improves tomorrow.",
   "howTo": "2-3 step practical implementation guideline."
 }
@@ -1642,30 +1768,36 @@ export async function generateCheckinStream(userMessage, stage) {
     };
     db.context.checkin_stage = 'completed';
     db.context.is_frozen = true;
-    db.actions = db.actions.map(act => act.id === "morning-checkin" ? { ...act, status: "done" } : act);
+    const starterTask = db.actions.find(act => act.id === "morning-checkin");
+    const starterTaskDone = starterTask
+      ? { ...starterTask, status: "done" }
+      : {
+          id: "morning-checkin",
+          text: "Start the Day: Log morning check-in",
+          category: "Health",
+          difficulty: 1,
+          whyToday: "To sync your sleep, energy and stress levels.",
+          whyRelevant: "Helps Aarav understand your state of mind to customize your daily moves.",
+          howTo: "Send any message in the chat to start your morning check-in.",
+          status: "done"
+        };
+    db.actions = [starterTaskDone];
     await writeDB(db);
-    
-    // Generate daily actions and preserve the morning-checkin done task
-    await generateDailyActionsService();
-    const latestDb = await readDB();
-    const starterTaskDone = {
-      id: "morning-checkin",
-      text: "Start the Day: Log morning check-in",
-      category: "Health",
-      difficulty: 1,
-      whyToday: "To sync your sleep, energy and stress levels.",
-      whyRelevant: "Helps Aarav understand your state of mind to customize your daily moves.",
-      howTo: "Send any message in the chat to start your morning check-in.",
-      status: "done"
-    };
-    latestDb.actions = [starterTaskDone, ...latestDb.actions];
-    await writeDB(latestDb);
 
     nextQuestion = "Perfect! Your daily context logs are locked. Let's start the day!";
     extractionText = `Parsed energy rating: ${energyExt.energy}/10.`;
   }
 
   await writeDB(db);
+
+  let confirmationGuideline = "";
+  if (stage === 'waiting_for_sleep') {
+    confirmationGuideline = `Confirm only the parsed sleep metrics (hours and quality) in a natural way (e.g. "I've noted down that you slept about 6.5 hours"). Do NOT mention stress or energy, as they have not been asked or logged yet.`;
+  } else if (stage === 'waiting_for_stress') {
+    confirmationGuideline = `Confirm only the parsed stress level (on a scale of 1-10) in a natural way (e.g. "I'll log your stress as a 5"). Do NOT mention energy level, as it has not been asked or logged yet.`;
+  } else if (stage === 'waiting_for_energy') {
+    confirmationGuideline = `Confirm only the parsed energy level in a natural way (e.g. "I've noted down your energy at a 7").`;
+  }
 
   const prompt = `You are ${companion}, a quiet, emotionally intelligent companion.
 The user is in the middle of their morning check-in.
@@ -1676,7 +1808,7 @@ Next Question to Ask: "${nextQuestion}"
 
 Write a warm, quiet, conversational response.
 1. Gently acknowledge their response. If they expressed any emotional distress or specific worries, respond to that with warm, quiet validation first.
-2. Confirm the parsed metrics in a natural way (e.g. "I've noted down that you slept about 6 hours", "I'll log that stress rating as 8").
+2. ${confirmationGuideline}
 3. End by clearly asking the next question: "${nextQuestion}".
 4. Keep it concise, 2-3 sentences. Do not use cliché templates like "I hear you". Do not return markdown codeblocks.`;
 

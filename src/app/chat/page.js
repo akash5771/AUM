@@ -8,6 +8,15 @@ import statements from '@/data/statements.json';
 const ChatInput = memo(({ companionName, onSendMessage, onPhotoUpload, isSendingChat }) => {
   const [inputValue, setInputValue] = useState('');
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+    }
+  }, [inputValue]);
+
 
   const handleSend = () => {
     if (!inputValue.trim() || isSendingChat) return;
@@ -21,8 +30,9 @@ const ChatInput = memo(({ companionName, onSendMessage, onPhotoUpload, isSending
         <button onClick={() => fileInputRef.current?.click()} style={styles.attachBtn}>📷</button>
         <input type="file" ref={fileInputRef} onChange={onPhotoUpload} accept="image/*" style={{ display: 'none' }} />
         
-        <input 
-          type="text" 
+        <textarea 
+          ref={textareaRef}
+          rows={1}
           placeholder={`Message ${companionName}...`}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
@@ -135,6 +145,7 @@ ChecklistSection.displayName = 'ChecklistSection';
 const ChatHistorySection = memo(({
   chatHistory,
   isSendingChat,
+  isAaravTyping,
   activeReactionIdx,
   onReaction,
   onSetActiveReactionIdx
@@ -251,7 +262,8 @@ const ChatHistorySection = memo(({
     }
   });
 
-  if (isSendingChat) {
+  // Show typing indicator only when NOT in multi-shot mode (isAaravTyping covers that)
+  if (isSendingChat && !isAaravTyping) {
     list.push(
       <div 
         key="typing-indicator-bubble" 
@@ -311,6 +323,28 @@ const getActiveStatements = () => {
   return fallback;
 };
 
+// Static style injected once — keeps it out of the render cycle
+const BANNER_STYLE_TAG = `
+  @keyframes bannerPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.97) rotate(-0.5deg); }
+    100% { transform: scale(1); }
+  }
+  .banner-click-animate {
+    animation: bannerPulse 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+`;
+
+if (typeof document !== 'undefined') {
+  const existingTag = document.getElementById('aum-banner-style');
+  if (!existingTag) {
+    const tag = document.createElement('style');
+    tag.id = 'aum-banner-style';
+    tag.textContent = BANNER_STYLE_TAG;
+    document.head.appendChild(tag);
+  }
+}
+
 const InspirationBanner = memo(() => {
   const [statement, setStatement] = useState('');
   const [isFading, setIsFading] = useState(false);
@@ -333,7 +367,6 @@ const InspirationBanner = memo(() => {
   useEffect(() => {
     try {
       const activeList = getActiveStatements();
-      console.log('Hydration check - loaded statements count:', activeList.length);
       if (activeList.length > 0) {
         const initial = activeList[Math.floor(Math.random() * activeList.length)];
         setStatement(initial);
@@ -363,33 +396,21 @@ const InspirationBanner = memo(() => {
   if (!statement) return null;
 
   return (
-    <>
-      <style>{`
-        @keyframes bannerPulse {
-          0% { transform: scale(1); }
-          50% { transform: scale(0.97) rotate(-0.5deg); }
-          100% { transform: scale(1); }
-        }
-        .banner-click-animate {
-          animation: bannerPulse 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-      `}</style>
-      <div 
-        onClick={handleClick}
-        className={isClicking ? 'banner-click-animate' : ''}
-        style={{
-          ...styles.bannerContainer,
-          opacity: isFading ? 0.3 : 1,
-          transition: 'opacity 0.4s ease-in-out'
-        }}
-      >
-        <div style={styles.bannerGlow}></div>
-        <div style={styles.bannerContent}>
-          <span style={styles.bannerIcon}>✨</span>
-          <p style={styles.bannerText}>"{statement}"</p>
-        </div>
+    <div 
+      onClick={handleClick}
+      className={isClicking ? 'banner-click-animate' : ''}
+      style={{
+        ...styles.bannerContainer,
+        opacity: isFading ? 0.3 : 1,
+        transition: 'opacity 0.4s ease-in-out'
+      }}
+    >
+      <div style={styles.bannerGlow}></div>
+      <div style={styles.bannerContent}>
+        <span style={styles.bannerIcon}>✨</span>
+        <p style={styles.bannerText}>"{statement}"</p>
       </div>
-    </>
+    </div>
   );
 });
 InspirationBanner.displayName = 'InspirationBanner';
@@ -403,6 +424,7 @@ export default function ChatPage() {
   const [actions, setActions] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
   const [isSendingChat, setIsSendingChat] = useState(false);
+  const [isAaravTyping, setIsAaravTyping] = useState(false); // typing indicator between multi-shots
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [expandedActionId, setExpandedActionId] = useState(null);
   const [showMoves, setShowMoves] = useState(true);
@@ -410,18 +432,22 @@ export default function ChatPage() {
 
   // Refs
   const chatScrollRef = useRef(null);
+  const isSendingChatRef = useRef(false);
 
   // Fetch initial profile, actions & chat history
   useEffect(() => {
     fetchInitialData();
   }, []);
 
-  // Auto scroll to bottom
+  // Auto scroll to bottom — deferred via rAF to avoid forced layout reflows
   useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
-    }
-  }, [chatHistory, isSendingChat, actions]);
+    const raf = requestAnimationFrame(() => {
+      if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [chatHistory, isSendingChat, isAaravTyping, actions]);
 
   // Poll for personalized actions after initial load
   useEffect(() => {
@@ -468,8 +494,10 @@ export default function ChatPage() {
   };
 
   const handleSendChatMessage = useCallback(async (text) => {
-    if (!text.trim() || isSendingChat) return;
+    // Fix #1: use ref instead of state to avoid closure over stale isSendingChat
+    if (!text.trim() || isSendingChatRef.current) return;
 
+    isSendingChatRef.current = true;
     setIsSendingChat(true);
     // Optimistic user bubble
     setChatHistory(prev => [...prev, { sender: 'User', text, timestamp: new Date().toISOString() }]);
@@ -483,36 +511,194 @@ export default function ChatPage() {
       
       if (!res.ok) throw new Error("API call failed");
 
-      // Append an empty companion bubble that we will stream text into
-      setChatHistory(prev => [...prev, { sender: 'AUM', text: '', timestamp: new Date().toISOString() }]);
-
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let accumulated = "";
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith('data: ')) {
-            const token = trimmed.slice(6);
-            accumulated += token;
+      // ── SSE parsing state ────────────────────────────────────────────────
+      let currentEventType = null; // 'shot_start' | 'shot_end' | null
+      let currentData = '';        // accumulated data value for current event
+      let isMultiShot = false;     // becomes true once we see first shot_start
+
+      // For single-shot (no event: lines), we accumulate into the last bubble
+      let singleShotAccumulated = '';
+      let singleShotBubbleAdded = false;
+
+      // Fix #2a: 32ms throttle for single-shot streaming updates (~30fps)
+      let pendingUpdate = false;
+      const flushSingleShotUpdate = (txt) => {
+        if (pendingUpdate) return;
+        pendingUpdate = true;
+        setTimeout(() => {
+          setChatHistory(prev => {
+            const updated = [...prev];
+            if (updated.length > 0) {
+              updated[updated.length - 1] = { ...updated[updated.length - 1], text: txt };
+            }
+            return updated;
+          });
+          pendingUpdate = false;
+        }, 32);
+      };
+
+      // Fix #2b: 32ms throttle for multi-shot streaming updates (~30fps)
+      let multiShotBuffer = '';
+      let multiShotPending = false;
+      const flushMultiShotUpdate = () => {
+        if (multiShotPending) return;
+        multiShotPending = true;
+        setTimeout(() => {
+          const captured = multiShotBuffer;
+          multiShotBuffer = '';
+          multiShotPending = false;
+          if (!captured) return;
+          setChatHistory(prev => {
+            const updated = [...prev];
+            if (updated.length > 0) {
+              const last = updated[updated.length - 1];
+              if (last.sender === 'AUM') {
+                updated[updated.length - 1] = { ...last, text: (last.text || '') + captured };
+              }
+            }
+            return updated;
+          });
+        }, 32);
+      };
+
+      // Process a complete SSE event (eventType + data already extracted)
+      const processEvent = async (eventType, data) => {
+        if (eventType === 'shot_start') {
+          // ── Enter multi-shot mode ──
+          isMultiShot = true;
+          setIsAaravTyping(true);
+          // Push a new empty AUM bubble that this shot will fill
+          setChatHistory(prev => [...prev, { sender: 'AUM', text: '', timestamp: new Date().toISOString() }]);
+
+        } else if (eventType === 'shot_end') {
+          // ── Shot complete — flush any buffered multi-shot text first ──
+          if (multiShotBuffer) {
+            const remaining = multiShotBuffer;
+            multiShotBuffer = '';
             setChatHistory(prev => {
               const updated = [...prev];
               if (updated.length > 0) {
-                updated[updated.length - 1] = {
-                  ...updated[updated.length - 1],
-                  text: accumulated
-                };
+                const last = updated[updated.length - 1];
+                if (last.sender === 'AUM') {
+                  updated[updated.length - 1] = { ...last, text: (last.text || '') + remaining };
+                }
               }
               return updated;
             });
           }
+          setIsAaravTyping(false);
+          const delayMs = parseInt(data, 10);
+          if (delayMs > 0) {
+            // Show typing bubble for next shot; the delay is on the client side
+            setIsAaravTyping(true);
+            await new Promise(r => setTimeout(r, delayMs));
+            setIsAaravTyping(false);
+          }
+        }
+      };
+
+      let buffer = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process buffer line by line
+        const lines = buffer.split('\n');
+        // Keep the last (potentially incomplete) line in buffer
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (line.trim() === '') {
+            if (currentEventType !== null) {
+              await processEvent(currentEventType, currentData.trim());
+              currentEventType = null;
+              currentData = '';
+            }
+          } else if (line.startsWith('event: ')) {
+            // New event type — flush any previous event
+            if (currentEventType !== null) {
+              await processEvent(currentEventType, currentData.trim());
+            }
+            currentEventType = line.slice(7).trim();
+            currentData = '';
+
+          } else if (line.startsWith('data: ')) {
+            const token = line.slice(6);
+
+            if (currentEventType === 'shot_start' || currentEventType === 'shot_end') {
+              // This data line belongs to a named event — accumulate for processEvent
+              currentData += token;
+
+            } else if (currentEventType === null) {
+              // ── Plain data token (single-shot path OR shot body text) ──
+              if (isMultiShot) {
+                // Fix #2b: accumulate and throttle multi-shot updates
+                multiShotBuffer += token;
+                flushMultiShotUpdate();
+              } else {
+                // Single-shot: add bubble on first token
+                if (!singleShotBubbleAdded) {
+                  singleShotBubbleAdded = true;
+                  setChatHistory(prev => [...prev, { sender: 'AUM', text: '', timestamp: new Date().toISOString() }]);
+                }
+                singleShotAccumulated += token;
+                flushSingleShotUpdate(singleShotAccumulated);
+              }
+            } else {
+              // data line for a named event still pending flush — accumulate
+              currentData += token;
+            }
+
+          } else if (line === '') {
+            // Blank line = end of SSE event
+            if (currentEventType !== null) {
+              await processEvent(currentEventType, currentData.trim());
+              currentEventType = null;
+              currentData = '';
+            }
+          }
         }
       }
+
+      // Process any remaining buffered event
+      if (currentEventType !== null) {
+        await processEvent(currentEventType, currentData.trim());
+      }
+
+      // Fix #2: Final synchronous flush — guarantee no text is ever lost
+      // Single-shot: flush the full accumulated text synchronously
+      if (!isMultiShot && singleShotAccumulated) {
+        setChatHistory(prev => {
+          const updated = [...prev];
+          if (updated.length > 0) {
+            updated[updated.length - 1] = { ...updated[updated.length - 1], text: singleShotAccumulated };
+          }
+          return updated;
+        });
+      }
+      // Multi-shot: flush any remaining buffered text synchronously
+      if (isMultiShot && multiShotBuffer) {
+        const remaining = multiShotBuffer;
+        multiShotBuffer = '';
+        setChatHistory(prev => {
+          const updated = [...prev];
+          if (updated.length > 0) {
+            const last = updated[updated.length - 1];
+            if (last.sender === 'AUM') {
+              updated[updated.length - 1] = { ...last, text: (last.text || '') + remaining };
+            }
+          }
+          return updated;
+        });
+      }
+
+      // Ensure typing bubble is cleared
+      setIsAaravTyping(false);
 
       // Sync actions list which might update after background signals process
       const actRes = await fetch('/api/actions');
@@ -520,10 +706,13 @@ export default function ChatPage() {
       setActions(actData);
     } catch (e) {
       console.error("Error sending message:", e);
+      setIsAaravTyping(false);
     } finally {
+      isSendingChatRef.current = false;
       setIsSendingChat(false);
     }
-  }, [isSendingChat]);
+  // Fix #1: empty deps — isSendingChatRef.current used instead of isSendingChat state
+  }, []);
 
   const handlePhotoUpload = useCallback(async (e) => {
     const files = e.target.files;
@@ -700,10 +889,38 @@ export default function ChatPage() {
             <ChatHistorySection
               chatHistory={chatHistory}
               isSendingChat={isSendingChat}
+              isAaravTyping={isAaravTyping}
               activeReactionIdx={activeReactionIdx}
               onReaction={handleReaction}
               onSetActiveReactionIdx={handleSetActiveReactionIdx}
             />
+            {/* Multi-shot typing bubble — shows between shots */}
+            {isAaravTyping && (
+              <div
+                style={{
+                  ...styles.bubbleWrapper,
+                  justifyContent: 'flex-start',
+                  marginTop: '0.5rem'
+                }}
+              >
+                <div
+                  style={{
+                    ...styles.bubble,
+                    background: '#1e2235',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    borderBottomRightRadius: '0.85rem',
+                    borderBottomLeftRadius: '0.15rem',
+                    padding: '0.7rem 1rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: '5px', alignItems: 'center', height: '18px' }}>
+                    <span className="typing-dot"></span>
+                    <span className="typing-dot"></span>
+                    <span className="typing-dot"></span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -905,15 +1122,32 @@ const styles = {
   starBtn: { background: 'transparent', border: 'none', fontSize: '0.85rem', cursor: 'pointer' },
   feedInputPanel: { background: 'rgba(20, 24, 35, 0.8)', padding: '0.75rem 1.25rem' },
   attachBtn: { background: 'rgba(255,255,255,0.03)', border: 'none', color: '#9ca3af', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', fontSize: '1rem' },
-  chatInput: { flex: 1, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '1.5rem', padding: '0.6rem 1rem', color: '#fff', fontSize: '0.9rem', outline: 'none' },
+  chatInput: { 
+    flex: 1, 
+    background: 'rgba(255,255,255,0.04)', 
+    border: '1px solid rgba(255,255,255,0.08)', 
+    borderRadius: '1.5rem', 
+    padding: '0.6rem 1rem', 
+    color: '#fff', 
+    fontSize: '0.9rem', 
+    outline: 'none',
+    resize: 'none',
+    overflowY: 'auto',
+    height: 'auto',
+    minHeight: '24px',
+    maxHeight: '160px',
+    lineHeight: '1.4',
+    fontFamily: 'inherit'
+  },
   sendBtn: { background: 'rgba(18, 140, 126, 0.9)', border: 'none', color: '#fff', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'opacity 0.2s' },
   loadingContainer: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#040508' },
   spinner: { width: '30px', height: '30px', border: '3px solid rgba(255, 255, 255, 0.04)', borderTopColor: '#25d366', borderRadius: '50%', animation: 'spin 1s linear infinite' },
   bannerContainer: {
     position: 'relative',
-    background: 'rgba(15, 18, 28, 0.45)',
-    backdropFilter: 'blur(12px)',
-    WebkitBackdropFilter: 'blur(12px)',
+    // NOTE: backdropFilter removed — it was causing full GPU recomposition on
+    // every React state update (including each keystroke), making typing feel laggy.
+    // Using an opaque background instead preserves the visual without the perf cost.
+    background: 'rgba(15, 18, 28, 0.92)',
     borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
     borderTop: '1px solid rgba(255, 255, 255, 0.03)',
     padding: '0.85rem 1.25rem',
@@ -924,6 +1158,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     boxShadow: '0 4px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+    // Promote to its own compositing layer so animations don't affect siblings
+    willChange: 'opacity',
   },
   bannerGlow: {
     position: 'absolute',

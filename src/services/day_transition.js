@@ -5,6 +5,7 @@
  */
 
 import { computeStatisticalInsights } from './statistics.js';
+import { getMomentumDayString, getKolkataTime } from './db.js';
 
 // Fallback simulator for day transition chat summaries
 function simulateTransitionSummary(yesterdayLogs) {
@@ -29,10 +30,11 @@ export async function orchestrateDayTransition(db, queryGeminiFn) {
   db.profile.failure_repository = db.profile.failure_repository || [];
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const now = db.virtual_time ? new Date(db.virtual_time) : new Date();
-  const dayOfWeek = days[now.getDay()];
+  const kNow = getKolkataTime(now);
+  const dayOfWeek = days[kNow.getDay()];
   
   let timeOfDay = "Morning";
-  const hours = now.getHours();
+  const hours = kNow.getHours();
   if (hours >= 12 && hours < 17) timeOfDay = "Afternoon";
   else if (hours >= 17 && hours < 21) timeOfDay = "Evening";
   else if (hours >= 21 || hours < 5) timeOfDay = "Night";
@@ -101,7 +103,7 @@ export async function orchestrateDayTransition(db, queryGeminiFn) {
   const completedCategories = actions.filter(a => a.status === 'done').map(a => a.category);
 
   const yesterdayLog = {
-    date: context.last_logged || now.toISOString().split('T')[0],
+    date: context.last_logged || getMomentumDayString(now),
     sleep_hours: sleepHours,
     sleep_quality: context.sleep?.quality || 'good',
     energy: context.sleep?.energy || 7,

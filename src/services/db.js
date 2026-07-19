@@ -57,6 +57,7 @@ const DEFAULT_DB = {
     intentional_days_count: 0,
     intentional_days_rate: 0,
     last_recommended_timestamps: {},
+    rating_adjustments: {},
     companion_name: "Aarav",
     onboarding_completed: false,
     water_cups: 0
@@ -100,7 +101,20 @@ const DEFAULT_DB = {
     current_experiments: []
   },
   history: [], // Capped 90-day progress history ledger
-  virtual_time: null // Holds the virtual time override ISO string
+  virtual_time: null, // Holds the virtual time override ISO string
+  signal_state: {
+    date: "",
+    last_triggered_at: null,
+    pending_tasks: {},
+    counters: {
+      stress: 0,
+      anxiety: 0,
+      joy: 0,
+      happiness: 0,
+      pride: 0,
+      focus: 0
+    }
+  }
 };
 
 // Ensure the data directory exists
@@ -124,6 +138,11 @@ export async function readDB() {
     const merged = { ...DEFAULT_DB, ...parsed };
     merged.profile = { ...DEFAULT_DB.profile, ...parsed.profile };
     merged.context = { ...DEFAULT_DB.context, ...parsed.context };
+    merged.signal_state = { ...DEFAULT_DB.signal_state, ...parsed.signal_state };
+    if (!merged.signal_state.pending_tasks) merged.signal_state.pending_tasks = {};
+    if (merged.signal_state && parsed.signal_state && parsed.signal_state.counters) {
+      merged.signal_state.counters = { ...DEFAULT_DB.signal_state.counters, ...parsed.signal_state.counters };
+    }
     
     // Merge memory sub-layer cleanly
     merged.memory = { ...DEFAULT_DB.memory, ...parsed.memory };
@@ -148,6 +167,25 @@ export async function readDB() {
   }
 }
 
+export function getSignalState(db, todayStr) {
+  if (!db.signal_state) {
+    db.signal_state = {
+      date: todayStr,
+      last_triggered_at: null,
+      pending_tasks: {},
+      counters: { stress: 0, anxiety: 0, joy: 0, happiness: 0, pride: 0, focus: 0 }
+    };
+  } else if (db.signal_state.date !== todayStr) {
+    db.signal_state.date = todayStr;
+    db.signal_state.counters = { stress: 0, anxiety: 0, joy: 0, happiness: 0, pride: 0, focus: 0 };
+    db.signal_state.pending_tasks = {};
+  }
+  if (!db.signal_state.pending_tasks) {
+    db.signal_state.pending_tasks = {};
+  }
+  return db.signal_state;
+}
+
 // Write the database
 export async function writeDB(db) {
   await ensureDir();
@@ -161,6 +199,11 @@ export function getDbCurrentTime(db) {
     return new Date(db.virtual_time);
   }
   return new Date();
+}
+
+export function getKolkataTime(date) {
+  const str = new Date(date).toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+  return new Date(str);
 }
 
 // Update profile fields
@@ -385,6 +428,18 @@ export async function toggleActionStatus(actionId, status) {
       });
     }
 
+    if (db.signal_state && db.signal_state.pending_tasks && db.signal_state.pending_tasks[actionId]) {
+      if (status === 'done') {
+        const signalType = db.signal_state.pending_tasks[actionId];
+        if (db.signal_state.counters && db.signal_state.counters[signalType] !== undefined) {
+          db.signal_state.counters[signalType] = Math.max(0, db.signal_state.counters[signalType] - 20);
+        }
+        delete db.signal_state.pending_tasks[actionId];
+      } else if (status === 'skipped' || status === 'ignored') {
+        delete db.signal_state.pending_tasks[actionId];
+      }
+    }
+
     await writeDB(db);
   }
 
@@ -467,8 +522,8 @@ export async function addMemory(text, category) {
 // Helper to determine if we crossed the 6 AM day boundary between oldTime and newTime
 export function hasCrossed6AM(oldTimeStr, newTimeStr) {
   if (!oldTimeStr || !newTimeStr) return false;
-  const oldTime = new Date(oldTimeStr);
-  const newTime = new Date(newTimeStr);
+  const oldTime = getKolkataTime(oldTimeStr);
+  const newTime = getKolkataTime(newTimeStr);
   
   if (newTime <= oldTime) return false;
   
@@ -497,11 +552,14 @@ export async function processDayTransition(db) {
 
 // Get the momentum day string (shifting date back by 1 if before 6 AM)
 export function getMomentumDayString(date) {
-  const d = new Date(date);
+  const d = getKolkataTime(date);
   if (d.getHours() < 6) {
     d.setDate(d.getDate() - 1);
   }
-  return d.toISOString().split('T')[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 
